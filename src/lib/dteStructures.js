@@ -69,6 +69,29 @@ export const RETENTION_STRUCTURE = [
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalIVAretenidoLetras'] }
 ];
 
+export const PUBLIC_QUERY_COLUMNS = [
+  { name: 'Estado del DTE', sections: ['estadoDoc'], fields: ['*'] },
+  { name: 'Descripcion del DTE', sections: ['descripcionEstado'], fields: ['*'] },
+  { name: 'Tipo de DTE', sections: ['tipoDte', 'identificacion'], fields: ['*', 'tipoDte'] },
+  { name: 'Fecha y hora de generacion', sections: ['fechaProcesado'], fields: ['*'] },
+  { name: 'Codigo de Generacion', sections: ['codGen', 'identificacion'], fields: ['*', 'codigoGeneracion'] },
+  { name: 'Sello de Recepcion', sections: ['selloVal', 'selloRecibido', 'sello', 'selloRecepcion'], fields: ['*'] },
+  { name: 'Numero de Control Consulta', sections: ['documento'], fields: ['numeroControl'] },
+  {
+    name: 'Documento ajustado',
+    sections: ['ajustes', 'documentoAjustado', 'docAjustado'],
+    fields: ['*'],
+    searchKeys: ['documentoAjustado', 'docAjustado', 'ajustado', 'ajustes']
+  },
+  {
+    name: 'Documento con Evento aplicado',
+    sections: ['evento', 'eventos', 'eventoAplicado', 'documentoEvento'],
+    fields: ['*'],
+    searchKeys: ['eventoAplicado', 'documentoEvento', 'eventos', 'evento']
+  },
+  { name: 'Documentos Relacionados', sections: ['documento', 'ajustes', 'documentoRelacionado'], fields: ['nombDte', 'ajustes', '*'] }
+];
+
 export const STRUCTURES_BY_DTE = {
   '01': DEFAULT_STRUCTURE,
   '03': DEFAULT_STRUCTURE,
@@ -99,5 +122,5 @@ export const STRUCTURES_BY_DTE = {
 };
 
 export function getStructureForType(typeCode) {
-  return STRUCTURES_BY_DTE[typeCode] || DEFAULT_STRUCTURE;
+  return [...(STRUCTURES_BY_DTE[typeCode] || DEFAULT_STRUCTURE), ...PUBLIC_QUERY_COLUMNS];
 }

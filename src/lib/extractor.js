@@ -95,21 +95,6 @@ function extractFromPlainObject(source, fields, style) {
   return values.join('; ');
 }
 
-function addItemColumns(row, payload, structure) {
-  const items = Array.isArray(payload?.cuerpoDocumento) ? payload.cuerpoDocumento : [];
-
-  for (const rule of structure) {
-    if (rule.perItem) {
-      row[rule.name] = items
-        .map((item) => extractFromPlainObject(item, rule.fields, rule.style))
-        .filter(Boolean)
-        .join('\n');
-    }
-  }
-
-  return row;
-}
-
 function addIndexedValue(index, key, value) {
   if (value === null || value === undefined || value === '') return;
   const normalizedKey = normalizeKey(key);
@@ -156,6 +141,11 @@ function findIndexedSection(index, sectionName) {
   return index.sections.get(normalizeKey(sectionName));
 }
 
+function findIndexedAny(index, keyName) {
+  const normalizedKey = normalizeKey(keyName);
+  return index.sections.get(normalizedKey) ?? index.fields.get(normalizedKey) ?? '';
+}
+
 function extractField(payloadIndex, rule) {
   for (const sectionName of rule.sections) {
     const section = findIndexedSection(payloadIndex, sectionName);
@@ -194,6 +184,13 @@ function extractField(payloadIndex, rule) {
     if (value !== '') return value;
   }
 
+  if (rule.searchKeys?.length) {
+    for (const searchKey of rule.searchKeys) {
+      const value = findIndexedAny(payloadIndex, searchKey);
+      if (value !== '') return value;
+    }
+  }
+
   return '';
 }
 
@@ -217,17 +214,23 @@ export function extractRows(documents, options = {}) {
 
     const dte = DTE_TYPES.find((item) => item.code === actualCode) || { code: actualCode || 'ND', label: 'No detectado' };
     const structure = getStructureForType(dte.code);
+    const items = Array.isArray(document.payload?.cuerpoDocumento) ? document.payload.cuerpoDocumento : [];
     const baseRow = {
       __sourceFile: document.sourceFile || ''
     };
 
     for (const rule of structure) {
-      if (!rule.perItem) {
+      if (rule.perItem) {
+        baseRow[rule.name] = items
+          .map((item) => extractFromPlainObject(item, rule.fields, rule.style))
+          .filter(Boolean)
+          .join('\n');
+      } else {
         baseRow[rule.name] = formatValue(extractField(payloadIndex, rule), rule.style);
       }
     }
 
-    return addItemColumns(baseRow, document.payload, structure);
+    return baseRow;
   }).filter((row) => {
     if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
     if (!fromTime && !toTime) return true;

@@ -46,8 +46,31 @@ const COLUMN_WIDTHS = {
   'Precio Unitario': 150,
   'Descuento Item': 150,
   'Venta Gravada': 150,
-  Compra: 150
+  Compra: 150,
+  'Estado del DTE': 240,
+  'Descripcion del DTE': 360,
+  'Tipo de DTE': 130,
+  'Fecha y hora de generacion': 220,
+  'Codigo de Generacion': 300,
+  'Sello de Recepcion': 320,
+  'Numero de Control Consulta': 300,
+  'Documento ajustado': 420,
+  'Documento con Evento aplicado': 420,
+  'Documentos Relacionados': 520
 };
+
+const PUBLIC_QUERY_COLUMNS = new Set([
+  'Estado del DTE',
+  'Descripcion del DTE',
+  'Tipo de DTE',
+  'Fecha y hora de generacion',
+  'Codigo de Generacion',
+  'Sello de Recepcion',
+  'Numero de Control Consulta',
+  'Documento ajustado',
+  'Documento con Evento aplicado',
+  'Documentos Relacionados'
+]);
 
 function getVisibleRange(scrollTop, viewportHeight, rowCount) {
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -140,7 +163,11 @@ export function VirtualDataTable({ columnFilters, columns, filterSourceRows, onC
         >
           <div className="virtualHeader" role="row" style={{ gridTemplateColumns }}>
             {columns.map((column) => (
-              <div className="virtualHeadCell" key={column} role="columnheader">
+              <div
+                className={`virtualHeadCell ${PUBLIC_QUERY_COLUMNS.has(column) ? 'publicQueryHeadCell' : ''}`}
+                key={column}
+                role="columnheader"
+              >
                 <span className="truncate">{column}</span>
                 <button
                   className={`excelFilterButton ${columnFilters[column]?.length ? 'active' : ''}`}

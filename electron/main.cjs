@@ -4,6 +4,7 @@ const fs = require('fs/promises');
 const Papa = require('papaparse');
 const ExcelJS = require('exceljs');
 const axios = require('axios');
+const https = require('https');
 
 const isDev = !app.isPackaged;
 const EXCEL_FONT = 'Tw Cen MT Condensed';
@@ -12,6 +13,11 @@ const TABLE_HEADER_FILL = 'FF2EA8C9';
 const TABLE_ALT_FILL = 'FFF1FDFF';
 const TABLE_WHITE_FILL = 'FFFFFFFF';
 const TABLE_DUPLICATE_FILL = 'FFFFF2CC';
+const publicQueryHttp = axios.create({
+  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+  timeout: 8000
+});
+const publicQueryCache = new Map();
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -85,11 +91,12 @@ async function loadFiles(filePaths, sourcePath) {
     try {
       const items = await readDataFile(filePath);
       for (const item of items) {
+        const payload = await enrichWithPublicQuery(item);
         documents.push({
           sourceFile: filePath,
           fileName: path.basename(filePath),
           folderName: path.basename(path.dirname(filePath)),
-          payload: item
+          payload
         });
       }
     } catch (error) {
@@ -98,6 +105,61 @@ async function loadFiles(filePaths, sourcePath) {
   }
 
   return { documents, errors, sourcePath };
+}
+
+function findValue(source, fieldName) {
+  if (!source || typeof source !== 'object') return '';
+  if (Object.prototype.hasOwnProperty.call(source, fieldName)) return source[fieldName];
+
+  const stack = [source];
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== 'object') continue;
+    if (Object.prototype.hasOwnProperty.call(current, fieldName)) return current[fieldName];
+    for (const value of Object.values(current)) {
+      if (value && typeof value === 'object') stack.push(value);
+    }
+  }
+
+  return '';
+}
+
+function normalizePublicDate(value) {
+  const text = String(value || '').trim();
+  const dayFirst = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dayFirst) {
+    const [, day, month, year] = dayFirst;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+  return text.slice(0, 10);
+}
+
+async function enrichWithPublicQuery(payload) {
+  if (!payload || typeof payload !== 'object' || findValue(payload, 'estadoDoc')) return payload;
+
+  const ambiente = String(findValue(payload, 'ambiente') || '01').padStart(2, '0');
+  const codigoGeneracion = String(findValue(payload, 'codigoGeneracion') || findValue(payload, 'codGen') || '').trim();
+  const fechaEmi = normalizePublicDate(findValue(payload, 'fecEmi') || findValue(payload, 'fechaEmi'));
+
+  if (!codigoGeneracion || !fechaEmi) return payload;
+
+  const basePath = ambiente === '01' ? 'prod' : 'test';
+  const url = `https://admin.factura.gob.sv/${basePath}/consultas/publica/simple/1`;
+  const cacheKey = `${ambiente}|${codigoGeneracion}|${fechaEmi}`;
+
+  try {
+    if (!publicQueryCache.has(cacheKey)) {
+      publicQueryCache.set(cacheKey, publicQueryHttp.get(url, {
+        params: { ambiente, codigoGeneracion, fechaEmi }
+      }).then((response) => response.data).catch(() => null));
+    }
+
+    const data = await publicQueryCache.get(cacheKey);
+    if (!data || typeof data !== 'object' || data.estadoDoc === 'Error') return payload;
+    return { ...payload, ...data, __consultaPublica: data };
+  } catch {
+    return payload;
+  }
 }
 
 ipcMain.handle('folder:select', async () => {

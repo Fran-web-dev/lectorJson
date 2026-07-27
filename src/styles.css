@@ -97,6 +97,10 @@ body {
     @apply relative flex h-[42px] items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 px-2 text-left font-bold text-white;
   }
 
+  .publicQueryHeadCell {
+    @apply border-green-200 bg-green-300 text-slate-950;
+  }
+
   .excelFilterButton {
     @apply flex h-5 w-5 shrink-0 items-center justify-center border border-sky-700 bg-white text-[10px] font-bold leading-none text-slate-700 shadow-sm transition hover:bg-sky-50;
   }
