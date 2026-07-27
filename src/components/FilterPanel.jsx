@@ -1,5 +1,5 @@
 import { FileJson, FolderOpen, Sheet } from 'lucide-react';
-import { DTE_TYPES } from '../lib/dteStructures.js';
+import { DTE_TYPES } from '../lib/dteTypes.js';
 
 export function FilterPanel({
   folder,

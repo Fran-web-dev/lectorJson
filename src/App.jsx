@@ -5,9 +5,8 @@ import { FilterPanel } from './components/FilterPanel.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
-import { LOCAL_GENERATION_CODE_COLUMN } from './lib/dteStructures.js';
-import { extractRows } from './lib/extractor.js';
 
+const LOCAL_GENERATION_CODE_COLUMN = 'Codigo de generacion local';
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
   default: module.VirtualDataTable
 })));
@@ -40,15 +39,31 @@ export default function App() {
   const [selectedRow, setSelectedRow] = useState(null);
   const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON o CSV.');
   const [loading, setLoading] = useState(false);
+  const [rows, setRows] = useState([]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1100);
     return () => window.clearTimeout(timer);
   }, []);
-  const rows = useMemo(
-    () => markDuplicateRows(extractRows(documents, { typeCode, fromDate, toDate })),
-    [documents, typeCode, fromDate, toDate]
-  );
+  useEffect(() => {
+    let cancelled = false;
+    if (!documents.length) {
+      setRows([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    import('./lib/extractor.js').then(({ extractRows }) => {
+      if (!cancelled) {
+        setRows(markDuplicateRows(extractRows(documents, { typeCode, fromDate, toDate })));
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documents, typeCode, fromDate, toDate]);
 
   const columns = useMemo(
     () => orderColumns(Object.keys(rows[0] || {}).filter((key) => !key.startsWith('__'))),
@@ -58,6 +73,11 @@ export default function App() {
   const filteredRows = useMemo(
     () => applyColumnFilters(rows, columnFilters),
     [rows, columnFilters]
+  );
+
+  const dteSummary = useMemo(
+    () => typeCode === 'all' ? summarizeDteTypes(filteredRows) : [],
+    [filteredRows, typeCode]
   );
 
   const { exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
@@ -237,6 +257,7 @@ export default function App() {
       <section className="px-6 py-4">
         <StatusBar
           columnCount={columns.length}
+          dteSummary={dteSummary}
           loadedCount={documents.length}
           loading={loading}
           onFillReceptionStamps={fillMissingReceptionStamps}
@@ -354,6 +375,19 @@ function applyColumnFilters(rows, filters) {
   return rows.filter((row) => filterSets.every(([column, value]) => (
     value.has(String(row[column] ?? ''))
   )));
+}
+
+function summarizeDteTypes(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const code = String(row['Tipo DTE'] || '').trim().padStart(2, '0');
+    if (!code || code === '00') continue;
+    counts.set(code, (counts.get(code) || 0) + 1);
+  }
+
+  return Array.from(counts.entries())
+    .sort(([firstCode], [secondCode]) => firstCode.localeCompare(secondCode, 'es'))
+    .map(([code, count]) => ({ code, count }));
 }
 
 function normalizeDuplicateKey(value) {
