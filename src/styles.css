@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+}
+
+@layer components {
+  .label {
+    @apply mb-1 block text-sm font-bold text-slate-900;
+  }
+
+  .field {
+    @apply h-9 flex-1 border-b-2 border-slate-900 bg-white px-2 py-2 text-sm text-slate-700;
+  }
+
+  .input,
+  .select,
+  .dateInput {
+    @apply h-9 w-full border border-slate-300 bg-white px-2 text-sm outline-none transition focus:border-red-600 focus:ring-1 focus:ring-red-600;
+  }
+
+  .select {
+    @apply border-x-0 border-t-0 border-b-2 border-slate-900;
+  }
+
+  .iconButton,
+  .actionButton {
+    @apply inline-flex h-9 items-center justify-center gap-2 border border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
+  }
+
+  .iconButton {
+    @apply w-10 px-0;
+  }
+
+  .tableFrame {
+    @apply flex border border-slate-200 bg-white;
+    flex-direction: column;
+    height: calc(100vh - 245px);
+    min-height: 260px;
+  }
+
+  .tableViewport {
+    @apply overflow-y-auto overflow-x-hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .horizontalScrollbar {
+    @apply h-5 overflow-x-auto overflow-y-hidden border-t border-slate-200 bg-slate-50;
+    flex: 0 0 20px;
+    position: sticky;
+    bottom: 0;
+    z-index: 20;
+  }
+
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  th {
+    @apply sticky top-0 border-b border-r border-slate-200 bg-slate-100 px-3 py-2 text-left font-bold text-slate-900;
+  }
+
+  td {
+    @apply max-w-80 border-b border-r border-slate-100 px-3 py-2 align-top text-slate-700;
+  }
+
+  tr:hover td {
+    @apply bg-red-50;
+  }
+
+  .empty {
+    @apply py-16 text-center text-slate-500;
+  }
+
+  .virtualTable {
+    @apply min-w-full text-sm;
+  }
+
+  .virtualBody {
+    position: relative;
+  }
+
+  .virtualHeader,
+  .virtualRow {
+    display: grid;
+  }
+
+  .virtualHeader {
+    @apply sticky top-0 z-30 bg-sky-500;
+    height: 42px;
+  }
+
+  .virtualHeadCell {
+    @apply relative flex h-[42px] items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 px-2 text-left font-bold text-white;
+  }
+
+  .excelFilterButton {
+    @apply flex h-5 w-5 shrink-0 items-center justify-center border border-sky-700 bg-white text-[10px] font-bold leading-none text-slate-700 shadow-sm transition hover:bg-sky-50;
+  }
+
+  .excelFilterButton.active {
+    @apply border-yellow-700 bg-yellow-200 text-slate-950;
+  }
+
+  .excelFilterMenu {
+    @apply absolute right-1 top-9 z-50 w-72 border border-slate-400 bg-white p-2 text-slate-900 shadow-xl;
+  }
+
+  .excelFilterTitle {
+    @apply mb-2 truncate border-b border-slate-200 pb-1 text-sm font-bold text-slate-900;
+  }
+
+  .excelFilterSearch {
+    @apply mb-2 h-8 w-full border border-slate-300 px-2 text-sm font-normal text-slate-900 outline-none focus:border-sky-600;
+  }
+
+  .excelFilterActions {
+    @apply mb-2 flex gap-1;
+  }
+
+  .excelFilterActions button {
+    @apply border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-sky-50;
+  }
+
+  .excelFilterValues {
+    @apply max-h-60 overflow-y-auto border border-slate-200 bg-white;
+  }
+
+  .excelFilterOption {
+    @apply flex cursor-pointer items-center gap-2 border-b border-slate-100 px-2 py-1 text-sm font-normal text-slate-800 hover:bg-sky-50;
+  }
+
+  .excelFilterOption input {
+    @apply h-4 w-4;
+  }
+
+  .virtualRow {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 72px;
+  }
+
+  .virtualCell {
+    @apply flex h-[72px] items-start overflow-auto whitespace-pre-line border-b border-r border-sky-100 px-3 py-2 align-top leading-5 text-slate-700;
+  }
+
+  .virtualRow:nth-child(odd) .virtualCell {
+    background-color: #f1fdff;
+  }
+
+  .virtualRow:nth-child(even) .virtualCell {
+    @apply bg-white;
+  }
+
+  .virtualRow:hover .virtualCell {
+    @apply bg-sky-100;
+  }
+
+  .duplicateRow .virtualCell,
+  .duplicateRow:hover .virtualCell {
+    background-color: #fef08a !important;
+  }
+
+  .duplicateCell {
+    background-color: #fef08a !important;
+  }
+}

@@ -1,0 +1,91 @@
+{
+  "identificacion": {
+    "version": 3,
+    "ambiente": "00",
+    "tipoDte": "03",
+    "numeroControl": "DTE-03-00000002-000000000000987",
+    "codigoGeneracion": "FF001122-3344-5566-7788-99AABBCCDDEE",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2026-07-26",
+    "horEmi": "14:12:09",
+    "tipoMoneda": "USD"
+  },
+  "selloRecepcion": "MH-SELLO-RECEPCION-000987654321",
+  "emisor": {
+    "nit": "06142811231015",
+    "nrc": "1234567",
+    "nombre": "Servicios Tecnicos del Pacifico SA de CV",
+    "codActividad": "62020",
+    "descActividad": "Consultoria informatica",
+    "nombreComercial": "STP Consultores",
+    "telefono": "2525-9090",
+    "correo": "dte@stp.example",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "23",
+      "complemento": "San Salvador, Torre Empresarial, Nivel 4"
+    }
+  },
+  "receptor": {
+    "nit": "06140101991012",
+    "nrc": "7654321",
+    "nombre": "Inversiones El Volcan SA de CV",
+    "codActividad": "46900",
+    "descActividad": "Venta al por mayor de diversos productos",
+    "nombreComercial": "El Volcan",
+    "correo": "contabilidad@elvolcan.example",
+    "direccion": {
+      "departamento": "05",
+      "municipio": "22",
+      "complemento": "Santa Tecla, Parque Industrial, Bodega 8"
+    }
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 2,
+      "cantidad": 1,
+      "codigo": "SERV-ERP-01",
+      "descripcion": "Implementacion modulo facturacion electronica",
+      "precioUni": 950,
+      "montoDescu": 50,
+      "ventaGravada": 900
+    },
+    {
+      "numItem": 2,
+      "tipoItem": 2,
+      "cantidad": 5,
+      "codigo": "SERV-SOP-10",
+      "descripcion": "Horas soporte tecnico especializado",
+      "precioUni": 45,
+      "montoDescu": 0,
+      "ventaGravada": 225
+    }
+  ],
+  "resumen": {
+    "totalNoSuj": 0,
+    "totalExenta": 0,
+    "totalGravada": 1125,
+    "subTotalVentas": 1125,
+    "totalDescu": 50,
+    "subTotal": 1075,
+    "ivaRete1": 10.75,
+    "ivaPerci1": 0,
+    "reteRenta": 0,
+    "montoTotalOperacion": 1214.25,
+    "totalPagar": 1214.25,
+    "totalLetras": "MIL DOSCIENTOS CATORCE 25/100 DOLARES",
+    "totalIva": 139.75,
+    "saldoFavor": 0,
+    "condicionOperacion": 2,
+    "observaciones": "Credito fiscal por servicios profesionales."
+  },
+  "extension": {
+    "nombEntrega": "Ana Martinez",
+    "docuEntrega": "06140000111122",
+    "nombRecibe": "Luis Hernandez",
+    "docuRecibe": "06140000333344",
+    "observaciones": "Entregado a departamento de contabilidad."
+  }
+}

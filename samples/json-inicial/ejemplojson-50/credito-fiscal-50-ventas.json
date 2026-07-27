@@ -1,0 +1,571 @@
+{
+  "identificacion": {
+    "version": 3,
+    "ambiente": "00",
+    "tipoDte": "03",
+    "numeroControl": "DTE-03-00000050-000000000000050",
+    "codigoGeneracion": "00501122-3344-5566-7788-99AABBCCDDEE",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2026-07-26",
+    "horEmi": "14:12:09",
+    "tipoMoneda": "USD"
+  },
+  "selloRecepcion": "MH-SELLO-RECEPCION-PRUEBA-50",
+  "emisor": {
+    "nit": "06142811231015",
+    "nrc": "1234567",
+    "nombre": "Servicios Tecnicos del Pacifico SA de CV",
+    "codActividad": "62020",
+    "descActividad": "Consultoria informatica",
+    "nombreComercial": "STP Consultores",
+    "telefono": "2525-9090",
+    "correo": "dte@stp.example",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "23",
+      "complemento": "San Salvador, Torre Empresarial, Nivel 4"
+    }
+  },
+  "receptor": {
+    "nit": "06140101991012",
+    "nrc": "7654321",
+    "nombre": "Inversiones El Volcan SA de CV",
+    "codActividad": "46900",
+    "descActividad": "Venta al por mayor de diversos productos",
+    "nombreComercial": "El Volcan",
+    "correo": "contabilidad@elvolcan.example",
+    "direccion": {
+      "departamento": "05",
+      "municipio": "22",
+      "complemento": "Santa Tecla, Parque Industrial, Bodega 8"
+    }
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 1,
+      "cantidad": 1,
+      "codigo": "SERV-ERP-0001",
+      "descripcion": "Implementacion modulo facturacion electronica #1",
+      "precioUni": 950,
+      "montoDescu": 38,
+      "ventaGravada": 912
+    },
+    {
+      "numItem": 2,
+      "tipoItem": 2,
+      "cantidad": 2,
+      "codigo": "SERV-SOP-0002",
+      "descripcion": "Horas soporte tecnico especializado #2",
+      "precioUni": 47.15,
+      "montoDescu": 0,
+      "ventaGravada": 94.3
+    },
+    {
+      "numItem": 3,
+      "tipoItem": 2,
+      "cantidad": 3,
+      "codigo": "LIC-CRM-0003",
+      "descripcion": "Licencia mensual CRM empresarial #3",
+      "precioUni": 42.8,
+      "montoDescu": 0,
+      "ventaGravada": 128.4
+    },
+    {
+      "numItem": 4,
+      "tipoItem": 2,
+      "cantidad": 4,
+      "codigo": "CONS-DTE-0004",
+      "descripcion": "Consultoria fiscal DTE El Salvador #4",
+      "precioUni": 131.45,
+      "montoDescu": 0,
+      "ventaGravada": 525.8
+    },
+    {
+      "numItem": 5,
+      "tipoItem": 1,
+      "cantidad": 5,
+      "codigo": "MANT-SRV-0005",
+      "descripcion": "Mantenimiento preventivo de servidores #5",
+      "precioUni": 218.6,
+      "montoDescu": 0,
+      "ventaGravada": 1093
+    },
+    {
+      "numItem": 6,
+      "tipoItem": 2,
+      "cantidad": 6,
+      "codigo": "CAP-CONT-0006",
+      "descripcion": "Capacitacion equipo contable #6",
+      "precioUni": 85.75,
+      "montoDescu": 0,
+      "ventaGravada": 514.5
+    },
+    {
+      "numItem": 7,
+      "tipoItem": 2,
+      "cantidad": 7,
+      "codigo": "AUD-SIS-0007",
+      "descripcion": "Auditoria de sistemas y respaldo #7",
+      "precioUni": 197.9,
+      "montoDescu": 0,
+      "ventaGravada": 1385.3
+    },
+    {
+      "numItem": 8,
+      "tipoItem": 2,
+      "cantidad": 8,
+      "codigo": "INT-API-0008",
+      "descripcion": "Integracion API Hacienda y ERP #8",
+      "precioUni": 335.05,
+      "montoDescu": 0,
+      "ventaGravada": 2680.4
+    },
+    {
+      "numItem": 9,
+      "tipoItem": 1,
+      "cantidad": 9,
+      "codigo": "SOP-REM-0009",
+      "descripcion": "Soporte remoto especializado #9",
+      "precioUni": 72.2,
+      "montoDescu": 25.99,
+      "ventaGravada": 623.81
+    },
+    {
+      "numItem": 10,
+      "tipoItem": 2,
+      "cantidad": 1,
+      "codigo": "DOC-TEC-0010",
+      "descripcion": "Documentacion tecnica de procesos #10",
+      "precioUni": 61.35,
+      "montoDescu": 0,
+      "ventaGravada": 61.35
+    },
+    {
+      "numItem": 11,
+      "tipoItem": 2,
+      "cantidad": 2,
+      "codigo": "SERV-ERP-0011",
+      "descripcion": "Implementacion modulo facturacion electronica #11",
+      "precioUni": 971.5,
+      "montoDescu": 0,
+      "ventaGravada": 1943
+    },
+    {
+      "numItem": 12,
+      "tipoItem": 2,
+      "cantidad": 3,
+      "codigo": "SERV-SOP-0012",
+      "descripcion": "Horas soporte tecnico especializado #12",
+      "precioUni": 68.65,
+      "montoDescu": 0,
+      "ventaGravada": 205.95
+    },
+    {
+      "numItem": 13,
+      "tipoItem": 1,
+      "cantidad": 4,
+      "codigo": "LIC-CRM-0013",
+      "descripcion": "Licencia mensual CRM empresarial #13",
+      "precioUni": 64.3,
+      "montoDescu": 0,
+      "ventaGravada": 257.2
+    },
+    {
+      "numItem": 14,
+      "tipoItem": 2,
+      "cantidad": 5,
+      "codigo": "CONS-DTE-0014",
+      "descripcion": "Consultoria fiscal DTE El Salvador #14",
+      "precioUni": 152.95,
+      "montoDescu": 0,
+      "ventaGravada": 764.75
+    },
+    {
+      "numItem": 15,
+      "tipoItem": 2,
+      "cantidad": 6,
+      "codigo": "MANT-SRV-0015",
+      "descripcion": "Mantenimiento preventivo de servidores #15",
+      "precioUni": 240.1,
+      "montoDescu": 0,
+      "ventaGravada": 1440.6
+    },
+    {
+      "numItem": 16,
+      "tipoItem": 2,
+      "cantidad": 7,
+      "codigo": "CAP-CONT-0016",
+      "descripcion": "Capacitacion equipo contable #16",
+      "precioUni": 107.25,
+      "montoDescu": 0,
+      "ventaGravada": 750.75
+    },
+    {
+      "numItem": 17,
+      "tipoItem": 1,
+      "cantidad": 8,
+      "codigo": "AUD-SIS-0017",
+      "descripcion": "Auditoria de sistemas y respaldo #17",
+      "precioUni": 219.4,
+      "montoDescu": 70.21,
+      "ventaGravada": 1684.99
+    },
+    {
+      "numItem": 18,
+      "tipoItem": 2,
+      "cantidad": 9,
+      "codigo": "INT-API-0018",
+      "descripcion": "Integracion API Hacienda y ERP #18",
+      "precioUni": 320,
+      "montoDescu": 0,
+      "ventaGravada": 2880
+    },
+    {
+      "numItem": 19,
+      "tipoItem": 2,
+      "cantidad": 1,
+      "codigo": "SOP-REM-0019",
+      "descripcion": "Soporte remoto especializado #19",
+      "precioUni": 57.15,
+      "montoDescu": 0,
+      "ventaGravada": 57.15
+    },
+    {
+      "numItem": 20,
+      "tipoItem": 2,
+      "cantidad": 2,
+      "codigo": "DOC-TEC-0020",
+      "descripcion": "Documentacion tecnica de procesos #20",
+      "precioUni": 46.3,
+      "montoDescu": 0,
+      "ventaGravada": 92.6
+    },
+    {
+      "numItem": 21,
+      "tipoItem": 1,
+      "cantidad": 3,
+      "codigo": "SERV-ERP-0021",
+      "descripcion": "Implementacion modulo facturacion electronica #21",
+      "precioUni": 956.45,
+      "montoDescu": 0,
+      "ventaGravada": 2869.35
+    },
+    {
+      "numItem": 22,
+      "tipoItem": 2,
+      "cantidad": 4,
+      "codigo": "SERV-SOP-0022",
+      "descripcion": "Horas soporte tecnico especializado #22",
+      "precioUni": 53.6,
+      "montoDescu": 0,
+      "ventaGravada": 214.4
+    },
+    {
+      "numItem": 23,
+      "tipoItem": 2,
+      "cantidad": 5,
+      "codigo": "LIC-CRM-0023",
+      "descripcion": "Licencia mensual CRM empresarial #23",
+      "precioUni": 49.25,
+      "montoDescu": 0,
+      "ventaGravada": 246.25
+    },
+    {
+      "numItem": 24,
+      "tipoItem": 2,
+      "cantidad": 6,
+      "codigo": "CONS-DTE-0024",
+      "descripcion": "Consultoria fiscal DTE El Salvador #24",
+      "precioUni": 137.9,
+      "montoDescu": 0,
+      "ventaGravada": 827.4
+    },
+    {
+      "numItem": 25,
+      "tipoItem": 1,
+      "cantidad": 7,
+      "codigo": "MANT-SRV-0025",
+      "descripcion": "Mantenimiento preventivo de servidores #25",
+      "precioUni": 225.05,
+      "montoDescu": 63.01,
+      "ventaGravada": 1512.34
+    },
+    {
+      "numItem": 26,
+      "tipoItem": 2,
+      "cantidad": 8,
+      "codigo": "CAP-CONT-0026",
+      "descripcion": "Capacitacion equipo contable #26",
+      "precioUni": 92.2,
+      "montoDescu": 0,
+      "ventaGravada": 737.6
+    },
+    {
+      "numItem": 27,
+      "tipoItem": 2,
+      "cantidad": 9,
+      "codigo": "AUD-SIS-0027",
+      "descripcion": "Auditoria de sistemas y respaldo #27",
+      "precioUni": 204.35,
+      "montoDescu": 0,
+      "ventaGravada": 1839.15
+    },
+    {
+      "numItem": 28,
+      "tipoItem": 2,
+      "cantidad": 1,
+      "codigo": "INT-API-0028",
+      "descripcion": "Integracion API Hacienda y ERP #28",
+      "precioUni": 341.5,
+      "montoDescu": 0,
+      "ventaGravada": 341.5
+    },
+    {
+      "numItem": 29,
+      "tipoItem": 1,
+      "cantidad": 2,
+      "codigo": "SOP-REM-0029",
+      "descripcion": "Soporte remoto especializado #29",
+      "precioUni": 78.65,
+      "montoDescu": 0,
+      "ventaGravada": 157.3
+    },
+    {
+      "numItem": 30,
+      "tipoItem": 2,
+      "cantidad": 3,
+      "codigo": "DOC-TEC-0030",
+      "descripcion": "Documentacion tecnica de procesos #30",
+      "precioUni": 67.8,
+      "montoDescu": 0,
+      "ventaGravada": 203.4
+    },
+    {
+      "numItem": 31,
+      "tipoItem": 2,
+      "cantidad": 4,
+      "codigo": "SERV-ERP-0031",
+      "descripcion": "Implementacion modulo facturacion electronica #31",
+      "precioUni": 977.95,
+      "montoDescu": 0,
+      "ventaGravada": 3911.8
+    },
+    {
+      "numItem": 32,
+      "tipoItem": 2,
+      "cantidad": 5,
+      "codigo": "SERV-SOP-0032",
+      "descripcion": "Horas soporte tecnico especializado #32",
+      "precioUni": 75.1,
+      "montoDescu": 0,
+      "ventaGravada": 375.5
+    },
+    {
+      "numItem": 33,
+      "tipoItem": 1,
+      "cantidad": 6,
+      "codigo": "LIC-CRM-0033",
+      "descripcion": "Licencia mensual CRM empresarial #33",
+      "precioUni": 70.75,
+      "montoDescu": 16.98,
+      "ventaGravada": 407.52
+    },
+    {
+      "numItem": 34,
+      "tipoItem": 2,
+      "cantidad": 7,
+      "codigo": "CONS-DTE-0034",
+      "descripcion": "Consultoria fiscal DTE El Salvador #34",
+      "precioUni": 159.4,
+      "montoDescu": 0,
+      "ventaGravada": 1115.8
+    },
+    {
+      "numItem": 35,
+      "tipoItem": 2,
+      "cantidad": 8,
+      "codigo": "MANT-SRV-0035",
+      "descripcion": "Mantenimiento preventivo de servidores #35",
+      "precioUni": 210,
+      "montoDescu": 0,
+      "ventaGravada": 1680
+    },
+    {
+      "numItem": 36,
+      "tipoItem": 2,
+      "cantidad": 9,
+      "codigo": "CAP-CONT-0036",
+      "descripcion": "Capacitacion equipo contable #36",
+      "precioUni": 77.15,
+      "montoDescu": 0,
+      "ventaGravada": 694.35
+    },
+    {
+      "numItem": 37,
+      "tipoItem": 1,
+      "cantidad": 1,
+      "codigo": "AUD-SIS-0037",
+      "descripcion": "Auditoria de sistemas y respaldo #37",
+      "precioUni": 189.3,
+      "montoDescu": 0,
+      "ventaGravada": 189.3
+    },
+    {
+      "numItem": 38,
+      "tipoItem": 2,
+      "cantidad": 2,
+      "codigo": "INT-API-0038",
+      "descripcion": "Integracion API Hacienda y ERP #38",
+      "precioUni": 326.45,
+      "montoDescu": 0,
+      "ventaGravada": 652.9
+    },
+    {
+      "numItem": 39,
+      "tipoItem": 2,
+      "cantidad": 3,
+      "codigo": "SOP-REM-0039",
+      "descripcion": "Soporte remoto especializado #39",
+      "precioUni": 63.6,
+      "montoDescu": 0,
+      "ventaGravada": 190.8
+    },
+    {
+      "numItem": 40,
+      "tipoItem": 2,
+      "cantidad": 4,
+      "codigo": "DOC-TEC-0040",
+      "descripcion": "Documentacion tecnica de procesos #40",
+      "precioUni": 52.75,
+      "montoDescu": 0,
+      "ventaGravada": 211
+    },
+    {
+      "numItem": 41,
+      "tipoItem": 1,
+      "cantidad": 5,
+      "codigo": "SERV-ERP-0041",
+      "descripcion": "Implementacion modulo facturacion electronica #41",
+      "precioUni": 962.9,
+      "montoDescu": 192.58,
+      "ventaGravada": 4621.92
+    },
+    {
+      "numItem": 42,
+      "tipoItem": 2,
+      "cantidad": 6,
+      "codigo": "SERV-SOP-0042",
+      "descripcion": "Horas soporte tecnico especializado #42",
+      "precioUni": 60.05,
+      "montoDescu": 0,
+      "ventaGravada": 360.3
+    },
+    {
+      "numItem": 43,
+      "tipoItem": 2,
+      "cantidad": 7,
+      "codigo": "LIC-CRM-0043",
+      "descripcion": "Licencia mensual CRM empresarial #43",
+      "precioUni": 55.7,
+      "montoDescu": 0,
+      "ventaGravada": 389.9
+    },
+    {
+      "numItem": 44,
+      "tipoItem": 2,
+      "cantidad": 8,
+      "codigo": "CONS-DTE-0044",
+      "descripcion": "Consultoria fiscal DTE El Salvador #44",
+      "precioUni": 144.35,
+      "montoDescu": 0,
+      "ventaGravada": 1154.8
+    },
+    {
+      "numItem": 45,
+      "tipoItem": 1,
+      "cantidad": 9,
+      "codigo": "MANT-SRV-0045",
+      "descripcion": "Mantenimiento preventivo de servidores #45",
+      "precioUni": 231.5,
+      "montoDescu": 0,
+      "ventaGravada": 2083.5
+    },
+    {
+      "numItem": 46,
+      "tipoItem": 2,
+      "cantidad": 1,
+      "codigo": "CAP-CONT-0046",
+      "descripcion": "Capacitacion equipo contable #46",
+      "precioUni": 98.65,
+      "montoDescu": 0,
+      "ventaGravada": 98.65
+    },
+    {
+      "numItem": 47,
+      "tipoItem": 2,
+      "cantidad": 2,
+      "codigo": "AUD-SIS-0047",
+      "descripcion": "Auditoria de sistemas y respaldo #47",
+      "precioUni": 210.8,
+      "montoDescu": 0,
+      "ventaGravada": 421.6
+    },
+    {
+      "numItem": 48,
+      "tipoItem": 2,
+      "cantidad": 3,
+      "codigo": "INT-API-0048",
+      "descripcion": "Integracion API Hacienda y ERP #48",
+      "precioUni": 347.95,
+      "montoDescu": 0,
+      "ventaGravada": 1043.85
+    },
+    {
+      "numItem": 49,
+      "tipoItem": 1,
+      "cantidad": 4,
+      "codigo": "SOP-REM-0049",
+      "descripcion": "Soporte remoto especializado #49",
+      "precioUni": 85.1,
+      "montoDescu": 13.62,
+      "ventaGravada": 326.78
+    },
+    {
+      "numItem": 50,
+      "tipoItem": 2,
+      "cantidad": 5,
+      "codigo": "DOC-TEC-0050",
+      "descripcion": "Documentacion tecnica de procesos #50",
+      "precioUni": 74.25,
+      "montoDescu": 0,
+      "ventaGravada": 371.25
+    }
+  ],
+  "resumen": {
+    "totalNoSuj": 0,
+    "totalExenta": 0,
+    "totalGravada": 47346.06,
+    "subTotalVentas": 47346.06,
+    "totalDescu": 420.39,
+    "subTotal": 47346.06,
+    "ivaRete1": 473.46,
+    "ivaPerci1": 0,
+    "reteRenta": 0,
+    "montoTotalOperacion": 53027.59,
+    "totalPagar": 53027.59,
+    "totalLetras": "53,027.59 DOLARES",
+    "totalIva": 6154.99,
+    "saldoFavor": 0,
+    "condicionOperacion": 2,
+    "observaciones": "Credito fiscal con 50 registros de venta para prueba visual."
+  },
+  "extension": {
+    "nombEntrega": "Ana Martinez",
+    "docuEntrega": "06140000111122",
+    "nombRecibe": "Luis Hernandez",
+    "docuRecibe": "06140000333344",
+    "observaciones": "Entregado a departamento de contabilidad."
+  }
+}

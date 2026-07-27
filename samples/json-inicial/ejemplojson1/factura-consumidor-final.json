@@ -1,0 +1,79 @@
+{
+  "identificacion": {
+    "version": 1,
+    "ambiente": "00",
+    "tipoDte": "01",
+    "numeroControl": "DTE-01-00000001-000000000000123",
+    "codigoGeneracion": "A1B2C3D4-E5F6-7890-ABCD-123456789012",
+    "tipoModelo": 1,
+    "tipoOperacion": 1,
+    "fecEmi": "2026-07-26",
+    "horEmi": "09:35:21",
+    "tipoMoneda": "USD"
+  },
+  "selloRecibido": "2026A0B1C2D3E4F5G6H7I8J9K0L1M2N3",
+  "emisor": {
+    "nit": "06142811231015",
+    "nrc": "1234567",
+    "nombre": "Comercial La Ruta SA de CV",
+    "codActividad": "47190",
+    "descActividad": "Venta al por menor de otros productos en comercios",
+    "nombreComercial": "La Ruta Market",
+    "telefono": "2222-3344",
+    "correo": "facturacion@laruta.example",
+    "direccion": {
+      "departamento": "06",
+      "municipio": "14",
+      "complemento": "San Salvador, Colonia Escalon, Local 12"
+    }
+  },
+  "receptor": {
+    "tipoDocumento": "13",
+    "numDocumento": "06141234567890",
+    "nombre": "Carlos Alberto Mejia",
+    "correo": "cliente@example.com"
+  },
+  "cuerpoDocumento": [
+    {
+      "numItem": 1,
+      "tipoItem": 1,
+      "cantidad": 2,
+      "codigo": "PROD-001",
+      "descripcion": "Cafe molido premium 400g",
+      "precioUni": 6.5,
+      "montoDescu": 0,
+      "ventaGravada": 13
+    },
+    {
+      "numItem": 2,
+      "tipoItem": 1,
+      "cantidad": 1,
+      "codigo": "PROD-050",
+      "descripcion": "Termo acero inoxidable",
+      "precioUni": 18.75,
+      "montoDescu": 1,
+      "ventaGravada": 17.75
+    }
+  ],
+  "resumen": {
+    "totalNoSuj": 0,
+    "totalExenta": 0,
+    "totalGravada": 30.75,
+    "subTotalVentas": 30.75,
+    "descuNoSuj": 0,
+    "descuExenta": 0,
+    "descuGravada": 1,
+    "porcentajeDescuento": 0,
+    "totalDescu": 1,
+    "subTotal": 29.75,
+    "ivaRete1": 0,
+    "reteRenta": 0,
+    "montoTotalOperacion": 29.75,
+    "totalPagar": 29.75,
+    "totalLetras": "VEINTINUEVE 75/100 DOLARES",
+    "totalIva": 3.43,
+    "saldoFavor": 0,
+    "condicionOperacion": 1,
+    "observaciones": "Venta de contado en sucursal."
+  }
+}
