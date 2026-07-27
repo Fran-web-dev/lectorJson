@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
-import { VirtualDataTable } from './components/VirtualDataTable.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
 import { LOCAL_GENERATION_CODE_COLUMN } from './lib/dteStructures.js';
 import { extractRows } from './lib/extractor.js';
+
+const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
+  default: module.VirtualDataTable
+})));
 
 const HACIENDA_PUBLIC_COLUMNS = new Set([
   'Estado del DTE',
@@ -28,6 +31,7 @@ export default function App() {
   const [folder, setFolder] = useState('');
   const [documents, setDocuments] = useState([]);
   const [errors, setErrors] = useState([]);
+  const [totalFileCount, setTotalFileCount] = useState(0);
   const [typeCode, setTypeCode] = useState('all');
   const [structureName, setStructureName] = useState('Estructura Hacienda DTE');
   const [fromDate, setFromDate] = useState('');
@@ -38,7 +42,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setShowSplash(false), 1800);
+    const timer = window.setTimeout(() => setShowSplash(false), 1100);
     return () => window.clearTimeout(timer);
   }, []);
   const rows = useMemo(
@@ -47,7 +51,7 @@ export default function App() {
   );
 
   const columns = useMemo(
-    () => orderColumns(Array.from(new Set(rows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith('__')))))),
+    () => orderColumns(Object.keys(rows[0] || {}).filter((key) => !key.startsWith('__'))),
     [rows]
   );
 
@@ -56,14 +60,16 @@ export default function App() {
     [rows, columnFilters]
   );
 
-  const { exportExcel, selectFiles, selectFolder } = useDteActions({
+  const { exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
     documents,
+    folder,
     rows: filteredRows,
     setDocuments,
     setErrors,
     setFolder,
     setLoading,
-    setStatus
+    setStatus,
+    setTotalFileCount
   });
 
   const selectedQueryUrl = useMemo(() => buildHaciendaQueryUrl(selectedRow), [selectedRow]);
@@ -152,6 +158,48 @@ export default function App() {
     });
   }
 
+  function fillMissingReceptionStamps() {
+    const stampsByCode = new Map();
+
+    for (const row of filteredRows) {
+      const code = getSelectedGenerationCode(row);
+      const localStamp = String(row['Serie del Documento'] || '').trim();
+      const publicStamp = String(row['Sello de Recepcion'] || '').trim();
+      if (code && !localStamp && publicStamp) stampsByCode.set(code, publicStamp);
+    }
+
+    if (!stampsByCode.size) {
+      setStatus('No hay campos vacios en Serie del Documento con Sello de Recepcion disponible.');
+      return;
+    }
+
+    let updatedCount = 0;
+    setDocuments((currentDocuments) => currentDocuments.map((document) => {
+      const documentCode = getDocumentGenerationCode(document);
+      const publicStamp = stampsByCode.get(documentCode);
+      const currentStamp = String(
+        document?.payload?.selloRecepcion
+        || document?.payload?.selloRecibido
+        || document?.payload?.sello
+        || document?.payload?.SelloRecibido
+        || ''
+      ).trim();
+
+      if (!publicStamp || currentStamp) return document;
+
+      updatedCount += 1;
+      return {
+        ...document,
+        payload: {
+          ...document.payload,
+          selloRecepcion: publicStamp
+        }
+      };
+    }));
+
+    setStatus(`${updatedCount} campo(s) vacio(s) de Serie del Documento rellenado(s) desde Sello de Recepcion.`);
+  }
+
   function updateDocumentsWithPublicData(publicDataByCode) {
     setDocuments((currentDocuments) => currentDocuments.map((document) => {
       const documentCode = getDocumentGenerationCode(document);
@@ -169,8 +217,10 @@ export default function App() {
         fromDate={fromDate}
         loading={loading}
         onExportExcel={exportExcel}
+        onReloadFolder={reloadFolder}
         onSelectFiles={selectFiles}
         onFromDateChange={setFromDate}
+        onFolderChange={setFolder}
         onClearDates={() => {
           setFromDate('');
           setToDate('');
@@ -189,23 +239,27 @@ export default function App() {
           columnCount={columns.length}
           loadedCount={documents.length}
           loading={loading}
+          onFillReceptionStamps={fillMissingReceptionStamps}
           onOpenHacienda={querySelectedInHacienda}
           onQueryAllHacienda={queryAllRowsInHacienda}
           rowCount={filteredRows.length}
           selectedRow={selectedRow}
           selectedQueryUrl={selectedQueryUrl}
           status={status}
+          totalFileCount={totalFileCount}
         />
         {documents.length ? (
-          <VirtualDataTable
-            columnFilters={columnFilters}
-            columns={columns}
-            filterSourceRows={rows}
-            onColumnFilterChange={setColumnFilters}
-            onRowSelect={setSelectedRow}
-            rows={filteredRows}
-            selectedRow={selectedRow}
-          />
+          <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>
+            <VirtualDataTable
+              columnFilters={columnFilters}
+              columns={columns}
+              filterSourceRows={rows}
+              onColumnFilterChange={setColumnFilters}
+              onRowSelect={setSelectedRow}
+              rows={filteredRows}
+              selectedRow={selectedRow}
+            />
+          </Suspense>
         ) : (
           <div className="tableFrame">
             <div className="empty">Sin datos cargados</div>
@@ -320,8 +374,10 @@ function markDuplicateRows(rows) {
     filesByDocument.get(key).add(row.__sourceFile || `row:${filesByDocument.get(key).size}`);
   }
 
-  return rows.map((row) => {
+  for (const row of rows) {
     const key = getDuplicateKey(row);
-    return { ...row, __isDuplicate: Boolean(key && filesByDocument.get(key)?.size > 1) };
-  });
+    row.__isDuplicate = Boolean(key && filesByDocument.get(key)?.size > 1);
+  }
+
+  return rows;
 }

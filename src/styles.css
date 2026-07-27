@@ -192,33 +192,48 @@ body {
     cursor: pointer;
   }
 
+  .oddRow {
+    background-color: #f1fdff;
+  }
+
+  .evenRow {
+    background-color: #ffffff;
+  }
+
   .virtualCell {
     @apply flex h-[72px] items-start overflow-auto whitespace-pre-line border-b border-r border-sky-100 px-3 py-2 align-top leading-5 text-slate-700;
   }
 
-  .virtualRow:nth-child(odd) .virtualCell {
+  .oddRow .virtualCell {
     background-color: #f1fdff;
   }
 
-  .virtualRow:nth-child(even) .virtualCell {
-    @apply bg-white;
+  .evenRow .virtualCell {
+    background-color: #ffffff;
   }
 
   .virtualRow:hover .virtualCell {
     @apply bg-sky-100;
   }
 
+  .virtualRow:hover {
+    @apply bg-sky-100;
+  }
+
+  .alertRow,
   .alertRow .virtualCell,
   .alertRow:hover .virtualCell {
     background-color: #fee2e2 !important;
   }
 
+  .selectedRow,
   .selectedRow .virtualCell,
   .selectedRow:hover .virtualCell {
     background-color: #dbeafe !important;
     box-shadow: inset 0 0 0 1px #2563eb;
   }
 
+  .duplicateRow,
   .duplicateRow .virtualCell,
   .duplicateRow:hover .virtualCell {
     background-color: #fef08a !important;

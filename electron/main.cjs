@@ -11,6 +11,7 @@ const TABLE_ALT_FILL = 'FFF1FDFF';
 const TABLE_WHITE_FILL = 'FFFFFFFF';
 const TABLE_DUPLICATE_FILL = 'FFFFF2CC';
 const TABLE_ALERT_FILL = 'FFFEE2E2';
+const ACCOUNTING_NUMBER_FORMAT = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
 const HACIENDA_PUBLIC_COLUMNS = new Set([
   'Estado del DTE',
   'Descripcion del DTE',
@@ -153,7 +154,7 @@ async function loadFiles(filePaths, sourcePath) {
 
   const documents = documentsByFile.flat();
   const enrichedDocuments = ENRICH_PUBLIC_QUERY_ON_LOAD ? await enrichDocumentsWithPublicQuery(documents) : documents;
-  return { documents: enrichedDocuments, errors, sourcePath };
+  return { documents: enrichedDocuments, errors, sourcePath, totalFiles: filePaths.length };
 }
 
 function findValue(source, fieldName) {
@@ -247,7 +248,7 @@ async function enrichDocumentsWithPublicQuery(documents) {
 
 ipcMain.handle('folder:select', async () => {
   const result = await dialog.showOpenDialog({
-    title: 'Seleccione la carpeta contenedora de los archivos JSON o CSV',
+    title: 'Seleccione la carpeta contenedora de los archivos JSON',
     properties: ['openDirectory']
   });
 
@@ -255,6 +256,15 @@ ipcMain.handle('folder:select', async () => {
   const folderPath = result.filePaths[0];
   const files = await collectFiles(folderPath);
   return loadFiles(files, folderPath);
+});
+
+ipcMain.handle('folder:reload', async (_event, folderPath) => {
+  const resolvedFolderPath = path.resolve(String(folderPath || ''));
+  const stat = await fs.stat(resolvedFolderPath);
+  if (!stat.isDirectory()) throw new Error('La carpeta seleccionada ya no existe o no es valida.');
+
+  const files = await collectFiles(resolvedFolderPath);
+  return loadFiles(files, resolvedFolderPath);
 });
 
 ipcMain.handle('files:select', async () => {
@@ -335,12 +345,13 @@ async function writeStyledExcel(filePath, rows) {
     worksheet.addRow(excelRow);
   }
 
-  worksheet.getRow(1).height = 45;
-  worksheet.getRow(1).eachCell((cell, colNumber) => {
+  worksheet.getRow(1).height = 20;
+  for (let colNumber = 1; colNumber <= headers.length; colNumber += 1) {
+    const cell = worksheet.getRow(1).getCell(colNumber);
     const header = headers[colNumber - 1];
     const isPublicHeader = HACIENDA_PUBLIC_COLUMNS.has(header);
     cell.font = { bold: true, color: { argb: isPublicHeader ? 'FF000000' : 'FFFFFFFF' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
-    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isPublicHeader ? TABLE_PUBLIC_HEADER_FILL : TABLE_HEADER_FILL } };
     cell.border = {
       top: { style: 'thin', color: { argb: 'FFD9D9D9' } },
@@ -348,15 +359,16 @@ async function writeStyledExcel(filePath, rows) {
       bottom: { style: 'thin', color: { argb: 'FFD9D9D9' } },
       right: { style: 'thin', color: { argb: 'FFD9D9D9' } }
     };
-  });
+  }
 
   worksheet.eachRow((row, rowNumber) => {
     if (rowNumber === 1) return;
-    row.height = 58;
-    row.eachCell((cell, colNumber) => {
+    row.height = 18;
+    for (let colNumber = 1; colNumber <= headers.length; colNumber += 1) {
+      const cell = row.getCell(colNumber);
       const header = headers[colNumber - 1];
       cell.font = { bold: false, color: { argb: 'FF000000' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
-      cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: true };
+      cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
       cell.fill = {
         type: 'pattern',
         pattern: 'solid',
@@ -370,7 +382,7 @@ async function writeStyledExcel(filePath, rows) {
       };
 
       if (isMoneyColumn(header) && typeof cell.value === 'number') {
-        cell.numFmt = '$#,##0.00';
+        cell.numFmt = ACCOUNTING_NUMBER_FORMAT;
       }
 
       if (rows[rowNumber - 2]?.__isDuplicate) {
@@ -380,7 +392,7 @@ async function writeStyledExcel(filePath, rows) {
       if (isAlertRow(rows[rowNumber - 2])) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_ALERT_FILL } };
       }
-    });
+    }
   });
 
   worksheet.autoFilter = {

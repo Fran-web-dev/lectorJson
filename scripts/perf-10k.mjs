@@ -35,17 +35,19 @@ function createDocument(index) {
   };
 }
 
-const documents = Array.from({ length: 10_000 }, (_, index) => createDocument(index));
+const EXPECTED_ROWS = Number(process.env.PERF_ROWS || 20_000);
+const EXPECTED_MS = Number(process.env.PERF_MS || 1_000);
+const documents = Array.from({ length: EXPECTED_ROWS }, (_, index) => createDocument(index));
 const start = performance.now();
 const rows = extractRows(documents, { fromDate: '', toDate: '' });
 const elapsedMs = performance.now() - start;
 
 console.log(JSON.stringify({
   elapsedSeconds: Number((elapsedMs / 1000).toFixed(3)),
-  passed: elapsedMs < 50_000,
+  passed: elapsedMs < EXPECTED_MS,
   rows: rows.length
 }, null, 2));
 
-if (elapsedMs >= 50_000 || rows.length !== 10_000) {
+if (elapsedMs >= EXPECTED_MS || rows.length !== EXPECTED_ROWS) {
   process.exitCode = 1;
 }

@@ -6,6 +6,7 @@ const OPERATION_CONDITIONS = {
   2: 'Credito',
   3: 'Otro'
 };
+const documentIndexCache = new WeakMap();
 
 function normalizeKey(key) {
   return String(key).toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -103,6 +104,11 @@ function addIndexedValue(index, key, value) {
 }
 
 function createDocumentIndex(payload) {
+  if (payload && typeof payload === 'object') {
+    const cachedIndex = documentIndexCache.get(payload);
+    if (cachedIndex) return cachedIndex;
+  }
+
   const index = { fields: new Map(), sections: new Map() };
   const stack = [{ key: '', value: payload }];
 
@@ -131,6 +137,7 @@ function createDocumentIndex(payload) {
     }
   }
 
+  if (payload && typeof payload === 'object') documentIndexCache.set(payload, index);
   return index;
 }
 
@@ -208,16 +215,23 @@ export function extractRows(documents, options = {}) {
   const fromTime = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
   const toTime = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
 
-  return documents.map((document) => {
+  const rows = [];
+  const structureCache = new Map();
+
+  for (const document of documents) {
     const payloadIndex = createDocumentIndex(document.payload);
     const publicQueryIndex = document.payload?.__consultaPublica
       ? createDocumentIndex(document.payload.__consultaPublica)
       : null;
     const actualCode = String(findIndexedField(payloadIndex, 'tipoDte') || '').padStart(2, '0');
-    if (selectedType && actualCode !== String(selectedType).padStart(2, '0')) return null;
+    if (selectedType && actualCode !== String(selectedType).padStart(2, '0')) continue;
 
     const dte = DTE_TYPES.find((item) => item.code === actualCode) || { code: actualCode || 'ND', label: 'No detectado' };
-    const structure = getStructureForType(dte.code);
+    let structure = structureCache.get(dte.code);
+    if (!structure) {
+      structure = getStructureForType(dte.code);
+      structureCache.set(dte.code, structure);
+    }
     const items = Array.isArray(document.payload?.cuerpoDocumento) ? document.payload.cuerpoDocumento : [];
     const baseRow = {
       __sourceFile: document.sourceFile || ''
@@ -235,16 +249,27 @@ export function extractRows(documents, options = {}) {
       }
     }
 
-    return baseRow;
-  }).filter((row) => {
-    if (!row || typeof row !== 'object' || Array.isArray(row)) return false;
-    if (!fromTime && !toTime) return true;
-    const raw = row.Fecha || '';
-    if (!raw) return true;
+    if (!fromTime && !toTime) {
+      rows.push(baseRow);
+      continue;
+    }
+
+    const raw = baseRow.Fecha || '';
+    if (!raw) {
+      rows.push(baseRow);
+      continue;
+    }
+
     const dateTime = parseDisplayDate(raw);
-    if (Number.isNaN(dateTime)) return true;
-    if (fromTime && dateTime < fromTime) return false;
-    if (toTime && dateTime > toTime) return false;
-    return true;
-  });
+    if (Number.isNaN(dateTime)) {
+      rows.push(baseRow);
+      continue;
+    }
+
+    if (fromTime && dateTime < fromTime) continue;
+    if (toTime && dateTime > toTime) continue;
+    rows.push(baseRow);
+  }
+
+  return rows;
 }

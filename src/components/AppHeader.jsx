@@ -1,4 +1,4 @@
-import logoFevv from '../assets/logo-fevv-technologies.png';
+import logoFevv from '../assets/logo-fevv-technologies-startup.jpg';
 
 export function AppHeader() {
   return (

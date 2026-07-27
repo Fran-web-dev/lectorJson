@@ -1,19 +1,22 @@
 import { useCallback } from 'react';
 
 export function useDteActions({
+  folder,
   rows,
   setDocuments,
   setErrors,
   setFolder,
   setLoading,
-  setStatus
+  setStatus,
+  setTotalFileCount
 }) {
   const applyLoadResult = useCallback((result) => {
     setFolder(result.sourcePath);
     setDocuments(result.documents);
     setErrors(result.errors);
+    setTotalFileCount(result.totalFiles || result.documents.length);
     setStatus(`${result.documents.length} registro(s) cargado(s) desde ${result.sourcePath}.`);
-  }, [setDocuments, setErrors, setFolder, setStatus]);
+  }, [setDocuments, setErrors, setFolder, setStatus, setTotalFileCount]);
 
   const selectFolder = useCallback(async () => {
     setLoading(true);
@@ -51,6 +54,28 @@ export function useDteActions({
     }
   }, [applyLoadResult, setLoading, setStatus]);
 
+  const reloadFolder = useCallback(async () => {
+    const folderPath = String(folder || '').trim();
+    if (!folderPath) {
+      setStatus('Seleccione una carpeta antes de cargar JSON.');
+      return;
+    }
+
+    setLoading(true);
+    setStatus('Cargando JSON de la carpeta seleccionada...');
+    try {
+      if (!window.dteApp?.reloadFolder) {
+        throw new Error('Reinicie la aplicacion para habilitar la carga por ruta pegada.');
+      }
+      const result = await window.dteApp.reloadFolder(folderPath);
+      applyLoadResult(result);
+    } catch (error) {
+      setStatus(`Error al cargar JSON: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }, [applyLoadResult, folder, setLoading, setStatus]);
+
   const exportExcel = useCallback(async () => {
     if (!rows.length) {
       setStatus('No hay datos para exportar.');
@@ -68,5 +93,5 @@ export function useDteActions({
     }
   }, [rows, setLoading, setStatus]);
 
-  return { exportExcel, selectFiles, selectFolder };
+  return { exportExcel, reloadFolder, selectFiles, selectFolder };
 }

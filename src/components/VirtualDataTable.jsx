@@ -90,7 +90,7 @@ function DataRow({ columns, gridTemplateColumns, isSelected, onRowSelect, row, r
 
   return (
     <div
-      className={`virtualRow ${row.__isDuplicate ? 'duplicateRow' : ''} ${isRejectedOrInvalid ? 'alertRow' : ''} ${isSelected ? 'selectedRow' : ''}`}
+      className={`virtualRow ${rowIndex % 2 === 0 ? 'evenRow' : 'oddRow'} ${row.__isDuplicate ? 'duplicateRow' : ''} ${isRejectedOrInvalid ? 'alertRow' : ''} ${isSelected ? 'selectedRow' : ''}`}
       onClick={() => onRowSelect(row)}
       role="row"
       style={{ gridTemplateColumns, transform: `translateY(${rowIndex * ROW_HEIGHT}px)` }}

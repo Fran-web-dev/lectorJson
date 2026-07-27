@@ -8,6 +8,8 @@ export function FilterPanel({
   onClearDates,
   onExportExcel,
   onFromDateChange,
+  onFolderChange,
+  onReloadFolder,
   onSelectFiles,
   onSelectFolder,
   onStructureNameChange,
@@ -21,9 +23,15 @@ export function FilterPanel({
     <section className="border-b border-slate-200 bg-white px-6 py-4">
       <div className="grid grid-cols-[minmax(320px,1fr)_260px_260px_140px] gap-4">
         <div>
-          <label className="label">Seleccione la carpeta contenedora de los archivos JSON o CSV</label>
+          <label className="label">Seleccione la carpeta contenedora de los archivos JSON</label>
           <div className="flex items-end gap-2">
-            <div className="field truncate">{folder || '...'}</div>
+            <input
+              className="field"
+              onChange={(event) => onFolderChange(event.target.value)}
+              placeholder="Pegue la ruta o busquela manualmente..."
+              title={folder}
+              value={folder}
+            />
             <button className="iconButton" disabled={loading} onClick={onSelectFolder} title="Seleccionar carpeta">
               <FolderOpen size={18} />
             </button>
@@ -51,6 +59,9 @@ export function FilterPanel({
           </button>
           <button className="actionButton" disabled={loading} onClick={onSelectFiles}>
             <FileJson size={16} /> Seleccionar archivos
+          </button>
+          <button className="actionButton" disabled={loading || !folder.trim()} onClick={onReloadFolder}>
+            <FileJson size={16} /> Cargar JSON
           </button>
         </div>
       </div>
