@@ -1,23 +1,63 @@
-const { app, BrowserWindow, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
-const Papa = require('papaparse');
-const ExcelJS = require('exceljs');
-const axios = require('axios');
-const https = require('https');
 
 const isDev = !app.isPackaged;
 const EXCEL_FONT = 'Tw Cen MT Condensed';
 const EXCEL_FONT_SIZE = 12;
 const TABLE_HEADER_FILL = 'FF2EA8C9';
+const TABLE_PUBLIC_HEADER_FILL = 'FF86EFAC';
 const TABLE_ALT_FILL = 'FFF1FDFF';
 const TABLE_WHITE_FILL = 'FFFFFFFF';
 const TABLE_DUPLICATE_FILL = 'FFFFF2CC';
-const publicQueryHttp = axios.create({
-  httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-  timeout: 8000
-});
+const TABLE_ALERT_FILL = 'FFFEE2E2';
+const HACIENDA_PUBLIC_COLUMNS = new Set([
+  'Estado del DTE',
+  'Descripcion del DTE',
+  'Tipo de DTE',
+  'Fecha y hora de generacion',
+  'Codigo de Generacion',
+  'Sello de Recepcion',
+  'Numero de Control Consulta',
+  'Documento ajustado',
+  'Documento con Evento aplicado',
+  'Documentos Relacionados'
+]);
+const PUBLIC_QUERY_LIMIT = 300;
+const PUBLIC_QUERY_CONCURRENCY = 8;
+const FILE_READ_CONCURRENCY = 32;
+const ENRICH_PUBLIC_QUERY_ON_LOAD = false;
 const publicQueryCache = new Map();
+let papaParser;
+let excelJs;
+let axiosClient;
+let publicQueryHttp;
+
+function getPapaParser() {
+  papaParser ||= require('papaparse');
+  return papaParser;
+}
+
+function getExcelJs() {
+  excelJs ||= require('exceljs');
+  return excelJs;
+}
+
+function getAxios() {
+  axiosClient ||= require('axios');
+  return axiosClient;
+}
+
+function getPublicQueryHttp() {
+  if (!publicQueryHttp) {
+    const https = require('https');
+    publicQueryHttp = getAxios().create({
+      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      timeout: 4000
+    });
+  }
+  return publicQueryHttp;
+}
 
 function createWindow() {
   const win = new BrowserWindow({
@@ -64,7 +104,7 @@ async function readDataFile(filePath) {
     return Array.isArray(parsed) ? parsed : [parsed];
   }
 
-  const result = Papa.parse(raw, { header: true, skipEmptyLines: true, dynamicTyping: false });
+  const result = getPapaParser().parse(raw, { header: true, skipEmptyLines: true, dynamicTyping: false });
   if (result.errors.length || !result.meta.fields?.length) {
     throw new Error(result.errors.map((error) => error.message).join(', '));
   }
@@ -84,27 +124,36 @@ function parseJsonWithRepair(raw) {
 }
 
 async function loadFiles(filePaths, sourcePath) {
-  const documents = [];
+  const documentsByFile = new Array(filePaths.length);
   const errors = [];
+  let nextFileIndex = 0;
 
-  for (const filePath of filePaths) {
-    try {
-      const items = await readDataFile(filePath);
-      for (const item of items) {
-        const payload = await enrichWithPublicQuery(item);
-        documents.push({
+  async function worker() {
+    while (nextFileIndex < filePaths.length) {
+      const fileIndex = nextFileIndex;
+      nextFileIndex += 1;
+
+      const filePath = filePaths[fileIndex];
+      try {
+        const items = await readDataFile(filePath);
+        documentsByFile[fileIndex] = items.map((item) => ({
           sourceFile: filePath,
           fileName: path.basename(filePath),
           folderName: path.basename(path.dirname(filePath)),
-          payload
-        });
+          payload: item
+        }));
+      } catch (error) {
+        documentsByFile[fileIndex] = [];
+        errors.push({ filePath, message: error.message });
       }
-    } catch (error) {
-      errors.push({ filePath, message: error.message });
     }
   }
 
-  return { documents, errors, sourcePath };
+  await Promise.all(Array.from({ length: Math.min(FILE_READ_CONCURRENCY, filePaths.length || 1) }, () => worker()));
+
+  const documents = documentsByFile.flat();
+  const enrichedDocuments = ENRICH_PUBLIC_QUERY_ON_LOAD ? await enrichDocumentsWithPublicQuery(documents) : documents;
+  return { documents: enrichedDocuments, errors, sourcePath };
 }
 
 function findValue(source, fieldName) {
@@ -149,17 +198,51 @@ async function enrichWithPublicQuery(payload) {
 
   try {
     if (!publicQueryCache.has(cacheKey)) {
-      publicQueryCache.set(cacheKey, publicQueryHttp.get(url, {
+      publicQueryCache.set(cacheKey, getPublicQueryHttp().get(url, {
         params: { ambiente, codigoGeneracion, fechaEmi }
       }).then((response) => response.data).catch(() => null));
     }
 
     const data = await publicQueryCache.get(cacheKey);
     if (!data || typeof data !== 'object' || data.estadoDoc === 'Error') return payload;
-    return { ...payload, ...data, __consultaPublica: data };
+    return { ...payload, __consultaPublica: data };
   } catch {
     return payload;
   }
+}
+
+function getPublicQueryKey(payload) {
+  if (!payload || typeof payload !== 'object' || findValue(payload, 'estadoDoc')) return '';
+
+  const ambiente = String(findValue(payload, 'ambiente') || '01').padStart(2, '0');
+  const codigoGeneracion = String(findValue(payload, 'codigoGeneracion') || findValue(payload, 'codGen') || '').trim();
+  const fechaEmi = normalizePublicDate(findValue(payload, 'fecEmi') || findValue(payload, 'fechaEmi'));
+
+  return codigoGeneracion && fechaEmi ? `${ambiente}|${codigoGeneracion}|${fechaEmi}` : '';
+}
+
+async function enrichDocumentsWithPublicQuery(documents) {
+  const uniqueQueryKeys = new Set(documents.map((document) => getPublicQueryKey(document.payload)).filter(Boolean));
+  if (!uniqueQueryKeys.size || uniqueQueryKeys.size > PUBLIC_QUERY_LIMIT) return documents;
+
+  const enrichedDocuments = [...documents];
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < enrichedDocuments.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      const document = enrichedDocuments[currentIndex];
+      const enrichedPayload = await enrichWithPublicQuery(document.payload);
+      if (enrichedPayload !== document.payload) {
+        enrichedDocuments[currentIndex] = { ...document, payload: enrichedPayload };
+      }
+    }
+  }
+
+  await Promise.all(Array.from({ length: PUBLIC_QUERY_CONCURRENCY }, () => worker()));
+  return enrichedDocuments;
 }
 
 ipcMain.handle('folder:select', async () => {
@@ -192,7 +275,7 @@ ipcMain.handle('files:select', async () => {
 ipcMain.handle('excel:export', async (_event, rows) => {
   const result = await dialog.showSaveDialog({
     title: 'Exportar Excel',
-    defaultPath: `DTE-Hacienda-${new Date().toISOString().slice(0, 10)}.xlsx`,
+    defaultPath: `DTE-Hacienda-${formatExportTimestamp(new Date())}.xlsx`,
     filters: [{ name: 'Excel', extensions: ['xlsx'] }]
   });
 
@@ -200,6 +283,13 @@ ipcMain.handle('excel:export', async (_event, rows) => {
   await writeStyledExcel(result.filePath, rows);
   return result.filePath;
 });
+
+function formatExportTimestamp(date) {
+  const hour = String(date.getHours()).padStart(2, '0');
+  const minute = String(date.getMinutes()).padStart(2, '0');
+  const second = String(date.getSeconds()).padStart(2, '0');
+  return `${hour}-${minute}-${second}`;
+}
 
 function isMoneyColumn(header) {
   return /total|monto|credito|fovial|cotrans|percepciones|retencion|compra|gravado|exenta|sujetas|desc\.|sub-total/i.test(header);
@@ -217,16 +307,20 @@ function getExcelColumnWidth(header, values) {
     String(header).length,
     ...values.slice(0, 200).map((value) => String(value ?? '').length)
   );
-  return Math.min(Math.max(maxLength + 2, 11), header === 'Cant,NP,PU,VTAGR' ? 34 : 24);
+  if (header === 'Cant,NP,PU,VTAGR') return Math.min(Math.max(maxLength + 2, 18), 42);
+  if (header === 'Codigo de generacion local') return Math.min(Math.max(maxLength + 2, 22), 36);
+  if (HACIENDA_PUBLIC_COLUMNS.has(header)) return Math.min(Math.max(maxLength + 2, 16), 38);
+  return Math.min(Math.max(maxLength + 2, 11), 24);
 }
 
 async function writeStyledExcel(filePath, rows) {
+  const ExcelJS = getExcelJs();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('DTE', {
     views: [{ state: 'frozen', ySplit: 1 }]
   });
 
-  const headers = Array.from(new Set(rows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith('__')))));
+  const headers = orderExcelHeaders(Array.from(new Set(rows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith('__'))))));
   worksheet.columns = headers.map((header) => ({
     header,
     key: header,
@@ -242,10 +336,12 @@ async function writeStyledExcel(filePath, rows) {
   }
 
   worksheet.getRow(1).height = 45;
-  worksheet.getRow(1).eachCell((cell) => {
-    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+  worksheet.getRow(1).eachCell((cell, colNumber) => {
+    const header = headers[colNumber - 1];
+    const isPublicHeader = HACIENDA_PUBLIC_COLUMNS.has(header);
+    cell.font = { bold: true, color: { argb: isPublicHeader ? 'FF000000' : 'FFFFFFFF' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_HEADER_FILL } };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isPublicHeader ? TABLE_PUBLIC_HEADER_FILL : TABLE_HEADER_FILL } };
     cell.border = {
       top: { style: 'thin', color: { argb: 'FFD9D9D9' } },
       left: { style: 'thin', color: { argb: 'FFD9D9D9' } },
@@ -280,6 +376,10 @@ async function writeStyledExcel(filePath, rows) {
       if (rows[rowNumber - 2]?.__isDuplicate) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_DUPLICATE_FILL } };
       }
+
+      if (isAlertRow(rows[rowNumber - 2])) {
+        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_ALERT_FILL } };
+      }
     });
   });
 
@@ -291,17 +391,36 @@ async function writeStyledExcel(filePath, rows) {
   await workbook.xlsx.writeFile(filePath);
 }
 
-ipcMain.handle('hacienda:request', async (_event, request) => {
-  const { baseUrl, token, endpoint, payload } = request;
-  const url = `${baseUrl.replace(/\/$/, '')}/${endpoint.replace(/^\//, '')}`;
-  const response = await axios.post(url, payload, {
-    timeout: 30000,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: token.startsWith('Bearer ') ? token : `Bearer ${token}` } : {})
-    }
+function isAlertRow(row) {
+  return /invalidado|rechazado/i.test(String(row?.['Estado del DTE'] || ''));
+}
+
+function orderExcelHeaders(headers) {
+  const normalHeaders = headers.filter((header) => !HACIENDA_PUBLIC_COLUMNS.has(header));
+  const publicHeaders = headers.filter((header) => HACIENDA_PUBLIC_COLUMNS.has(header));
+  return [...normalHeaders, ...publicHeaders];
+}
+
+ipcMain.handle('hacienda:public-query', async (_event, request) => {
+  const ambiente = String(request?.ambiente || '01').padStart(2, '0');
+  const codigoGeneracion = String(request?.codigoGeneracion || '').trim();
+  const fechaEmi = normalizePublicDate(request?.fechaEmi);
+  if (!codigoGeneracion || !fechaEmi) throw new Error('Codigo de generacion o fecha invalidos.');
+
+  const basePath = ambiente === '01' ? 'prod' : 'test';
+  const url = `https://admin.factura.gob.sv/${basePath}/consultas/publica/simple/1`;
+  const response = await getPublicQueryHttp().get(url, {
+    params: { ambiente, codigoGeneracion, fechaEmi }
   });
   return response.data;
+});
+
+ipcMain.handle('external:open', async (_event, url) => {
+  if (!/^https:\/\/admin\.factura\.gob\.sv\/consultaPublica\?/i.test(String(url))) {
+    throw new Error('URL no permitida.');
+  }
+  await shell.openExternal(url);
+  return true;
 });
 
 app.whenReady().then(createWindow);

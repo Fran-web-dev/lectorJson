@@ -77,12 +77,13 @@ function extractFromPlainObject(source, fields, style) {
   const values = [];
 
   if (fields.includes('cantidad') && fields.includes('descripcion') && fields.includes('precioUni') && fields.includes('ventaGravada')) {
-    return [
+    const itemText = [
       `Cant: ${flattenVisible(source.cantidad)}`,
       flattenVisible(source.descripcion),
       `PU: ${flattenVisible(source.precioUni)}`,
       `VTAGR: ${flattenVisible(source.ventaGravada)}`
     ].filter(Boolean).join(' | ');
+    return itemText ? `${itemText};` : '';
   }
 
   for (const field of fields) {
@@ -209,6 +210,9 @@ export function extractRows(documents, options = {}) {
 
   return documents.map((document) => {
     const payloadIndex = createDocumentIndex(document.payload);
+    const publicQueryIndex = document.payload?.__consultaPublica
+      ? createDocumentIndex(document.payload.__consultaPublica)
+      : null;
     const actualCode = String(findIndexedField(payloadIndex, 'tipoDte') || '').padStart(2, '0');
     if (selectedType && actualCode !== String(selectedType).padStart(2, '0')) return null;
 
@@ -226,7 +230,8 @@ export function extractRows(documents, options = {}) {
           .filter(Boolean)
           .join('\n');
       } else {
-        baseRow[rule.name] = formatValue(extractField(payloadIndex, rule), rule.style);
+        const sourceIndex = rule.source === 'publicQuery' ? publicQueryIndex : payloadIndex;
+        baseRow[rule.name] = sourceIndex ? formatValue(extractField(sourceIndex, rule), rule.style) : '';
       }
     }
 

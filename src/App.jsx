@@ -1,13 +1,30 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
+import { SplashScreen } from './components/SplashScreen.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { VirtualDataTable } from './components/VirtualDataTable.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
+import { LOCAL_GENERATION_CODE_COLUMN } from './lib/dteStructures.js';
 import { extractRows } from './lib/extractor.js';
 
+const HACIENDA_PUBLIC_COLUMNS = new Set([
+  'Estado del DTE',
+  'Descripcion del DTE',
+  'Tipo de DTE',
+  'Fecha y hora de generacion',
+  'Codigo de Generacion',
+  'Sello de Recepcion',
+  'Numero de Control Consulta',
+  'Documento ajustado',
+  'Documento con Evento aplicado',
+  'Documentos Relacionados'
+]);
+const HACIENDA_QUERY_CONCURRENCY = 6;
+
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [folder, setFolder] = useState('');
   const [documents, setDocuments] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -16,21 +33,21 @@ export default function App() {
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [columnFilters, setColumnFilters] = useState({});
+  const [selectedRow, setSelectedRow] = useState(null);
   const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON o CSV.');
   const [loading, setLoading] = useState(false);
-  const [apiConfig, setApiConfig] = useState({
-    baseUrl: 'https://apitest.dtes.mh.gob.sv/fesv/recepciondte',
-    endpoint: 'recepcion',
-    token: ''
-  });
 
+  useEffect(() => {
+    const timer = window.setTimeout(() => setShowSplash(false), 1800);
+    return () => window.clearTimeout(timer);
+  }, []);
   const rows = useMemo(
     () => markDuplicateRows(extractRows(documents, { typeCode, fromDate, toDate })),
     [documents, typeCode, fromDate, toDate]
   );
 
   const columns = useMemo(
-    () => Array.from(new Set(rows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith('__'))))),
+    () => orderColumns(Array.from(new Set(rows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith('__')))))),
     [rows]
   );
 
@@ -39,8 +56,7 @@ export default function App() {
     [rows, columnFilters]
   );
 
-  const { exportExcel, selectFiles, selectFolder, testHacienda } = useDteActions({
-    apiConfig,
+  const { exportExcel, selectFiles, selectFolder } = useDteActions({
     documents,
     rows: filteredRows,
     setDocuments,
@@ -50,15 +66,108 @@ export default function App() {
     setStatus
   });
 
+  const selectedQueryUrl = useMemo(() => buildHaciendaQueryUrl(selectedRow), [selectedRow]);
+
+  async function querySelectedInHacienda() {
+    if (!selectedRow) {
+      setStatus('Seleccione una fila antes de consultar Hacienda.');
+      return;
+    }
+
+    if (!selectedQueryUrl) {
+      setStatus('La fila seleccionada no tiene codigo de generacion o fecha validos.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const publicData = await queryPublicHaciendaRow(selectedRow);
+      if (publicData && publicData.estadoDoc !== 'Error') {
+        const selectedCode = getSelectedGenerationCode(selectedRow);
+        updateDocumentsWithPublicData(new Map([[selectedCode, publicData]]));
+      }
+
+      if (!window.dteApp?.openExternal) throw new Error('Reinicie la aplicacion para cargar el abridor externo.');
+      await window.dteApp.openExternal(selectedQueryUrl);
+      setStatus('Datos de Hacienda actualizados y consulta abierta en el navegador predeterminado.');
+    } catch (error) {
+      setStatus(`No se pudo abrir el navegador predeterminado: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function queryAllRowsInHacienda() {
+    const queryableRows = getUniqueQueryableRows(filteredRows);
+    if (!queryableRows.length) {
+      setStatus('No hay lineas con codigo de generacion y fecha validos para consultar Hacienda.');
+      return;
+    }
+
+    setLoading(true);
+    setStatus(`Consultando Hacienda para ${queryableRows.length} documento(s)...`);
+
+    const publicDataByCode = new Map();
+    let completed = 0;
+    let failed = 0;
+    let nextIndex = 0;
+
+    async function worker() {
+      while (nextIndex < queryableRows.length) {
+        const row = queryableRows[nextIndex];
+        nextIndex += 1;
+        try {
+          const publicData = await queryPublicHaciendaRow(row);
+          if (publicData && publicData.estadoDoc !== 'Error') {
+            publicDataByCode.set(getSelectedGenerationCode(row), publicData);
+          } else {
+            failed += 1;
+          }
+        } catch {
+          failed += 1;
+        } finally {
+          completed += 1;
+          if (completed % 10 === 0 || completed === queryableRows.length) {
+            setStatus(`Consultando Hacienda: ${completed}/${queryableRows.length} documento(s)...`);
+          }
+        }
+      }
+    }
+
+    await Promise.all(Array.from(
+      { length: Math.min(HACIENDA_QUERY_CONCURRENCY, queryableRows.length) },
+      () => worker()
+    ));
+
+    updateDocumentsWithPublicData(publicDataByCode);
+    setLoading(false);
+    setStatus(`Consulta Hacienda terminada: ${publicDataByCode.size} actualizado(s), ${failed} sin respuesta.`);
+  }
+
+  async function queryPublicHaciendaRow(row) {
+    return window.dteApp.publicHaciendaQuery({
+      ambiente: getSelectedEnvironment(row),
+      codigoGeneracion: getSelectedGenerationCode(row),
+      fechaEmi: getSelectedIssueDate(row)
+    });
+  }
+
+  function updateDocumentsWithPublicData(publicDataByCode) {
+    setDocuments((currentDocuments) => currentDocuments.map((document) => {
+      const documentCode = getDocumentGenerationCode(document);
+      const publicData = publicDataByCode.get(documentCode);
+      return publicData ? { ...document, payload: { ...document.payload, __consultaPublica: publicData } } : document;
+    }));
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
+      {showSplash ? <SplashScreen /> : null}
       <AppHeader />
       <FilterPanel
-        apiConfig={apiConfig}
         folder={folder}
         fromDate={fromDate}
         loading={loading}
-        onApiConfigChange={setApiConfig}
         onExportExcel={exportExcel}
         onSelectFiles={selectFiles}
         onFromDateChange={setFromDate}
@@ -68,7 +177,6 @@ export default function App() {
         }}
         onSelectFolder={selectFolder}
         onStructureNameChange={setStructureName}
-        onTestHacienda={testHacienda}
         onToDateChange={setToDate}
         onTypeCodeChange={setTypeCode}
         structureName={structureName}
@@ -81,19 +189,102 @@ export default function App() {
           columnCount={columns.length}
           loadedCount={documents.length}
           loading={loading}
+          onOpenHacienda={querySelectedInHacienda}
+          onQueryAllHacienda={queryAllRowsInHacienda}
           rowCount={filteredRows.length}
+          selectedRow={selectedRow}
+          selectedQueryUrl={selectedQueryUrl}
           status={status}
         />
-        <VirtualDataTable
-          columnFilters={columnFilters}
-          columns={columns}
-          filterSourceRows={rows}
-          onColumnFilterChange={setColumnFilters}
-          rows={filteredRows}
-        />
+        {documents.length ? (
+          <VirtualDataTable
+            columnFilters={columnFilters}
+            columns={columns}
+            filterSourceRows={rows}
+            onColumnFilterChange={setColumnFilters}
+            onRowSelect={setSelectedRow}
+            rows={filteredRows}
+            selectedRow={selectedRow}
+          />
+        ) : (
+          <div className="tableFrame">
+            <div className="empty">Sin datos cargados</div>
+          </div>
+        )}
         <ErrorSummary errors={errors} />
       </section>
     </main>
+  );
+}
+
+function orderColumns(columns) {
+  const normalColumns = columns.filter((column) => !HACIENDA_PUBLIC_COLUMNS.has(column));
+  const haciendaColumns = columns.filter((column) => HACIENDA_PUBLIC_COLUMNS.has(column));
+  return [...normalColumns, ...haciendaColumns];
+}
+
+function toHaciendaDate(value) {
+  const text = String(value || '').trim();
+  const dayFirst = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dayFirst) {
+    const [, day, month, year] = dayFirst;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  const yearFirst = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (yearFirst) {
+    const [, year, month, day] = yearFirst;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  return '';
+}
+
+function formatGenerationCode(value) {
+  const text = String(value || '').trim().toUpperCase();
+  if (/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(text)) return text;
+
+  const compact = text.replace(/-/g, '');
+  if (!/^[0-9A-F]{32}$/.test(compact)) return '';
+  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20)}`;
+}
+
+function buildHaciendaQueryUrl(row) {
+  if (!row) return '';
+  const ambiente = getSelectedEnvironment(row);
+  const codGen = getSelectedGenerationCode(row);
+  const fechaEmi = getSelectedIssueDate(row);
+  if (!codGen || !fechaEmi) return '';
+  return `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent(ambiente)}&codGen=${encodeURIComponent(codGen)}&fechaEmi=${encodeURIComponent(fechaEmi)}`;
+}
+
+function getSelectedEnvironment(row) {
+  return String(row?.Ambiente || row?.ambiente || '01').padStart(2, '0');
+}
+
+function getSelectedGenerationCode(row) {
+  return formatGenerationCode(row?.['Codigo de Generacion'] || row?.[LOCAL_GENERATION_CODE_COLUMN]);
+}
+
+function getSelectedIssueDate(row) {
+  return toHaciendaDate(row?.Fecha);
+}
+
+function getUniqueQueryableRows(rows) {
+  const rowsByCode = new Map();
+  for (const row of rows) {
+    const code = getSelectedGenerationCode(row);
+    const date = getSelectedIssueDate(row);
+    if (code && date && !rowsByCode.has(code)) rowsByCode.set(code, row);
+  }
+  return Array.from(rowsByCode.values());
+}
+
+function getDocumentGenerationCode(document) {
+  return formatGenerationCode(
+    document?.payload?.identificacion?.codigoGeneracion
+    || document?.payload?.codigoGeneracion
+    || document?.payload?.codGen
   );
 }
 
@@ -104,8 +295,10 @@ function applyColumnFilters(rows, filters) {
 
   if (!activeFilters.length) return rows;
 
-  return rows.filter((row) => activeFilters.every(([column, value]) => (
-    value.includes(String(row[column] ?? ''))
+  const filterSets = activeFilters.map(([column, value]) => [column, new Set(value)]);
+
+  return rows.filter((row) => filterSets.every(([column, value]) => (
+    value.has(String(row[column] ?? ''))
   )));
 }
 
@@ -114,7 +307,7 @@ function normalizeDuplicateKey(value) {
 }
 
 function getDuplicateKey(row) {
-  return normalizeDuplicateKey(row['Numero del Documento']) || normalizeDuplicateKey(row['Numero de Control']);
+  return normalizeDuplicateKey(row[LOCAL_GENERATION_CODE_COLUMN]) || normalizeDuplicateKey(row['Numero de Control']);
 }
 
 function markDuplicateRows(rows) {

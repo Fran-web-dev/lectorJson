@@ -1,19 +1,16 @@
-import { FileJson, FolderOpen, PlugZap, Sheet } from 'lucide-react';
+import { FileJson, FolderOpen, Sheet } from 'lucide-react';
 import { DTE_TYPES } from '../lib/dteStructures.js';
 
 export function FilterPanel({
-  apiConfig,
   folder,
   fromDate,
   loading,
-  onApiConfigChange,
   onClearDates,
   onExportExcel,
   onFromDateChange,
   onSelectFiles,
   onSelectFolder,
   onStructureNameChange,
-  onTestHacienda,
   onToDateChange,
   onTypeCodeChange,
   structureName,
@@ -70,31 +67,6 @@ export function FilterPanel({
         <button className="actionButton" disabled={loading} onClick={onClearDates}>
           Limpiar fechas
         </button>
-        <div className="min-w-96 flex-1">
-          <label className="label">API Hacienda El Salvador</label>
-          <div className="grid grid-cols-[1fr_140px_1fr_120px] gap-2">
-            <input
-              className="input"
-              value={apiConfig.baseUrl}
-              onChange={(event) => onApiConfigChange({ ...apiConfig, baseUrl: event.target.value })}
-            />
-            <input
-              className="input"
-              value={apiConfig.endpoint}
-              onChange={(event) => onApiConfigChange({ ...apiConfig, endpoint: event.target.value })}
-            />
-            <input
-              className="input"
-              placeholder="Token Bearer"
-              type="password"
-              value={apiConfig.token}
-              onChange={(event) => onApiConfigChange({ ...apiConfig, token: event.target.value })}
-            />
-            <button className="actionButton" disabled={loading} onClick={onTestHacienda}>
-              <PlugZap size={16} /> Probar
-            </button>
-          </div>
-        </div>
       </div>
     </section>
   );

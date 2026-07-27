@@ -12,7 +12,7 @@ const COLUMN_WIDTHS = {
   Hora: 110,
   Fecha: 130,
   'Numero de Control': 300,
-  'Numero del Documento': 320,
+  'Codigo de generacion local': 320,
   'Serie del Documento': 300,
   'NRC emisor': 130,
   'NIT emisor': 180,
@@ -85,10 +85,13 @@ function getColumnWidth(column) {
   return COLUMN_WIDTHS[column] || DEFAULT_COLUMN_WIDTH;
 }
 
-function DataRow({ columns, gridTemplateColumns, row, rowIndex }) {
+function DataRow({ columns, gridTemplateColumns, isSelected, onRowSelect, row, rowIndex }) {
+  const isRejectedOrInvalid = /invalidado|rechazado/i.test(String(row['Estado del DTE'] || ''));
+
   return (
     <div
-      className={`virtualRow ${row.__isDuplicate ? 'duplicateRow' : ''}`}
+      className={`virtualRow ${row.__isDuplicate ? 'duplicateRow' : ''} ${isRejectedOrInvalid ? 'alertRow' : ''} ${isSelected ? 'selectedRow' : ''}`}
+      onClick={() => onRowSelect(row)}
       role="row"
       style={{ gridTemplateColumns, transform: `translateY(${rowIndex * ROW_HEIGHT}px)` }}
     >
@@ -106,9 +109,24 @@ function DataRow({ columns, gridTemplateColumns, row, rowIndex }) {
   );
 }
 
-const MemoDataRow = memo(DataRow);
+const MemoDataRow = memo(DataRow, (previous, next) => (
+  previous.columns === next.columns
+  && previous.gridTemplateColumns === next.gridTemplateColumns
+  && previous.isSelected === next.isSelected
+  && previous.onRowSelect === next.onRowSelect
+  && previous.row === next.row
+  && previous.rowIndex === next.rowIndex
+));
 
-export function VirtualDataTable({ columnFilters, columns, filterSourceRows, onColumnFilterChange, rows }) {
+export function VirtualDataTable({
+  columnFilters,
+  columns,
+  filterSourceRows,
+  onColumnFilterChange,
+  onRowSelect,
+  rows,
+  selectedRow
+}) {
   const [viewport, setViewport] = useState({ height: 480, scrollTop: 0 });
   const [scrollLeft, setScrollLeft] = useState(0);
   const [openFilter, setOpenFilter] = useState(null);
@@ -130,15 +148,12 @@ export function VirtualDataTable({ columnFilters, columns, filterSourceRows, onC
     () => columns.reduce((total, column) => total + getColumnWidth(column), 0),
     [columns]
   );
-  const uniqueValuesByColumn = useMemo(() => {
-    const values = {};
-    for (const column of columns) {
-      values[column] = Array.from(new Set(filterSourceRows.map((row) => String(row[column] ?? '')))).sort((a, b) =>
-        a.localeCompare(b, 'es')
-      );
-    }
-    return values;
-  }, [columns, filterSourceRows]);
+  const openFilterValues = useMemo(() => {
+    if (!openFilter) return [];
+    return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>
+      a.localeCompare(b, 'es')
+    );
+  }, [filterSourceRows, openFilter]);
 
   function handleScroll(event) {
     const target = event.currentTarget;
@@ -188,7 +203,7 @@ export function VirtualDataTable({ columnFilters, columns, filterSourceRows, onC
                     onFilterSearchChange={setFilterSearch}
                     onColumnFilterChange={onColumnFilterChange}
                     selectedValues={columnFilters[openFilter] || []}
-                    values={uniqueValuesByColumn[openFilter] || []}
+                    values={openFilterValues}
                   />
                 ) : null}
               </div>
@@ -199,7 +214,9 @@ export function VirtualDataTable({ columnFilters, columns, filterSourceRows, onC
               <MemoDataRow
                 columns={columns}
                 gridTemplateColumns={gridTemplateColumns}
+                isSelected={row === selectedRow}
                 key={`${visibleRange.startIndex + index}`}
+                onRowSelect={onRowSelect}
                 row={row}
                 rowIndex={visibleRange.startIndex + index}
               />

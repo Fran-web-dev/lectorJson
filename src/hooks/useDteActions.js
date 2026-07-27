@@ -1,8 +1,6 @@
 import { useCallback } from 'react';
 
 export function useDteActions({
-  apiConfig,
-  documents,
   rows,
   setDocuments,
   setErrors,
@@ -70,26 +68,5 @@ export function useDteActions({
     }
   }, [rows, setLoading, setStatus]);
 
-  const testHacienda = useCallback(async () => {
-    if (!documents[0]) {
-      setStatus('Cargue un JSON o CSV DTE antes de probar la conexion.');
-      return;
-    }
-
-    setLoading(true);
-    setStatus('Enviando prueba a Hacienda...');
-    try {
-      const response = await window.dteApp.haciendaRequest({
-        ...apiConfig,
-        payload: documents[0].payload
-      });
-      setStatus(`Respuesta Hacienda recibida: ${JSON.stringify(response).slice(0, 220)}`);
-    } catch (error) {
-      setStatus(`No se pudo conectar con Hacienda: ${error.message}`);
-    } finally {
-      setLoading(false);
-    }
-  }, [apiConfig, documents, setLoading, setStatus]);
-
-  return { exportExcel, selectFiles, selectFolder, testHacienda };
+  return { exportExcel, selectFiles, selectFolder };
 }

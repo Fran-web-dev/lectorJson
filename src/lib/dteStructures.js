@@ -12,12 +12,14 @@ export const DTE_TYPES = [
   { code: '15', label: 'Comprobante de donacion' }
 ];
 
+export const LOCAL_GENERATION_CODE_COLUMN = 'Codigo de generacion local';
+
 export const DEFAULT_STRUCTURE = [
   { name: 'Tipo DTE', sections: ['identificacion'], fields: ['tipoDte'] },
   { name: 'Hora', sections: ['identificacion'], fields: ['horEmi'] },
   { name: 'Fecha', sections: ['identificacion'], fields: ['fecEmi'], style: 'date' },
   { name: 'Numero de Control', sections: ['identificacion'], fields: ['numeroControl'] },
-  { name: 'Numero del Documento', sections: ['identificacion'], fields: ['codigoGeneracion'] },
+  { name: LOCAL_GENERATION_CODE_COLUMN, sections: ['identificacion'], fields: ['codigoGeneracion'] },
   { name: 'Serie del Documento', sections: ['selloRecibido', 'sello', 'selloRecepcion', 'SelloRecibido'], fields: ['*'] },
   { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
   { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
@@ -49,7 +51,7 @@ export const RETENTION_STRUCTURE = [
   { name: 'Hora', sections: ['identificacion'], fields: ['horEmi'] },
   { name: 'Fecha', sections: ['identificacion'], fields: ['fecEmi'], style: 'date' },
   { name: 'Numero de Control', sections: ['identificacion'], fields: ['numeroControl'] },
-  { name: 'Numero del Documento', sections: ['identificacion'], fields: ['codigoGeneracion'] },
+  { name: LOCAL_GENERATION_CODE_COLUMN, sections: ['identificacion'], fields: ['codigoGeneracion'] },
   { name: 'Serie del Documento', sections: ['selloRecibido', 'sello', 'selloRecepcion', 'SelloRecibido'], fields: ['*'] },
   { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
   { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
@@ -70,26 +72,28 @@ export const RETENTION_STRUCTURE = [
 ];
 
 export const PUBLIC_QUERY_COLUMNS = [
-  { name: 'Estado del DTE', sections: ['estadoDoc'], fields: ['*'] },
-  { name: 'Descripcion del DTE', sections: ['descripcionEstado'], fields: ['*'] },
-  { name: 'Tipo de DTE', sections: ['tipoDte', 'identificacion'], fields: ['*', 'tipoDte'] },
-  { name: 'Fecha y hora de generacion', sections: ['fechaProcesado'], fields: ['*'] },
-  { name: 'Codigo de Generacion', sections: ['codGen', 'identificacion'], fields: ['*', 'codigoGeneracion'] },
-  { name: 'Sello de Recepcion', sections: ['selloVal', 'selloRecibido', 'sello', 'selloRecepcion'], fields: ['*'] },
-  { name: 'Numero de Control Consulta', sections: ['documento'], fields: ['numeroControl'] },
+  { name: 'Estado del DTE', source: 'publicQuery', sections: ['estadoDoc'], fields: ['*'] },
+  { name: 'Descripcion del DTE', source: 'publicQuery', sections: ['descripcionEstado'], fields: ['*'] },
+  { name: 'Tipo de DTE', source: 'publicQuery', sections: ['tipoDte'], fields: ['*'] },
+  { name: 'Fecha y hora de generacion', source: 'publicQuery', sections: ['fechaProcesado'], fields: ['*'] },
+  { name: 'Codigo de Generacion', source: 'publicQuery', sections: ['codGen'], fields: ['*'] },
+  { name: 'Sello de Recepcion', source: 'publicQuery', sections: ['selloVal'], fields: ['*'] },
+  { name: 'Numero de Control Consulta', source: 'publicQuery', sections: ['documento'], fields: ['numeroControl'] },
   {
     name: 'Documento ajustado',
+    source: 'publicQuery',
     sections: ['ajustes', 'documentoAjustado', 'docAjustado'],
     fields: ['*'],
     searchKeys: ['documentoAjustado', 'docAjustado', 'ajustado', 'ajustes']
   },
   {
     name: 'Documento con Evento aplicado',
+    source: 'publicQuery',
     sections: ['evento', 'eventos', 'eventoAplicado', 'documentoEvento'],
     fields: ['*'],
     searchKeys: ['eventoAplicado', 'documentoEvento', 'eventos', 'evento']
   },
-  { name: 'Documentos Relacionados', sections: ['documento', 'ajustes', 'documentoRelacionado'], fields: ['nombDte', 'ajustes', '*'] }
+  { name: 'Documentos Relacionados', source: 'publicQuery', sections: ['ajustes'], fields: ['*'] }
 ];
 
 export const STRUCTURES_BY_DTE = {
