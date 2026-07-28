@@ -6,6 +6,42 @@ body {
   margin: 0;
 }
 
+html,
+body,
+#root {
+  height: 100%;
+  overflow: hidden;
+}
+
+* {
+  scrollbar-color: #38bdf8 #f1f5f9;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  height: 12px;
+  width: 12px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, #38bdf8, #0284c7);
+  border: 3px solid #f1f5f9;
+  border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #0369a1;
+}
+
+*::-webkit-scrollbar-corner {
+  background: #f1f5f9;
+}
+
 @layer components {
   .splashScreen {
     @apply fixed inset-0 z-[9999] flex items-center justify-center bg-white;
@@ -91,11 +127,16 @@ body {
   }
 
   .horizontalScrollbar {
-    @apply h-5 overflow-x-auto overflow-y-hidden border-t border-slate-200 bg-slate-50;
-    flex: 0 0 20px;
+    @apply overflow-x-auto overflow-y-hidden border-t border-slate-200 bg-slate-50;
+    flex: 0 0 16px;
+    height: 16px;
     position: sticky;
     bottom: 0;
     z-index: 20;
+  }
+
+  .horizontalScrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(90deg, #38bdf8, #0284c7);
   }
 
   table {
@@ -138,11 +179,12 @@ body {
   }
 
   .virtualTotalCell {
-    @apply flex h-[34px] items-center justify-end overflow-hidden border-r border-slate-200 px-2 text-sm font-bold text-slate-400;
+    @apply flex h-[34px] items-center justify-end overflow-hidden border-r border-slate-200 px-2 font-bold text-slate-400;
+    font-size: 11px;
   }
 
   .virtualTotalCell.hasTotal {
-    @apply bg-blue-50 text-blue-700;
+    @apply bg-green-50 text-green-700;
   }
 
   .virtualHeader {
@@ -153,6 +195,7 @@ body {
 
   .virtualHeadCell {
     @apply relative flex h-[42px] items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 px-2 text-left font-bold text-white;
+    font-size: 12px;
   }
 
   .publicQueryHeadCell {

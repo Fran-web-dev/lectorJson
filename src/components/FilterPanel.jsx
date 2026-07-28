@@ -24,7 +24,7 @@ export function FilterPanel({
 
   return (
     <section className="border-b border-slate-200 bg-white px-5 py-3">
-      <div className="grid grid-cols-[minmax(420px,1fr)_240px_280px_430px] items-start gap-4">
+      <div className="grid grid-cols-[minmax(320px,460px)_240px_280px_430px] items-start gap-4">
         <div className="min-w-0">
           <label className="label">Seleccione la carpeta contenedora de los archivos JSON</label>
           <div className="flex items-end gap-2">
