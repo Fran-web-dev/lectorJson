@@ -1,8 +1,9 @@
 import { DTE_TYPES } from './dteTypes.js';
 export { DTE_TYPES } from './dteTypes.js';
+import { LOCAL_GENERATION_CODE_COLUMN } from './columnConstants.js';
 import { DEFAULT_STRUCTURE_NAME } from './dteStructureOptions.js';
 
-export const LOCAL_GENERATION_CODE_COLUMN = 'Codigo de generacion local';
+export { LOCAL_GENERATION_CODE_COLUMN } from './columnConstants.js';
 
 export const DEFAULT_STRUCTURE = [
   { name: 'Tipo DTE', sections: ['identificacion'], fields: ['tipoDte'] },

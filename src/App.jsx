@@ -6,24 +6,26 @@ import { SplashScreen } from './components/SplashScreen.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
 import { DEFAULT_STRUCTURE_NAME, getStructureOptions } from './lib/dteStructureOptions.js';
+import {
+  buildHaciendaQueryUrl,
+  getDocumentGenerationCode,
+  getSelectedEnvironment,
+  getSelectedGenerationCode,
+  getSelectedIssueDate,
+  getUniqueQueryableRows
+} from './lib/haciendaUtils.js';
+import {
+  applyColumnFilters,
+  extractRowsForSummary,
+  markDuplicateRows,
+  orderColumns,
+  summarizeDteTypes
+} from './lib/tableRowUtils.js';
 
-const LOCAL_GENERATION_CODE_COLUMN = 'Codigo de generacion local';
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
   default: module.VirtualDataTable
 })));
 
-const HACIENDA_PUBLIC_COLUMNS = new Set([
-  'Estado del DTE',
-  'Descripcion del DTE',
-  'Tipo de DTE',
-  'Fecha y hora de generacion',
-  'Codigo de Generacion',
-  'Sello de Recepcion',
-  'Numero de Control Consulta',
-  'Documento ajustado',
-  'Documento con Evento aplicado',
-  'Documentos Relacionados'
-]);
 const HACIENDA_QUERY_CONCURRENCY = 6;
 
 export default function App() {
@@ -299,143 +301,4 @@ export default function App() {
       </section>
     </main>
   );
-}
-
-function orderColumns(columns) {
-  const normalColumns = columns.filter((column) => !HACIENDA_PUBLIC_COLUMNS.has(column));
-  const haciendaColumns = columns.filter((column) => HACIENDA_PUBLIC_COLUMNS.has(column));
-  return [...normalColumns, ...haciendaColumns];
-}
-
-function toHaciendaDate(value) {
-  const text = String(value || '').trim();
-  const dayFirst = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
-  if (dayFirst) {
-    const [, day, month, year] = dayFirst;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  const yearFirst = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
-  if (yearFirst) {
-    const [, year, month, day] = yearFirst;
-    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-  }
-
-  return '';
-}
-
-function formatGenerationCode(value) {
-  const text = String(value || '').trim().toUpperCase();
-  if (/^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/.test(text)) return text;
-
-  const compact = text.replace(/-/g, '');
-  if (!/^[0-9A-F]{32}$/.test(compact)) return '';
-  return `${compact.slice(0, 8)}-${compact.slice(8, 12)}-${compact.slice(12, 16)}-${compact.slice(16, 20)}-${compact.slice(20)}`;
-}
-
-function buildHaciendaQueryUrl(row) {
-  if (!row) return '';
-  const ambiente = getSelectedEnvironment(row);
-  const codGen = getSelectedGenerationCode(row);
-  const fechaEmi = getSelectedIssueDate(row);
-  if (!codGen || !fechaEmi) return '';
-  return `https://admin.factura.gob.sv/consultaPublica?ambiente=${encodeURIComponent(ambiente)}&codGen=${encodeURIComponent(codGen)}&fechaEmi=${encodeURIComponent(fechaEmi)}`;
-}
-
-function getSelectedEnvironment(row) {
-  return String(row?.Ambiente || row?.ambiente || '01').padStart(2, '0');
-}
-
-function getSelectedGenerationCode(row) {
-  return formatGenerationCode(
-    row?.['Codigo de Generacion']
-    || row?.[LOCAL_GENERATION_CODE_COLUMN]
-    || row?.['Numero del Documento']
-    || row?.['Numero Documento']
-    || row?.['Codigo de generacion local']
-  );
-}
-
-function getSelectedIssueDate(row) {
-  return toHaciendaDate(row?.Fecha);
-}
-
-function getUniqueQueryableRows(rows) {
-  const rowsByCode = new Map();
-  for (const row of rows) {
-    const code = getSelectedGenerationCode(row);
-    const date = getSelectedIssueDate(row);
-    if (code && date && !rowsByCode.has(code)) rowsByCode.set(code, row);
-  }
-  return Array.from(rowsByCode.values());
-}
-
-function getDocumentGenerationCode(document) {
-  return formatGenerationCode(
-    document?.payload?.identificacion?.codigoGeneracion
-    || document?.payload?.codigoGeneracion
-    || document?.payload?.codGen
-  );
-}
-
-function applyColumnFilters(rows, filters) {
-  const activeFilters = Object.entries(filters)
-    .map(([column, value]) => [column, Array.isArray(value) ? value : []])
-    .filter(([, value]) => value.length);
-
-  if (!activeFilters.length) return rows;
-
-  const filterSets = activeFilters.map(([column, value]) => [column, new Set(value)]);
-
-  return rows.filter((row) => filterSets.every(([column, value]) => (
-    value.has(String(row[column] ?? ''))
-  )));
-}
-
-function extractRowsForSummary(documents) {
-  return documents.map((document) => ({
-    'Tipo DTE': document?.payload?.identificacion?.tipoDte
-      || document?.payload?.tipoDte
-      || document?.payload?.documento?.identificacion?.tipoDte
-      || ''
-  }));
-}
-
-function summarizeDteTypes(rows) {
-  const counts = new Map();
-  for (const row of rows) {
-    const code = String(row['Tipo DTE'] || '').trim().padStart(2, '0');
-    if (!code || code === '00') continue;
-    counts.set(code, (counts.get(code) || 0) + 1);
-  }
-
-  return Array.from(counts.entries())
-    .sort(([firstCode], [secondCode]) => firstCode.localeCompare(secondCode, 'es'))
-    .map(([code, count]) => ({ code, count }));
-}
-
-function normalizeDuplicateKey(value) {
-  return String(value || '').trim().toUpperCase();
-}
-
-function getDuplicateKey(row) {
-  return normalizeDuplicateKey(row[LOCAL_GENERATION_CODE_COLUMN]) || normalizeDuplicateKey(row['Numero de Control']);
-}
-
-function markDuplicateRows(rows) {
-  const filesByDocument = new Map();
-
-  for (const row of rows) {
-    const key = getDuplicateKey(row);
-    if (!key) continue;
-    if (!filesByDocument.has(key)) filesByDocument.set(key, new Set());
-    filesByDocument.get(key).add(row.__sourceFile || `row:${filesByDocument.get(key).size}`);
-  }
-
-  for (const row of rows) {
-    const key = getDuplicateKey(row);
-    row.__isDuplicate = Boolean(key && filesByDocument.get(key)?.size > 1);
-  }
-
-  return rows;
 }
