@@ -1,8 +1,12 @@
 const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
+const fsSync = require('fs');
 
 const isDev = !app.isPackaged;
+app.disableHardwareAcceleration();
+app.commandLine.appendSwitch('no-sandbox');
+
 const EXCEL_FONT = 'Tw Cen MT Condensed';
 const EXCEL_FONT_SIZE = 12;
 const TABLE_HEADER_FILL = 'FF2EA8C9';
@@ -34,6 +38,15 @@ let excelJs;
 let axiosClient;
 let publicQueryHttp;
 
+function writeStartupLog(message) {
+  try {
+    const logPath = path.join(app.getPath('userData'), 'startup.log');
+    fsSync.appendFileSync(logPath, `${new Date().toISOString()} ${message}\n`, 'utf8');
+  } catch {
+    // Logging must never block app startup.
+  }
+}
+
 function getPapaParser() {
   papaParser ||= require('papaparse');
   return papaParser;
@@ -61,6 +74,7 @@ function getPublicQueryHttp() {
 }
 
 function createWindow() {
+  writeStartupLog(`Starting app. packaged=${app.isPackaged} dirname=${__dirname}`);
   const win = new BrowserWindow({
     width: 1280,
     height: 760,
@@ -71,15 +85,34 @@ function createWindow() {
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      sandbox: false
     }
   });
 
   if (isDev) {
     win.loadURL('http://127.0.0.1:5173');
   } else {
-    win.loadFile(path.join(__dirname, '../dist/index.html'));
+    const indexPath = path.join(__dirname, '../dist/index.html');
+    writeStartupLog(`Loading ${indexPath}`);
+    win.loadFile(indexPath);
   }
+
+  win.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
+    const message = `No se pudo cargar la interfaz (${errorCode}): ${errorDescription}. ${validatedURL}`;
+    writeStartupLog(message);
+    dialog.showErrorBox('Error al cargar Lector DTE Hacienda', message);
+  });
+
+  win.webContents.on('render-process-gone', (_event, details) => {
+    const message = `El proceso grafico se cerro: ${details.reason}. Codigo: ${details.exitCode}`;
+    writeStartupLog(message);
+    dialog.showErrorBox('Error grafico', message);
+  });
+
+  win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
+    if (level >= 2) writeStartupLog(`Renderer: ${message} (${sourceId}:${line})`);
+  });
 }
 
 async function collectFiles(folderPath) {
@@ -294,11 +327,170 @@ ipcMain.handle('excel:export', async (_event, rows) => {
   return result.filePath;
 });
 
+ipcMain.handle('register:template-export', async (_event, request) => {
+  const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
+  if (!columns.length) throw new Error('No hay columnas para generar la plantilla.');
+
+  const result = await dialog.showSaveDialog({
+    title: 'Guardar plantilla de registros',
+    defaultPath: `Plantilla-${sanitizeFileName(request?.title || 'Registros')}.xlsx`,
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+  await writeRegisterTemplate(result.filePath, columns, request?.title || 'REGISTROS');
+  return result.filePath;
+});
+
+ipcMain.handle('register:excel-import', async (_event, request) => {
+  const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
+  if (!columns.length) throw new Error('No hay columnas configuradas para importar.');
+
+  const result = await dialog.showOpenDialog({
+    title: 'Importar registros desde Excel',
+    properties: ['openFile'],
+    filters: [
+      { name: 'Excel', extensions: ['xlsx'] }
+    ]
+  });
+
+  if (result.canceled || !result.filePaths[0]) return null;
+  return readRegisterExcel(result.filePaths[0], columns);
+});
+
 function formatExportTimestamp(date) {
   const hour = String(date.getHours()).padStart(2, '0');
   const minute = String(date.getMinutes()).padStart(2, '0');
   const second = String(date.getSeconds()).padStart(2, '0');
   return `${hour}-${minute}-${second}`;
+}
+
+function sanitizeFileName(value) {
+  return String(value || 'Registros')
+    .replace(/[<>:"/\\|?*]+/g, '')
+    .replace(/\s+/g, '-')
+    .slice(0, 80);
+}
+
+async function writeRegisterTemplate(filePath, columns, title) {
+  const ExcelJS = getExcelJs();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Plantilla');
+  const editableColumns = columns.filter((column) => column !== 'CORR.');
+
+  worksheet.mergeCells(1, 1, 1, editableColumns.length);
+  const titleCell = worksheet.getCell(1, 1);
+  titleCell.value = String(title || 'REGISTROS').toUpperCase();
+  titleCell.font = { bold: true, color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE + 2 };
+  titleCell.alignment = { horizontal: 'left', vertical: 'middle' };
+
+  worksheet.columns = editableColumns.map((header) => ({
+    key: header,
+    width: Math.min(Math.max(String(header).length + 6, 16), /NOMBRE/i.test(header) ? 42 : 28)
+  }));
+
+  worksheet.addRow(editableColumns);
+  for (let index = 0; index < 20; index += 1) {
+    worksheet.addRow(Object.fromEntries(editableColumns.map((header) => [header, ''])));
+  }
+
+  worksheet.getRow(2).height = 22;
+  for (let colNumber = 1; colNumber <= editableColumns.length; colNumber += 1) {
+    const cell = worksheet.getRow(2).getCell(colNumber);
+    cell.font = { bold: true, color: { argb: 'FFFFFFFF' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_HEADER_FILL } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      left: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      bottom: { style: 'thin', color: { argb: 'FF94A3B8' } },
+      right: { style: 'thin', color: { argb: 'FF94A3B8' } }
+    };
+  }
+
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber <= 2) return;
+    row.height = 18;
+    for (let colNumber = 1; colNumber <= editableColumns.length; colNumber += 1) {
+      const cell = row.getCell(colNumber);
+      cell.font = { name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+      cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: rowNumber % 2 === 0 ? TABLE_WHITE_FILL : TABLE_ALT_FILL }
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    }
+  });
+
+  worksheet.autoFilter = {
+    from: { row: 2, column: 1 },
+    to: { row: 2, column: editableColumns.length }
+  };
+
+  await workbook.xlsx.writeFile(filePath);
+}
+
+async function readRegisterExcel(filePath, columns) {
+  const ExcelJS = getExcelJs();
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.readFile(filePath);
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) return [];
+
+  const editableColumns = columns.filter((column) => column !== 'CORR.');
+  const headerRowNumber = findRegisterHeaderRow(worksheet, editableColumns);
+  if (!headerRowNumber) throw new Error('No se encontraron encabezados validos en la plantilla.');
+
+  const headerRow = worksheet.getRow(headerRowNumber);
+  const headerMap = new Map();
+  headerRow.eachCell((cell, colNumber) => {
+    const header = String(cell.value || '').trim();
+    if (editableColumns.includes(header)) headerMap.set(header, colNumber);
+  });
+
+  const importedRows = [];
+  for (let rowNumber = headerRowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const worksheetRow = worksheet.getRow(rowNumber);
+    const row = {};
+    let hasData = false;
+    for (const header of editableColumns) {
+      const value = getExcelCellText(worksheetRow.getCell(headerMap.get(header)));
+      row[header] = value;
+      if (value.trim()) hasData = true;
+    }
+    if (hasData) importedRows.push(row);
+  }
+
+  return importedRows;
+}
+
+function findRegisterHeaderRow(worksheet, columns) {
+  for (let rowNumber = 1; rowNumber <= Math.min(10, worksheet.rowCount); rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber);
+    const values = [];
+    row.eachCell((cell) => values.push(String(cell.value || '').trim()));
+    const matches = columns.filter((column) => values.includes(column)).length;
+    if (matches >= Math.min(2, columns.length)) return rowNumber;
+  }
+  return 0;
+}
+
+function getExcelCellText(cell) {
+  const value = cell?.value;
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'object') {
+    if (value.text) return String(value.text);
+    if (value.result !== undefined) return String(value.result);
+    if (Array.isArray(value.richText)) return value.richText.map((part) => part.text || '').join('');
+  }
+  return String(value);
 }
 
 function isMoneyColumn(header) {

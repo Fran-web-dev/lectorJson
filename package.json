@@ -46,7 +46,9 @@
       "package.json"
     ],
     "win": {
-      "target": "nsis"
+      "target": [
+        "portable"
+      ]
     }
   }
 }

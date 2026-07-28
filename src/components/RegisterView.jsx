@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useState } from 'react';
-import { Check, Download, Pencil, Plus, X } from 'lucide-react';
+import { Check, Download, FileSpreadsheet, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const INITIAL_ROW_COUNT = 14;
 
@@ -34,7 +34,7 @@ const REGISTER_CONFIG = {
 };
 
 const IMPORTABLE_STRUCTURES = new Set([
-  '01|FACTURA CONSUMIDOR FINAL EMISOR',
+  '01|FCF EMISOR',
   '03|CCF EMISOR VENTA'
 ]);
 
@@ -44,6 +44,17 @@ function createRows(columns, count = INITIAL_ROW_COUNT) {
 
 function createEmptyRow(columns) {
   return Object.fromEntries(columns.map((column) => [column.header, '']));
+}
+
+function toRegisterUppercase(value) {
+  return String(value || '').toLocaleUpperCase('es-SV');
+}
+
+function normalizeRegisterRow(row, columns) {
+  return Object.fromEntries(columns.map((column, index) => [
+    column.header,
+    index === 0 ? '' : toRegisterUppercase(row[column.header])
+  ]));
 }
 
 function getStorageKey(type) {
@@ -68,7 +79,8 @@ function hasUsefulData(row, columns) {
 }
 
 function normalizeRows(rows, columns) {
-  const filledRows = rows.filter((row) => hasUsefulData(row, columns));
+  const normalizedRows = rows.map((row) => normalizeRegisterRow(row, columns));
+  const filledRows = normalizedRows.filter((row) => hasUsefulData(row, columns));
   const emptyRowsNeeded = Math.max(INITIAL_ROW_COUNT - filledRows.length, 1);
   return [
     ...filledRows,
@@ -132,6 +144,8 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   const [filterSearch, setFilterSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearPassword, setClearPassword] = useState('');
   const [message, setMessage] = useState('');
   const visibleRows = useMemo(
     () => applyRegisterFilters(rows, filters, config.columns),
@@ -153,6 +167,8 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
     setOpenFilter(null);
     setFilterSearch('');
     setIsEditing(false);
+    setShowClearConfirm(false);
+    setClearPassword('');
     setMessage('');
   }, [config.columns, type]);
 
@@ -178,7 +194,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
 
   function updateExistingCell(targetRow, columnHeader, value) {
     setRows((currentRows) => currentRows.map((row) => (
-      row === targetRow ? { ...row, [columnHeader]: value } : row
+      row === targetRow ? { ...row, [columnHeader]: toRegisterUppercase(value) } : row
     )));
   }
 
@@ -194,9 +210,37 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
     setIsEditing(true);
   }
 
+  function mergeImportedRegisterRows(importedRows, successMessage) {
+    const normalizedImportedRows = importedRows
+      .map((row) => normalizeRegisterRow({
+        ...createEmptyRow(config.columns),
+        ...row
+      }, config.columns))
+      .filter((row) => hasUsefulData(row, config.columns));
+
+    if (!normalizedImportedRows.length) {
+      setMessage('No se encontraron registros validos para importar.');
+      return;
+    }
+
+    setRows((currentRows) => {
+      const filledRows = currentRows.filter((row) => hasUsefulData(row, config.columns));
+      const existingKeys = new Set(filledRows.map((row) => getRegisterKey(row, type)).filter(Boolean));
+      const uniqueRows = normalizedImportedRows.filter((row) => {
+        const key = getRegisterKey(row, type);
+        if (!key || existingKeys.has(key)) return false;
+        existingKeys.add(key);
+        return true;
+      });
+
+      setMessage(successMessage(uniqueRows.length));
+      return uniqueRows.length ? normalizeRows([...uniqueRows, ...filledRows], config.columns) : currentRows;
+    });
+  }
+
   function importRows() {
     if (!IMPORTABLE_STRUCTURES.has(importableStructureKey(sourceTypeCode, sourceStructureName))) {
-      setMessage('Importe disponible solo para 01 FACTURA CONSUMIDOR FINAL EMISOR y 03 CCF EMISOR VENTA.');
+      setMessage('Importe disponible solo para 01 FCF EMISOR y 03 CCF EMISOR VENTA.');
       return;
     }
 
@@ -212,19 +256,80 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
       return;
     }
 
-    setRows((currentRows) => {
-      const filledRows = currentRows.filter((row) => hasUsefulData(row, config.columns));
-      const existingKeys = new Set(filledRows.map((row) => getRegisterKey(row, type)).filter(Boolean));
-      const uniqueRows = importedRows.filter((row) => {
-        const key = getRegisterKey(row, type);
-        if (!key || existingKeys.has(key)) return false;
-        existingKeys.add(key);
-        return true;
-      });
+    mergeImportedRegisterRows(importedRows, (count) => `${count} registro(s) importado(s).`);
+  }
 
-      setMessage(`${uniqueRows.length} registro(s) importado(s).`);
-      return uniqueRows.length ? normalizeRows([...uniqueRows, ...filledRows], config.columns) : currentRows;
-    });
+  async function exportExcelTemplate() {
+    try {
+      if (!window.dteApp?.exportRegisterTemplate) {
+        setMessage('Reinicie la aplicacion para generar plantillas.');
+        return;
+      }
+
+      const filePath = await window.dteApp.exportRegisterTemplate({
+        columns: config.columns.map((column) => column.header),
+        title: config.title
+      });
+      if (filePath) setMessage(`Plantilla creada: ${filePath}`);
+    } catch (error) {
+      setMessage(`No se pudo crear la plantilla: ${error.message}`);
+    }
+  }
+
+  async function importExcelTemplate() {
+    try {
+      if (!window.dteApp?.importRegisterExcel) {
+        setMessage('Reinicie la aplicacion para importar Excel.');
+        return;
+      }
+
+      const importedRows = await window.dteApp.importRegisterExcel({
+        columns: config.columns.map((column) => column.header),
+        title: config.title
+      });
+      if (!importedRows) return;
+      mergeImportedRegisterRows(importedRows, (count) => `${count} registro(s) importado(s) desde Excel.`);
+    } catch (error) {
+      setMessage(`No se pudo importar Excel: ${error.message}`);
+    }
+  }
+
+  function deleteRow(targetRow) {
+    setRows((currentRows) => normalizeRows(
+      currentRows.filter((row) => row !== targetRow),
+      config.columns
+    ));
+    setMessage('Registro eliminado.');
+  }
+
+  function clearRows() {
+    setRows(createRows(config.columns));
+    setFilters({});
+    setOpenFilter(null);
+    setFilterSearch('');
+    setIsEditing(false);
+    setShowClearConfirm(false);
+    setClearPassword('');
+    setMessage('Todos los registros fueron eliminados.');
+  }
+
+  function openClearConfirm() {
+    setClearPassword('');
+    setShowClearConfirm(true);
+  }
+
+  function closeClearConfirm() {
+    setShowClearConfirm(false);
+    setClearPassword('');
+  }
+
+  function confirmClearRows() {
+    if (clearPassword !== '1234') {
+      setMessage('Clave incorrecta. No se eliminaron registros.');
+      return;
+    }
+
+    clearRows();
   }
 
   return (
@@ -240,6 +345,15 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
             <button className="actionButton" onClick={toggleEditMode} type="button">
               {isEditing ? <Check size={16} /> : <Pencil size={16} />}
               {isEditing ? 'GUARDAR' : 'EDITAR'}
+            </button>
+            <button className="actionButton dangerActionButton" onClick={openClearConfirm} type="button">
+              <Trash2 size={16} /> LIMPIAR TODO
+            </button>
+            <button className="actionButton" onClick={exportExcelTemplate} type="button">
+              <FileSpreadsheet size={16} /> PLANTILLA EXCEL
+            </button>
+            <button className="actionButton" onClick={importExcelTemplate} type="button">
+              <FileSpreadsheet size={16} /> IMPORTAR EXCEL
             </button>
             <button className="actionButton" onClick={importRows} type="button">
               <Download size={16} /> IMPORTAR
@@ -283,7 +397,18 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                 key={`${rowIndex}-${column.header}`}
               >
                 {columnIndex === 0 ? (
-                  rowIndex + 1
+                  <div className="registerCorrCell">
+                    <span>{rowIndex + 1}</span>
+                    <button
+                      className="registerDeleteButton"
+                      disabled={!hasUsefulData(row, config.columns)}
+                      onClick={() => deleteRow(row)}
+                      title="Borrar registro"
+                      type="button"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 ) : isEditing && hasUsefulData(row, config.columns) ? (
                   <input
                     className="registerEditInput"
@@ -315,7 +440,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                     value={draftRow[column.header] || ''}
                     onChange={(event) => setDraftRow((currentRow) => ({
                       ...currentRow,
-                      [column.header]: event.target.value
+                      [column.header]: toRegisterUppercase(event.target.value)
                     }))}
                   />
                 </label>
@@ -327,6 +452,41 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
               </button>
               <button className="actionButton" onClick={saveDraftRow} type="button">
                 <Check size={16} /> Guardar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showClearConfirm ? (
+        <div className="registerModalBackdrop">
+          <div className="registerModal clearConfirmModal" role="dialog" aria-modal="true" aria-labelledby="clear-modal-title">
+            <div className="registerModalHeader">
+              <h2 id="clear-modal-title">Estas seguro que quieres borrar todo?</h2>
+              <button className="modalIconButton" onClick={closeClearConfirm} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="clearConfirmText">
+              Esta accion eliminara todos los registros guardados de esta tabla. Para confirmar, escriba la clave
+              <strong> 1234 </strong>
+              en el campo de abajo.
+            </p>
+            <label className="registerFormField">
+              <span>Clave de confirmacion</span>
+              <input
+                autoFocus
+                onChange={(event) => setClearPassword(event.target.value)}
+                placeholder="Escriba 1234"
+                type="password"
+                value={clearPassword}
+              />
+            </label>
+            <div className="registerModalActions">
+              <button className="actionButton" onClick={closeClearConfirm} type="button">
+                <X size={16} /> NO
+              </button>
+              <button className="actionButton dangerActionButton" disabled={clearPassword !== '1234'} onClick={confirmClearRows} type="button">
+                <Trash2 size={16} /> SI
               </button>
             </div>
           </div>

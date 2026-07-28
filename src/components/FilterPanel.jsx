@@ -1,4 +1,4 @@
-import { FileJson, FolderOpen, Sheet } from 'lucide-react';
+import { FileJson, FolderOpen } from 'lucide-react';
 import { getStructureOptions } from '../lib/dteStructureOptions.js';
 import { DTE_TYPES } from '../lib/dteTypes.js';
 
@@ -6,6 +6,7 @@ export function FilterPanel({
   folder,
   fromDate,
   loading,
+  metricsSlot,
   onClearDates,
   onExportExcel,
   onFromDateChange,
@@ -39,19 +40,6 @@ export function FilterPanel({
               <FolderOpen size={18} />
             </button>
           </div>
-          <div className="mt-5 flex flex-wrap items-end gap-4">
-            <div>
-              <label className="label">Fecha Desde</label>
-              <input className="dateInput w-36" type="date" value={fromDate} onChange={(event) => onFromDateChange(event.target.value)} />
-            </div>
-            <div>
-              <label className="label">Fecha Hasta</label>
-              <input className="dateInput w-36" type="date" value={toDate} onChange={(event) => onToDateChange(event.target.value)} />
-            </div>
-            <button className="actionButton" disabled={loading} onClick={onClearDates}>
-              Limpiar fechas
-            </button>
-          </div>
         </div>
 
         <div>
@@ -76,7 +64,11 @@ export function FilterPanel({
 
         <div className="flex items-end gap-2 pt-6">
           <button className="actionButton" disabled={loading} onClick={onExportExcel}>
-            <Sheet size={16} /> Exportar Excel
+            <span className="excelLogoIcon" aria-hidden="true">
+              <span className="excelLogoPanel">X</span>
+              <span className="excelLogoSheet" />
+            </span>
+            Exportar Excel
           </button>
           <button className="actionButton" disabled={loading} onClick={onSelectFiles}>
             <FileJson size={16} /> Seleccionar archivos
@@ -84,6 +76,25 @@ export function FilterPanel({
           <button className="actionButton" disabled={loading || !folder.trim()} onClick={onReloadFolder}>
             <FileJson size={16} /> Cargar JSON
           </button>
+        </div>
+
+        <div className="filterBottomBar">
+          <div className="filterDateControls">
+            <div>
+              <label className="label">Fecha Desde</label>
+              <input className="dateInput w-36" type="date" value={fromDate} onChange={(event) => onFromDateChange(event.target.value)} />
+            </div>
+            <div>
+              <label className="label">Fecha Hasta</label>
+              <input className="dateInput w-36" type="date" value={toDate} onChange={(event) => onToDateChange(event.target.value)} />
+            </div>
+            <button className="actionButton" disabled={loading} onClick={onClearDates}>
+              Limpiar fechas
+            </button>
+          </div>
+          <div className="filterMetricsSlot">
+            {metricsSlot}
+          </div>
         </div>
       </div>
     </section>

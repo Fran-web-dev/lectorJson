@@ -15,7 +15,7 @@ body,
 
 * {
   scrollbar-color: #38bdf8 #f1f5f9;
-  scrollbar-width: thin;
+  scrollbar-width: auto;
 }
 
 *::-webkit-scrollbar {
@@ -152,34 +152,134 @@ body,
     @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap border border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
   }
 
+  .dangerActionButton {
+    @apply border-red-700 text-red-700 hover:bg-red-50;
+  }
+
   .iconButton {
     @apply w-10 px-0;
   }
 
+  .excelLogoIcon {
+    @apply relative inline-flex h-[18px] w-[18px] items-center justify-center;
+  }
+
+  .excelLogoPanel {
+    @apply absolute left-0 z-10 flex h-[15px] w-[13px] items-center justify-center rounded-[2px] bg-emerald-700 text-[10px] font-black leading-none text-white shadow-sm;
+    font-family: Arial, sans-serif;
+  }
+
+  .excelLogoSheet {
+    @apply absolute right-0 h-[16px] w-[12px] rounded-[2px] border border-emerald-700 bg-emerald-100;
+  }
+
+  .excelLogoSheet::before,
+  .excelLogoSheet::after {
+    content: '';
+    position: absolute;
+    left: 2px;
+    right: 2px;
+    border-top: 1px solid #34d399;
+  }
+
+  .excelLogoSheet::before {
+    top: 5px;
+  }
+
+  .excelLogoSheet::after {
+    top: 10px;
+  }
+
+  .filterBottomBar {
+    @apply col-span-4 flex items-end justify-between gap-4 border-t border-slate-100 pt-2;
+  }
+
+  .filterDateControls {
+    @apply flex shrink-0 flex-wrap items-end gap-4;
+  }
+
+  .filterMetricsSlot {
+    @apply flex min-w-0 flex-1 justify-end;
+  }
+
+  .statusMetrics {
+    @apply grid w-full items-center gap-2;
+    grid-template-columns: minmax(180px, 1fr) auto auto;
+  }
+
+  .statusText {
+    @apply min-w-0 truncate text-sm font-semibold text-slate-700;
+  }
+
+  .statusActions {
+    @apply flex shrink-0 items-center gap-1.5;
+  }
+
+  .statusActionButton {
+    @apply h-8 px-2.5 text-xs;
+  }
+
+  .statusCounts {
+    @apply shrink-0 whitespace-nowrap text-sm text-slate-500;
+  }
+
   .tableFrame {
     @apply flex border border-slate-200 bg-white;
+    --table-scrollbar-size: 28px;
     flex-direction: column;
-    height: calc(100vh - 245px);
+    height: calc(100vh - 225px);
     min-height: 260px;
   }
 
   .tableViewport {
-    @apply overflow-y-auto overflow-x-hidden;
+    @apply overflow-x-hidden;
     flex: 1 1 auto;
     min-height: 0;
+    overflow-y: scroll;
+    padding-bottom: var(--table-scrollbar-size);
+    scrollbar-color: #0ea5e9 #f1f5f9;
+    scrollbar-width: auto;
+  }
+
+  .tableViewport::-webkit-scrollbar {
+    height: var(--table-scrollbar-size);
+    width: var(--table-scrollbar-size);
+  }
+
+  .tableViewport::-webkit-scrollbar-thumb {
+    background: #0ea5e9;
+    border: 0;
+    border-radius: 6px;
+    min-height: 48px;
+  }
+
+  .tableViewport::-webkit-scrollbar-track {
+    background: #f1f5f9;
+    border: 0;
   }
 
   .horizontalScrollbar {
     @apply overflow-x-auto overflow-y-hidden border-t border-slate-200 bg-slate-50;
-    flex: 0 0 16px;
-    height: 16px;
+    flex: 0 0 var(--table-scrollbar-size);
+    height: var(--table-scrollbar-size);
     position: sticky;
     bottom: 0;
     z-index: 20;
   }
 
   .horizontalScrollbar::-webkit-scrollbar-thumb {
-    background: linear-gradient(90deg, #38bdf8, #0284c7);
+    background: #0ea5e9;
+    border: 0;
+    border-radius: 6px;
+  }
+
+  .horizontalScrollbar::-webkit-scrollbar {
+    height: var(--table-scrollbar-size);
+    width: var(--table-scrollbar-size);
+  }
+
+  .horizontalScrollbar::-webkit-scrollbar-thumb {
+    border-width: 0;
   }
 
   table {
@@ -218,12 +318,12 @@ body,
 
   .virtualTotals {
     @apply sticky top-0 z-40 border-b border-sky-200 bg-slate-50;
-    height: 34px;
+    height: 24px;
   }
 
   .virtualTotalCell {
-    @apply flex h-[34px] items-center justify-end overflow-hidden border-r border-slate-200 px-2 font-bold text-slate-400;
-    font-size: 11px;
+    @apply flex h-[24px] items-center justify-end overflow-hidden border-r border-slate-200 px-2 font-bold text-slate-400;
+    font-size: 10px;
   }
 
   .virtualTotalCell.hasTotal {
@@ -233,7 +333,7 @@ body,
   .virtualHeader {
     @apply sticky top-0 z-30 bg-sky-500;
     height: 42px;
-    top: 34px;
+    top: 24px;
   }
 
   .virtualHeadCell {
@@ -412,6 +512,14 @@ body,
     background-color: #f1fdff;
   }
 
+  .registerCorrCell {
+    @apply flex w-full items-center justify-between gap-1;
+  }
+
+  .registerDeleteButton {
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border border-red-200 bg-white text-red-600 transition hover:bg-red-50 disabled:cursor-default disabled:border-transparent disabled:bg-transparent disabled:text-transparent;
+  }
+
   .registerEditInput {
     @apply h-full w-full bg-transparent text-slate-700 outline-none;
     font-family: "Arial Narrow", Arial, sans-serif;
@@ -429,6 +537,10 @@ body,
 
   .registerModal {
     @apply w-full max-w-3xl border border-slate-200 bg-white shadow-2xl;
+  }
+
+  .clearConfirmModal {
+    @apply max-w-lg border-red-200;
   }
 
   .registerModalHeader {
@@ -453,6 +565,18 @@ body,
 
   .registerFormField input {
     @apply h-9 border border-slate-300 bg-white px-2 text-sm font-normal normal-case text-slate-900 outline-none transition focus:border-sky-600 focus:ring-1 focus:ring-sky-600;
+  }
+
+  .clearConfirmText {
+    @apply px-4 pt-4 text-sm leading-6 text-slate-700;
+  }
+
+  .clearConfirmText strong {
+    @apply rounded-sm bg-red-50 px-1 font-black text-red-700;
+  }
+
+  .clearConfirmModal .registerFormField {
+    @apply px-4 py-4;
   }
 
   .registerModalActions {

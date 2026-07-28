@@ -4,7 +4,7 @@ import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
 import { RegisterView } from './components/RegisterView.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
-import { StatusBar } from './components/StatusBar.jsx';
+import { DteSummaryBar, StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
 import { DEFAULT_STRUCTURE_NAME, getStructureOptions } from './lib/dteStructureOptions.js';
 import {
@@ -251,6 +251,21 @@ export default function App() {
             folder={folder}
             fromDate={fromDate}
             loading={loading}
+            metricsSlot={(
+              <StatusBar
+                columnCount={columns.length}
+                loadedCount={documents.length}
+                loading={loading}
+                onFillReceptionStamps={fillMissingReceptionStamps}
+                onOpenHacienda={querySelectedInHacienda}
+                onQueryAllHacienda={queryAllRowsInHacienda}
+                rowCount={filteredRows.length}
+                selectedRow={selectedRow}
+                selectedQueryUrl={selectedQueryUrl}
+                status={status}
+                totalFileCount={totalFileCount}
+              />
+            )}
             onExportExcel={exportExcel}
             onReloadFolder={reloadFolder}
             onSelectFiles={selectFiles}
@@ -270,20 +285,7 @@ export default function App() {
           />
 
           <section className="px-6 py-4">
-            <StatusBar
-              columnCount={columns.length}
-              dteSummary={dteSummary}
-              loadedCount={documents.length}
-              loading={loading}
-              onFillReceptionStamps={fillMissingReceptionStamps}
-              onOpenHacienda={querySelectedInHacienda}
-              onQueryAllHacienda={queryAllRowsInHacienda}
-              rowCount={filteredRows.length}
-              selectedRow={selectedRow}
-              selectedQueryUrl={selectedQueryUrl}
-              status={status}
-              totalFileCount={totalFileCount}
-            />
+            <DteSummaryBar dteSummary={dteSummary} />
             {documents.length ? (
               <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>
                 <VirtualDataTable
