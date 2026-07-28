@@ -2,6 +2,7 @@ import { useMemo, useEffect, useState } from 'react';
 import { Check, Download, FileSpreadsheet, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const INITIAL_ROW_COUNT = 14;
+const REGISTER_CLEAR_KEY = String(import.meta.env.VITE_REGISTER_CLEAR_KEY || '');
 
 const REGISTER_CONFIG = {
   clients: {
@@ -324,7 +325,12 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   }
 
   function confirmClearRows() {
-    if (clearPassword !== '1234') {
+    if (!REGISTER_CLEAR_KEY) {
+      setMessage('Configure VITE_REGISTER_CLEAR_KEY en .env para habilitar esta accion.');
+      return;
+    }
+
+    if (clearPassword !== REGISTER_CLEAR_KEY) {
       setMessage('Clave incorrecta. No se eliminaron registros.');
       return;
     }
@@ -467,16 +473,15 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
               </button>
             </div>
             <p className="clearConfirmText">
-              Esta accion eliminara todos los registros guardados de esta tabla. Para confirmar, escriba la clave
-              <strong> 1234 </strong>
-              en el campo de abajo.
+              Esta accion eliminara todos los registros guardados de esta tabla. Para confirmar, escriba la clave configurada
+              en el archivo <strong>.env</strong>.
             </p>
             <label className="registerFormField">
               <span>Clave de confirmacion</span>
               <input
                 autoFocus
                 onChange={(event) => setClearPassword(event.target.value)}
-                placeholder="Escriba 1234"
+                placeholder="Escriba la clave de confirmacion"
                 type="password"
                 value={clearPassword}
               />
@@ -485,7 +490,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
               <button className="actionButton" onClick={closeClearConfirm} type="button">
                 <X size={16} /> NO
               </button>
-              <button className="actionButton dangerActionButton" disabled={clearPassword !== '1234'} onClick={confirmClearRows} type="button">
+              <button className="actionButton dangerActionButton" disabled={!REGISTER_CLEAR_KEY || clearPassword !== REGISTER_CLEAR_KEY} onClick={confirmClearRows} type="button">
                 <Trash2 size={16} /> SI
               </button>
             </div>
