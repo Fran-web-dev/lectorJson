@@ -1,0 +1,14 @@
+export const DEFAULT_STRUCTURE_NAME = 'Estructura Hacienda DTE';
+
+export const STRUCTURE_OPTIONS_BY_DTE = {
+  '01': ['FACTURA CONSUMIDOR FINAL EMISOR'],
+  '03': ['CCF RECEPTOR COMPRA', 'CCF EMISOR VENTA'],
+  '05': ['NOTA DE CREDITO EMISOR VENTA', 'NOTA DE CREDITO RECEPTOR COMPRA'],
+  '07': ['COMPROBANTE DE RETENCION RECEPTOR'],
+  '11': ['FEX EMISOR'],
+  '14': ['FSE EMISOR'],
+};
+
+export function getStructureOptions(typeCode) {
+  return STRUCTURE_OPTIONS_BY_DTE[typeCode] || [];
+}

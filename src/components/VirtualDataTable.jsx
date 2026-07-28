@@ -1,64 +1,8 @@
 import { memo, useMemo, useState } from 'react';
 
-const ROW_HEIGHT = 72;
-const HEADER_HEIGHT = 42;
+const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
-const DEFAULT_COLUMN_WIDTH = 180;
-const COLUMN_WIDTHS = {
-  Archivo: 180,
-  Carpeta: 160,
-  'Tipo Documento': 260,
-  'Tipo DTE': 90,
-  Hora: 110,
-  Fecha: 130,
-  'Numero de Control': 300,
-  'Codigo de generacion local': 320,
-  'Serie del Documento': 300,
-  'NRC emisor': 130,
-  'NIT emisor': 180,
-  'NRC receptor': 140,
-  'Nombre receptor': 300,
-  'Nombre emisor': 320,
-  'Cant,NP,PU,VTAGR': 620,
-  'Total Gravado': 160,
-  'Total Exenta': 150,
-  'Total no Sujetas': 170,
-  'Desc. Gravado': 150,
-  'Desc. no Sujeta': 160,
-  'Desc. Exenta': 150,
-  'Total Desc.': 150,
-  'Sub-total': 150,
-  'Credito Fiscal': 160,
-  'Monto total de la operacion': 230,
-  FOVIAL: 130,
-  COTRANS: 130,
-  Percepciones: 150,
-  'Retencion Renta': 160,
-  'Total de Compra': 170,
-  'Valor en Letras': 280,
-  'Condicion de la operacion': 220,
-  Observaciones: 360,
-  Item: 90,
-  'Tipo Item': 100,
-  Cantidad: 100,
-  Codigo: 180,
-  Descripcion: 360,
-  'Precio Unitario': 150,
-  'Descuento Item': 150,
-  'Venta Gravada': 150,
-  Compra: 150,
-  'Estado del DTE': 240,
-  'Descripcion del DTE': 360,
-  'Tipo de DTE': 130,
-  'Fecha y hora de generacion': 220,
-  'Codigo de Generacion': 300,
-  'Sello de Recepcion': 320,
-  'Numero de Control Consulta': 300,
-  'Documento ajustado': 420,
-  'Documento con Evento aplicado': 420,
-  'Documentos Relacionados': 520
-};
-
+const AUTO_WIDTH_SAMPLE_SIZE = 300;
 const PUBLIC_QUERY_COLUMNS = new Set([
   'Estado del DTE',
   'Descripcion del DTE',
@@ -79,10 +23,61 @@ function getVisibleRange(scrollTop, viewportHeight, rowCount) {
   return { endIndex, startIndex };
 }
 
-function getColumnWidth(column) {
-  if (column.startsWith('item.')) return 220;
-  if (column.includes('.')) return 240;
-  return COLUMN_WIDTHS[column] || DEFAULT_COLUMN_WIDTH;
+function getColumnWidthBounds(column) {
+  if (/descr|descripcion|producto|observaciones|relacionados|evento|direccion|actividad/i.test(column)) {
+    return { max: 680, min: 220 };
+  }
+  if (/codigo|generacion|control|documento|sello|serie/i.test(column)) {
+    return { max: 380, min: 180 };
+  }
+  if (isMoneyColumn(column)) {
+    return { max: 190, min: 135 };
+  }
+  if (/fecha|hora|tipo dte|nrc|nit|pais/i.test(column)) {
+    return { max: 180, min: 90 };
+  }
+  return { max: 320, min: 120 };
+}
+
+function measureCellText(value) {
+  const lines = String(value ?? '').split(/\r?\n/);
+  const longest = lines.reduce((max, line) => Math.max(max, line.trim().length), 0);
+  return longest;
+}
+
+function getAutoColumnWidth(column, rows) {
+  const { max, min } = getColumnWidthBounds(column);
+  let maxLength = measureCellText(column);
+  const sampleLength = Math.min(rows.length, AUTO_WIDTH_SAMPLE_SIZE);
+  for (let index = 0; index < sampleLength; index += 1) {
+    maxLength = Math.max(maxLength, measureCellText(rows[index]?.[column]));
+  }
+
+  const estimatedWidth = Math.ceil(maxLength * 7.2) + 34;
+  return Math.min(Math.max(estimatedWidth, min), max);
+}
+
+function isMoneyColumn(column) {
+  return /total|monto|credito|debito|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|sub-total|pagar/i.test(column)
+    && !/letras/i.test(column);
+}
+
+function parseMoney(value) {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
+  const text = String(value || '').trim();
+  if (!text) return 0;
+  const normalized = text.replace(/[$,\s]/g, '');
+  const number = Number(normalized);
+  return Number.isFinite(number) ? number : 0;
+}
+
+const totalFormatter = new Intl.NumberFormat('en-US', {
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2
+});
+
+function formatTotal(value) {
+  return `$${totalFormatter.format(value)}`;
 }
 
 function DataRow({ columns, gridTemplateColumns, isSelected, onRowSelect, row, rowIndex }) {
@@ -140,14 +135,28 @@ export function VirtualDataTable({
     () => rows.slice(visibleRange.startIndex, visibleRange.endIndex),
     [rows, visibleRange]
   );
+  const columnWidths = useMemo(
+    () => columns.map((column) => getAutoColumnWidth(column, rows)),
+    [columns, rows]
+  );
   const gridTemplateColumns = useMemo(
-    () => columns.map((column) => `${getColumnWidth(column)}px`).join(' '),
-    [columns]
+    () => columnWidths.map((width) => `${width}px`).join(' '),
+    [columnWidths]
   );
   const tableWidth = useMemo(
-    () => columns.reduce((total, column) => total + getColumnWidth(column), 0),
-    [columns]
+    () => columnWidths.reduce((total, width) => total + width, 0),
+    [columnWidths]
   );
+  const columnTotals = useMemo(() => {
+    const totals = {};
+    for (const column of columns) {
+      if (!isMoneyColumn(column)) continue;
+      let total = 0;
+      for (const row of rows) total += parseMoney(row[column]);
+      totals[column] = formatTotal(total);
+    }
+    return totals;
+  }, [columns, rows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>
@@ -176,6 +185,13 @@ export function VirtualDataTable({
           role="table"
           style={{ transform: `translateX(${-scrollLeft}px)`, width: tableWidth }}
         >
+          <div className="virtualTotals" role="row" style={{ gridTemplateColumns }}>
+            {columns.map((column) => (
+              <div className={`virtualTotalCell ${columnTotals[column] ? 'hasTotal' : ''}`} key={column} role="cell">
+                {columnTotals[column] || ''}
+              </div>
+            ))}
+          </div>
           <div className="virtualHeader" role="row" style={{ gridTemplateColumns }}>
             {columns.map((column) => (
               <div
@@ -209,7 +225,7 @@ export function VirtualDataTable({
               </div>
             ))}
           </div>
-          <div className="virtualBody" role="rowgroup" style={{ height: rows.length * ROW_HEIGHT + HEADER_HEIGHT }}>
+          <div className="virtualBody" role="rowgroup" style={{ height: rows.length * ROW_HEIGHT }}>
             {visibleRows.map((row, index) => (
               <MemoDataRow
                 columns={columns}
@@ -308,3 +324,4 @@ function FilterMenu({
     </div>
   );
 }
+

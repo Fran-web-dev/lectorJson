@@ -55,7 +55,7 @@ body {
   }
 
   .field {
-    @apply h-9 flex-1 border-b-2 border-slate-900 bg-white px-2 py-2 text-sm text-slate-700;
+    @apply h-9 min-w-0 flex-1 border-b-2 border-slate-900 bg-white px-2 py-2 text-sm text-slate-700;
   }
 
   .input,
@@ -70,7 +70,7 @@ body {
 
   .iconButton,
   .actionButton {
-    @apply inline-flex h-9 items-center justify-center gap-2 border border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
+    @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap border border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
   }
 
   .iconButton {
@@ -127,13 +127,28 @@ body {
   }
 
   .virtualHeader,
-  .virtualRow {
+  .virtualRow,
+  .virtualTotals {
     display: grid;
+  }
+
+  .virtualTotals {
+    @apply sticky top-0 z-40 border-b border-sky-200 bg-slate-50;
+    height: 34px;
+  }
+
+  .virtualTotalCell {
+    @apply flex h-[34px] items-center justify-end overflow-hidden border-r border-slate-200 px-2 text-sm font-bold text-slate-400;
+  }
+
+  .virtualTotalCell.hasTotal {
+    @apply bg-blue-50 text-blue-700;
   }
 
   .virtualHeader {
     @apply sticky top-0 z-30 bg-sky-500;
     height: 42px;
+    top: 34px;
   }
 
   .virtualHeadCell {
@@ -188,7 +203,7 @@ body {
     position: absolute;
     left: 0;
     right: 0;
-    height: 72px;
+    height: 22px;
     cursor: pointer;
   }
 
@@ -201,7 +216,9 @@ body {
   }
 
   .virtualCell {
-    @apply flex h-[72px] items-start overflow-auto whitespace-pre-line border-b border-r border-sky-100 px-3 py-2 align-top leading-5 text-slate-700;
+    @apply flex h-[22px] items-center overflow-hidden whitespace-nowrap border-b border-r border-sky-100 px-1.5 py-0 align-middle leading-none text-slate-700;
+    font-family: "Arial Narrow", Arial, sans-serif;
+    font-size: 11px;
   }
 
   .oddRow .virtualCell {

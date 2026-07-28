@@ -302,7 +302,8 @@ function formatExportTimestamp(date) {
 }
 
 function isMoneyColumn(header) {
-  return /total|monto|credito|fovial|cotrans|percepciones|retencion|compra|gravado|exenta|sujetas|desc\.|sub-total/i.test(header);
+  return /total|monto|credito|debito|iva|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|descuento|sub-total|pagar/i.test(header)
+    && !/letras/i.test(header);
 }
 
 function parseMoney(value) {
@@ -312,12 +313,22 @@ function parseMoney(value) {
   return Number.isFinite(number) ? number : value;
 }
 
+function parseAccountingMoney(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  const parsed = parseMoney(value);
+  if (typeof parsed === 'number' && Number.isFinite(parsed)) return parsed;
+  const number = Number(String(value).replace(/[$,\s]/g, ''));
+  return Number.isFinite(number) ? number : 0;
+}
+
 function getExcelColumnWidth(header, values) {
   const maxLength = Math.max(
     String(header).length,
     ...values.slice(0, 200).map((value) => String(value ?? '').length)
   );
-  if (header === 'Cant,NP,PU,VTAGR') return Math.min(Math.max(maxLength + 2, 18), 42);
+  if (header === 'Cant,NP,PU' || header === 'Cant,NP,PU,VTAGR' || header === 'DESCR,CANT,PU,VTAGR' || header === 'DESCR,CANT,PU,VTA' || header === 'Cant,Descrip,PU,compra') {
+    return Math.min(Math.max(maxLength + 2, 18), 42);
+  }
   if (header === 'Codigo de generacion local') return Math.min(Math.max(maxLength + 2, 22), 36);
   if (HACIENDA_PUBLIC_COLUMNS.has(header)) return Math.min(Math.max(maxLength + 2, 16), 38);
   return Math.min(Math.max(maxLength + 2, 11), 24);
@@ -327,27 +338,55 @@ async function writeStyledExcel(filePath, rows) {
   const ExcelJS = getExcelJs();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('DTE', {
-    views: [{ state: 'frozen', ySplit: 1 }]
+    views: [{ state: 'frozen', ySplit: 2 }]
   });
 
   const headers = orderExcelHeaders(Array.from(new Set(rows.flatMap((row) => Object.keys(row).filter((key) => !key.startsWith('__'))))));
   worksheet.columns = headers.map((header) => ({
-    header,
     key: header,
     width: getExcelColumnWidth(header, rows.map((row) => row[header]))
   }));
 
+  const totalsRow = {};
+  const headerRow = {};
+  for (const header of headers) {
+    totalsRow[header] = isMoneyColumn(header)
+      ? rows.reduce((total, row) => total + parseAccountingMoney(row[header]), 0)
+      : '';
+    headerRow[header] = header;
+  }
+
+  worksheet.addRow(totalsRow);
+  worksheet.addRow(headerRow);
+
   for (const row of rows) {
     const excelRow = {};
     for (const header of headers) {
-      excelRow[header] = isMoneyColumn(header) ? parseMoney(row[header]) : row[header];
+      excelRow[header] = isMoneyColumn(header) ? parseAccountingMoney(row[header]) : row[header];
     }
     worksheet.addRow(excelRow);
   }
 
-  worksheet.getRow(1).height = 20;
+  worksheet.getRow(1).height = 18;
   for (let colNumber = 1; colNumber <= headers.length; colNumber += 1) {
     const cell = worksheet.getRow(1).getCell(colNumber);
+    const header = headers[colNumber - 1];
+    const isMoney = isMoneyColumn(header);
+    cell.font = { bold: true, color: { argb: isMoney ? 'FF1D4ED8' : 'FF94A3B8' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+    cell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: false };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: isMoney ? 'FFDBEAFE' : 'FFF8FAFC' } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+      left: { style: 'thin', color: { argb: 'FFD9D9D9' } },
+      bottom: { style: 'thin', color: { argb: 'FF93C5FD' } },
+      right: { style: 'thin', color: { argb: 'FFD9D9D9' } }
+    };
+    if (isMoney) cell.numFmt = ACCOUNTING_NUMBER_FORMAT;
+  }
+
+  worksheet.getRow(2).height = 20;
+  for (let colNumber = 1; colNumber <= headers.length; colNumber += 1) {
+    const cell = worksheet.getRow(2).getCell(colNumber);
     const header = headers[colNumber - 1];
     const isPublicHeader = HACIENDA_PUBLIC_COLUMNS.has(header);
     cell.font = { bold: true, color: { argb: isPublicHeader ? 'FF000000' : 'FFFFFFFF' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
@@ -362,7 +401,7 @@ async function writeStyledExcel(filePath, rows) {
   }
 
   worksheet.eachRow((row, rowNumber) => {
-    if (rowNumber === 1) return;
+    if (rowNumber <= 2) return;
     row.height = 18;
     for (let colNumber = 1; colNumber <= headers.length; colNumber += 1) {
       const cell = row.getCell(colNumber);
@@ -381,28 +420,27 @@ async function writeStyledExcel(filePath, rows) {
         right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
       };
 
-      if (isMoneyColumn(header) && typeof cell.value === 'number') {
+      if (isMoneyColumn(header)) {
         cell.numFmt = ACCOUNTING_NUMBER_FORMAT;
       }
 
-      if (rows[rowNumber - 2]?.__isDuplicate) {
+      if (rows[rowNumber - 3]?.__isDuplicate) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_DUPLICATE_FILL } };
       }
 
-      if (isAlertRow(rows[rowNumber - 2])) {
+      if (isAlertRow(rows[rowNumber - 3])) {
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: TABLE_ALERT_FILL } };
       }
     }
   });
 
   worksheet.autoFilter = {
-    from: { row: 1, column: 1 },
-    to: { row: 1, column: headers.length }
+    from: { row: 2, column: 1 },
+    to: { row: 2, column: headers.length }
   };
 
   await workbook.xlsx.writeFile(filePath);
 }
-
 function isAlertRow(row) {
   return /invalidado|rechazado/i.test(String(row?.['Estado del DTE'] || ''));
 }
@@ -442,3 +480,4 @@ app.on('window-all-closed', () => {
 app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
+

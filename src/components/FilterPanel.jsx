@@ -1,4 +1,5 @@
 import { FileJson, FolderOpen, Sheet } from 'lucide-react';
+import { getStructureOptions } from '../lib/dteStructureOptions.js';
 import { DTE_TYPES } from '../lib/dteTypes.js';
 
 export function FilterPanel({
@@ -19,10 +20,12 @@ export function FilterPanel({
   toDate,
   typeCode
 }) {
+  const structureOptions = getStructureOptions(typeCode);
+
   return (
-    <section className="border-b border-slate-200 bg-white px-6 py-4">
-      <div className="grid grid-cols-[minmax(320px,1fr)_260px_260px_140px] gap-4">
-        <div>
+    <section className="border-b border-slate-200 bg-white px-5 py-3">
+      <div className="grid grid-cols-[minmax(420px,1fr)_240px_280px_430px] items-start gap-4">
+        <div className="min-w-0">
           <label className="label">Seleccione la carpeta contenedora de los archivos JSON</label>
           <div className="flex items-end gap-2">
             <input
@@ -36,12 +39,24 @@ export function FilterPanel({
               <FolderOpen size={18} />
             </button>
           </div>
+          <div className="mt-5 flex flex-wrap items-end gap-4">
+            <div>
+              <label className="label">Fecha Desde</label>
+              <input className="dateInput w-36" type="date" value={fromDate} onChange={(event) => onFromDateChange(event.target.value)} />
+            </div>
+            <div>
+              <label className="label">Fecha Hasta</label>
+              <input className="dateInput w-36" type="date" value={toDate} onChange={(event) => onToDateChange(event.target.value)} />
+            </div>
+            <button className="actionButton" disabled={loading} onClick={onClearDates}>
+              Limpiar fechas
+            </button>
+          </div>
         </div>
 
         <div>
           <label className="label">Tipo de Documento</label>
           <select className="select" value={typeCode} onChange={(event) => onTypeCodeChange(event.target.value)}>
-            <option value="all">Todos los documentos</option>
             {DTE_TYPES.map((type) => (
               <option key={type.code} value={type.code}>{type.code} {type.label}</option>
             ))}
@@ -50,10 +65,16 @@ export function FilterPanel({
 
         <div>
           <label className="label">Nombre de estructura</label>
-          <input className="input" value={structureName} onChange={(event) => onStructureNameChange(event.target.value)} />
+          <select className="select" disabled={!structureOptions.length} value={structureName} onChange={(event) => onStructureNameChange(event.target.value)}>
+            {structureOptions.length ? structureOptions.map((option) => (
+              <option key={option} value={option}>{option}</option>
+            )) : (
+              <option value="">Sin estructura configurada</option>
+            )}
+          </select>
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div className="flex items-end gap-2 pt-6">
           <button className="actionButton" disabled={loading} onClick={onExportExcel}>
             <Sheet size={16} /> Exportar Excel
           </button>
@@ -64,20 +85,6 @@ export function FilterPanel({
             <FileJson size={16} /> Cargar JSON
           </button>
         </div>
-      </div>
-
-      <div className="mt-4 flex flex-wrap items-end gap-4">
-        <div>
-          <label className="label">Fecha Desde</label>
-          <input className="dateInput" type="date" value={fromDate} onChange={(event) => onFromDateChange(event.target.value)} />
-        </div>
-        <div>
-          <label className="label">Fecha Hasta</label>
-          <input className="dateInput" type="date" value={toDate} onChange={(event) => onToDateChange(event.target.value)} />
-        </div>
-        <button className="actionButton" disabled={loading} onClick={onClearDates}>
-          Limpiar fechas
-        </button>
       </div>
     </section>
   );

@@ -5,6 +5,7 @@ import { FilterPanel } from './components/FilterPanel.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
+import { DEFAULT_STRUCTURE_NAME, getStructureOptions } from './lib/dteStructureOptions.js';
 
 const LOCAL_GENERATION_CODE_COLUMN = 'Codigo de generacion local';
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
@@ -31,8 +32,8 @@ export default function App() {
   const [documents, setDocuments] = useState([]);
   const [errors, setErrors] = useState([]);
   const [totalFileCount, setTotalFileCount] = useState(0);
-  const [typeCode, setTypeCode] = useState('all');
-  const [structureName, setStructureName] = useState('Estructura Hacienda DTE');
+  const [typeCode, setTypeCode] = useState('01');
+  const [structureName, setStructureName] = useState(DEFAULT_STRUCTURE_NAME);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [columnFilters, setColumnFilters] = useState({});
@@ -45,6 +46,14 @@ export default function App() {
     const timer = window.setTimeout(() => setShowSplash(false), 1100);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const structureOptions = getStructureOptions(typeCode);
+    if (!structureOptions.includes(structureName)) {
+      setStructureName(structureOptions[0] || '');
+    }
+  }, [structureName, typeCode]);
+
   useEffect(() => {
     let cancelled = false;
     if (!documents.length) {
@@ -56,14 +65,14 @@ export default function App() {
 
     import('./lib/extractor.js').then(({ extractRows }) => {
       if (!cancelled) {
-        setRows(markDuplicateRows(extractRows(documents, { typeCode, fromDate, toDate })));
+        setRows(markDuplicateRows(extractRows(documents, { typeCode, structureName, fromDate, toDate })));
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [documents, typeCode, fromDate, toDate]);
+  }, [documents, typeCode, structureName, fromDate, toDate]);
 
   const columns = useMemo(
     () => orderColumns(Object.keys(rows[0] || {}).filter((key) => !key.startsWith('__'))),
@@ -76,8 +85,8 @@ export default function App() {
   );
 
   const dteSummary = useMemo(
-    () => typeCode === 'all' ? summarizeDteTypes(filteredRows) : [],
-    [filteredRows, typeCode]
+    () => summarizeDteTypes(extractRowsForSummary(documents)),
+    [documents]
   );
 
   const { exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
@@ -338,7 +347,13 @@ function getSelectedEnvironment(row) {
 }
 
 function getSelectedGenerationCode(row) {
-  return formatGenerationCode(row?.['Codigo de Generacion'] || row?.[LOCAL_GENERATION_CODE_COLUMN]);
+  return formatGenerationCode(
+    row?.['Codigo de Generacion']
+    || row?.[LOCAL_GENERATION_CODE_COLUMN]
+    || row?.['Numero del Documento']
+    || row?.['Numero Documento']
+    || row?.['Codigo de generacion local']
+  );
 }
 
 function getSelectedIssueDate(row) {
@@ -375,6 +390,15 @@ function applyColumnFilters(rows, filters) {
   return rows.filter((row) => filterSets.every(([column, value]) => (
     value.has(String(row[column] ?? ''))
   )));
+}
+
+function extractRowsForSummary(documents) {
+  return documents.map((document) => ({
+    'Tipo DTE': document?.payload?.identificacion?.tipoDte
+      || document?.payload?.tipoDte
+      || document?.payload?.documento?.identificacion?.tipoDte
+      || ''
+  }));
 }
 
 function summarizeDteTypes(rows) {

@@ -6,6 +6,7 @@ const OPERATION_CONDITIONS = {
   2: 'Credito',
   3: 'Otro'
 };
+const DTE_TYPES_BY_CODE = new Map(DTE_TYPES.map((item) => [item.code, item]));
 const documentIndexCache = new WeakMap();
 
 function normalizeKey(key) {
@@ -26,6 +27,9 @@ function flattenVisible(value) {
 }
 
 function formatValue(value, style) {
+  if (style === 'money' && (value === null || value === undefined || value === '')) {
+    return moneyFormatter.format(0);
+  }
   if (value === null || value === undefined || value === '') return '';
   if (style === 'stripHyphen') return String(value).replace(/-/g, '');
   if (style === 'date') return formatDate(value);
@@ -77,13 +81,22 @@ function extractFromPlainObject(source, fields, style) {
   if (!source) return '';
   const values = [];
 
-  if (fields.includes('cantidad') && fields.includes('descripcion') && fields.includes('precioUni') && fields.includes('ventaGravada')) {
-    const itemText = [
-      `Cant: ${flattenVisible(source.cantidad)}`,
-      flattenVisible(source.descripcion),
-      `PU: ${flattenVisible(source.precioUni)}`,
-      `VTAGR: ${flattenVisible(source.ventaGravada)}`
-    ].filter(Boolean).join(' | ');
+  if (fields.includes('cantidad') && fields.includes('descripcion')) {
+    const labels = {
+      cantidad: 'Cant',
+      descripcion: 'DESCR',
+      precioUni: 'PU',
+      ventaGravada: 'VTA',
+      ventaGravad: 'VTA',
+      compra: 'Compra'
+    };
+    const itemText = fields
+      .map((field) => {
+        const value = flattenVisible(source[field] ?? (field === 'ventaGravad' ? source.ventaGravada : undefined));
+        return value !== '' ? `${labels[field] || field}: ${value}` : '';
+      })
+      .filter(Boolean)
+      .join(' | ');
     return itemText ? `${itemText};` : '';
   }
 
@@ -155,6 +168,15 @@ function findIndexedAny(index, keyName) {
 }
 
 function extractField(payloadIndex, rule) {
+  if (rule.calculate === 'divide') {
+    const section = findIndexedSection(payloadIndex, rule.sections[0]);
+    const sourceValue = section && typeof section === 'object'
+      ? section[rule.fields[0]]
+      : extractField(payloadIndex, { ...rule, calculate: undefined });
+    const number = Number(String(sourceValue).replace(/[$,\s]/g, ''));
+    return Number.isFinite(number) ? number / rule.by : '';
+  }
+
   for (const sectionName of rule.sections) {
     const section = findIndexedSection(payloadIndex, sectionName);
     if (section === undefined && rule.fields.includes('*')) {
@@ -177,6 +199,18 @@ function extractField(payloadIndex, rule) {
         return flattenVisible(row);
       });
       return parts.filter(Boolean).join(' | ');
+    }
+
+    if (rule.filter) {
+      for (const field of rule.fields) {
+        const directValue = section[field];
+        if (Array.isArray(directValue)) {
+          const match = directValue.find((item) => String(item?.[rule.filter.key]) === String(rule.filter.value));
+          if (match?.[rule.filter.field] !== undefined && match?.[rule.filter.field] !== null) {
+            return match[rule.filter.field];
+          }
+        }
+      }
     }
 
     const sectionIndex = createDocumentIndex(section);
@@ -205,12 +239,12 @@ function extractField(payloadIndex, rule) {
 export function detectDteType(payload, selectedType = '') {
   const index = createDocumentIndex(payload);
   const code = selectedType || findIndexedField(index, 'tipoDte');
-  const dte = DTE_TYPES.find((item) => item.code === String(code).padStart(2, '0'));
+  const dte = DTE_TYPES_BY_CODE.get(String(code).padStart(2, '0'));
   return dte || { code: String(code || 'ND'), label: 'No detectado' };
 }
 
 export function extractRows(documents, options = {}) {
-  const { typeCode = '', fromDate = '', toDate = '' } = options;
+  const { typeCode = '', structureName = '', fromDate = '', toDate = '' } = options;
   const selectedType = typeCode === 'all' ? '' : typeCode;
   const fromTime = fromDate ? new Date(`${fromDate}T00:00:00`).getTime() : null;
   const toTime = toDate ? new Date(`${toDate}T23:59:59.999`).getTime() : null;
@@ -226,11 +260,12 @@ export function extractRows(documents, options = {}) {
     const actualCode = String(findIndexedField(payloadIndex, 'tipoDte') || '').padStart(2, '0');
     if (selectedType && actualCode !== String(selectedType).padStart(2, '0')) continue;
 
-    const dte = DTE_TYPES.find((item) => item.code === actualCode) || { code: actualCode || 'ND', label: 'No detectado' };
-    let structure = structureCache.get(dte.code);
+    const dte = DTE_TYPES_BY_CODE.get(actualCode) || { code: actualCode || 'ND', label: 'No detectado' };
+    const structureKey = `${dte.code}|${structureName}`;
+    let structure = structureCache.get(structureKey);
     if (!structure) {
-      structure = getStructureForType(dte.code);
-      structureCache.set(dte.code, structure);
+      structure = getStructureForType(dte.code, structureName);
+      structureCache.set(structureKey, structure);
     }
     const items = Array.isArray(document.payload?.cuerpoDocumento) ? document.payload.cuerpoDocumento : [];
     const baseRow = {
