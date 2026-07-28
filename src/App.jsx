@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
+import { RegisterView } from './components/RegisterView.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
@@ -43,6 +44,7 @@ export default function App() {
   const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON o CSV.');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
+  const [activeView, setActiveView] = useState('dte');
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1100);
@@ -242,63 +244,75 @@ export default function App() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       {showSplash ? <SplashScreen /> : null}
-      <AppHeader />
-      <FilterPanel
-        folder={folder}
-        fromDate={fromDate}
-        loading={loading}
-        onExportExcel={exportExcel}
-        onReloadFolder={reloadFolder}
-        onSelectFiles={selectFiles}
-        onFromDateChange={setFromDate}
-        onFolderChange={setFolder}
-        onClearDates={() => {
-          setFromDate('');
-          setToDate('');
-        }}
-        onSelectFolder={selectFolder}
-        onStructureNameChange={setStructureName}
-        onToDateChange={setToDate}
-        onTypeCodeChange={setTypeCode}
-        structureName={structureName}
-        toDate={toDate}
-        typeCode={typeCode}
-      />
+      <AppHeader activeView={activeView} onNavigate={setActiveView} />
+      {activeView === 'dte' ? (
+        <>
+          <FilterPanel
+            folder={folder}
+            fromDate={fromDate}
+            loading={loading}
+            onExportExcel={exportExcel}
+            onReloadFolder={reloadFolder}
+            onSelectFiles={selectFiles}
+            onFromDateChange={setFromDate}
+            onFolderChange={setFolder}
+            onClearDates={() => {
+              setFromDate('');
+              setToDate('');
+            }}
+            onSelectFolder={selectFolder}
+            onStructureNameChange={setStructureName}
+            onToDateChange={setToDate}
+            onTypeCodeChange={setTypeCode}
+            structureName={structureName}
+            toDate={toDate}
+            typeCode={typeCode}
+          />
 
-      <section className="px-6 py-4">
-        <StatusBar
-          columnCount={columns.length}
-          dteSummary={dteSummary}
-          loadedCount={documents.length}
-          loading={loading}
-          onFillReceptionStamps={fillMissingReceptionStamps}
-          onOpenHacienda={querySelectedInHacienda}
-          onQueryAllHacienda={queryAllRowsInHacienda}
-          rowCount={filteredRows.length}
-          selectedRow={selectedRow}
-          selectedQueryUrl={selectedQueryUrl}
-          status={status}
-          totalFileCount={totalFileCount}
-        />
-        {documents.length ? (
-          <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>
-            <VirtualDataTable
-              columnFilters={columnFilters}
-              columns={columns}
-              filterSourceRows={rows}
-              onColumnFilterChange={setColumnFilters}
-              onRowSelect={setSelectedRow}
-              rows={filteredRows}
+          <section className="px-6 py-4">
+            <StatusBar
+              columnCount={columns.length}
+              dteSummary={dteSummary}
+              loadedCount={documents.length}
+              loading={loading}
+              onFillReceptionStamps={fillMissingReceptionStamps}
+              onOpenHacienda={querySelectedInHacienda}
+              onQueryAllHacienda={queryAllRowsInHacienda}
+              rowCount={filteredRows.length}
               selectedRow={selectedRow}
+              selectedQueryUrl={selectedQueryUrl}
+              status={status}
+              totalFileCount={totalFileCount}
             />
-          </Suspense>
-        ) : (
-          <div className="tableFrame">
-            <div className="empty">Sin datos cargados</div>
-          </div>
-        )}
-        <ErrorSummary errors={errors} />
-      </section>
+            {documents.length ? (
+              <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>
+                <VirtualDataTable
+                  columnFilters={columnFilters}
+                  columns={columns}
+                  filterSourceRows={rows}
+                  onColumnFilterChange={setColumnFilters}
+                  onRowSelect={setSelectedRow}
+                  rows={filteredRows}
+                  selectedRow={selectedRow}
+                />
+              </Suspense>
+            ) : (
+              <div className="tableFrame">
+                <div className="empty">Sin datos cargados</div>
+              </div>
+            )}
+            <ErrorSummary errors={errors} />
+          </section>
+        </>
+      ) : (
+        <RegisterView
+          key={activeView}
+          sourceRows={rows}
+          sourceStructureName={structureName}
+          sourceTypeCode={typeCode}
+          type={activeView === 'registers-providers' ? 'providers' : 'clients'}
+        />
+      )}
     </main>
   );
 }
