@@ -204,11 +204,11 @@ body,
 
   .statusMetrics {
     @apply grid w-full items-center gap-2;
-    grid-template-columns: minmax(180px, 1fr) auto auto;
+    grid-template-columns: minmax(360px, 1fr) auto auto;
   }
 
   .statusText {
-    @apply min-w-0 truncate text-sm font-semibold text-slate-700;
+    @apply min-w-0 whitespace-normal text-sm font-semibold leading-tight text-slate-700;
   }
 
   .statusActions {
@@ -491,11 +491,17 @@ body,
   }
 
   .registerHeadCell.client {
-    background-color: #0ea5e9;
+    background-color: #dcfce7;
+    border-bottom-color: #86efac;
+    border-right-color: #86efac;
+    color: #111827;
   }
 
   .registerHeadCell.provider {
-    background-color: #0ea5e9;
+    background-color: #fef3c7;
+    border-bottom-color: #facc15;
+    border-right-color: #facc15;
+    color: #111827;
   }
 
   .registerCell {
@@ -510,6 +516,22 @@ body,
 
   .registerCell.odd {
     background-color: #f1fdff;
+  }
+
+  .registerTable.provider .registerCell.even {
+    background-color: #fff;
+  }
+
+  .registerTable.provider .registerCell.odd {
+    background-color: #fffbeb;
+  }
+
+  .registerTable.client .registerCell.even {
+    background-color: #fff;
+  }
+
+  .registerTable.client .registerCell.odd {
+    background-color: #f0fdf4;
   }
 
   .registerCorrCell {

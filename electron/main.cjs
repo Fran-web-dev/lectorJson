@@ -15,6 +15,10 @@ const TABLE_ALT_FILL = 'FFF1FDFF';
 const TABLE_WHITE_FILL = 'FFFFFFFF';
 const TABLE_DUPLICATE_FILL = 'FFFFF2CC';
 const TABLE_ALERT_FILL = 'FFFEE2E2';
+const REGISTER_CLIENT_HEADER_FILL = 'FFDCFCE7';
+const REGISTER_CLIENT_ALT_FILL = 'FFF0FDF4';
+const REGISTER_PROVIDER_HEADER_FILL = 'FFFEF3C7';
+const REGISTER_PROVIDER_ALT_FILL = 'FFFFFBEB';
 const ACCOUNTING_NUMBER_FORMAT = '_("$"* #,##0.00_);_("$"* (#,##0.00);_("$"* "-"??_);_(@_)';
 const HACIENDA_PUBLIC_COLUMNS = new Set([
   'Estado del DTE',
@@ -30,6 +34,7 @@ const HACIENDA_PUBLIC_COLUMNS = new Set([
 ]);
 const PUBLIC_QUERY_LIMIT = 300;
 const PUBLIC_QUERY_CONCURRENCY = 8;
+const PUBLIC_BATCH_QUERY_CONCURRENCY = 18;
 const FILE_READ_CONCURRENCY = 32;
 const ENRICH_PUBLIC_QUERY_ON_LOAD = false;
 const publicQueryCache = new Map();
@@ -66,8 +71,12 @@ function getPublicQueryHttp() {
   if (!publicQueryHttp) {
     const https = require('https');
     publicQueryHttp = getAxios().create({
-      httpsAgent: new https.Agent({ rejectUnauthorized: false }),
-      timeout: 4000
+      httpsAgent: new https.Agent({
+        keepAlive: true,
+        maxSockets: PUBLIC_BATCH_QUERY_CONCURRENCY,
+        rejectUnauthorized: false
+      }),
+      timeout: 7000
     });
   }
   return publicQueryHttp;
@@ -245,6 +254,25 @@ async function enrichWithPublicQuery(payload) {
   }
 }
 
+async function queryPublicHacienda(request) {
+  const ambiente = String(request?.ambiente || '01').padStart(2, '0');
+  const codigoGeneracion = String(request?.codigoGeneracion || '').trim();
+  const fechaEmi = normalizePublicDate(request?.fechaEmi);
+  if (!codigoGeneracion || !fechaEmi) throw new Error('Codigo de generacion o fecha invalidos.');
+
+  const basePath = ambiente === '01' ? 'prod' : 'test';
+  const url = `https://admin.factura.gob.sv/${basePath}/consultas/publica/simple/1`;
+  const cacheKey = `${ambiente}|${codigoGeneracion}|${fechaEmi}`;
+
+  if (!publicQueryCache.has(cacheKey)) {
+    publicQueryCache.set(cacheKey, getPublicQueryHttp().get(url, {
+      params: { ambiente, codigoGeneracion, fechaEmi }
+    }).then((response) => response.data).catch(() => null));
+  }
+
+  return publicQueryCache.get(cacheKey);
+}
+
 function getPublicQueryKey(payload) {
   if (!payload || typeof payload !== 'object' || findValue(payload, 'estadoDoc')) return '';
 
@@ -342,6 +370,23 @@ ipcMain.handle('register:template-export', async (_event, request) => {
   return result.filePath;
 });
 
+ipcMain.handle('register:table-export', async (_event, request) => {
+  const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
+  const rows = Array.isArray(request?.rows) ? request.rows : [];
+  if (!columns.length) throw new Error('No hay columnas para exportar.');
+  if (!rows.length) throw new Error('No hay registros con datos para exportar.');
+
+  const result = await dialog.showSaveDialog({
+    title: 'Exportar tabla de registros',
+    defaultPath: `${sanitizeFileName(request?.title || 'Registros')}-${formatExportTimestamp(new Date())}.xlsx`,
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+  await writeRegisterTableExcel(result.filePath, rows, columns, request?.title || 'REGISTROS', request?.tone || 'client');
+  return result.filePath;
+});
+
 ipcMain.handle('register:excel-import', async (_event, request) => {
   const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
   if (!columns.length) throw new Error('No hay columnas configuradas para importar.');
@@ -433,6 +478,79 @@ async function writeRegisterTemplate(filePath, columns, title) {
     from: { row: 2, column: 1 },
     to: { row: 2, column: editableColumns.length }
   };
+
+  await workbook.xlsx.writeFile(filePath);
+}
+
+async function writeRegisterTableExcel(filePath, rows, columns, title, tone) {
+  const ExcelJS = getExcelJs();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Registros');
+  const isProvider = tone === 'provider';
+  const headerFill = isProvider ? REGISTER_PROVIDER_HEADER_FILL : REGISTER_CLIENT_HEADER_FILL;
+  const bodyAltFill = isProvider ? REGISTER_PROVIDER_ALT_FILL : REGISTER_CLIENT_ALT_FILL;
+  const headerBorderColor = isProvider ? 'FFFACC15' : 'FF86EFAC';
+
+  worksheet.mergeCells(1, 1, 1, columns.length);
+  const titleCell = worksheet.getCell(1, 1);
+  titleCell.value = String(title || 'REGISTROS').toUpperCase();
+  titleCell.font = { bold: true, color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE + 2 };
+  titleCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+  worksheet.getRow(1).height = 24;
+
+  worksheet.columns = columns.map((header) => ({
+    key: header,
+    width: Math.min(Math.max(
+      Math.max(String(header).length, ...rows.map((row) => String(row?.[header] || '').length)) + 4,
+      header === 'CORR.' ? 8 : 14
+    ), /NOMBRE/i.test(header) ? 48 : 32)
+  }));
+
+  worksheet.addRow(columns);
+  rows.forEach((row) => {
+    worksheet.addRow(Object.fromEntries(columns.map((header) => [header, row?.[header] || ''])));
+  });
+
+  worksheet.getRow(2).height = 22;
+  for (let colNumber = 1; colNumber <= columns.length; colNumber += 1) {
+    const cell = worksheet.getRow(2).getCell(colNumber);
+    cell.font = { bold: true, color: { argb: 'FF111827' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: headerFill } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: headerBorderColor } },
+      left: { style: 'thin', color: { argb: headerBorderColor } },
+      bottom: { style: 'thin', color: { argb: headerBorderColor } },
+      right: { style: 'thin', color: { argb: headerBorderColor } }
+    };
+  }
+
+  for (let rowNumber = 3; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber);
+    row.height = 18;
+    for (let colNumber = 1; colNumber <= columns.length; colNumber += 1) {
+      const cell = row.getCell(colNumber);
+      cell.font = { name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+      cell.alignment = { horizontal: colNumber === 1 ? 'center' : 'left', vertical: 'middle', wrapText: false };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: rowNumber % 2 === 0 ? bodyAltFill : TABLE_WHITE_FILL }
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        bottom: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+        right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+      };
+    }
+  }
+
+  worksheet.autoFilter = {
+    from: { row: 2, column: 1 },
+    to: { row: 2, column: columns.length }
+  };
+  worksheet.views = [{ state: 'frozen', ySplit: 2 }];
 
   await workbook.xlsx.writeFile(filePath);
 }
@@ -644,17 +762,50 @@ function orderExcelHeaders(headers) {
 }
 
 ipcMain.handle('hacienda:public-query', async (_event, request) => {
-  const ambiente = String(request?.ambiente || '01').padStart(2, '0');
-  const codigoGeneracion = String(request?.codigoGeneracion || '').trim();
-  const fechaEmi = normalizePublicDate(request?.fechaEmi);
-  if (!codigoGeneracion || !fechaEmi) throw new Error('Codigo de generacion o fecha invalidos.');
+  return queryPublicHacienda(request);
+});
 
-  const basePath = ambiente === '01' ? 'prod' : 'test';
-  const url = `https://admin.factura.gob.sv/${basePath}/consultas/publica/simple/1`;
-  const response = await getPublicQueryHttp().get(url, {
-    params: { ambiente, codigoGeneracion, fechaEmi }
-  });
-  return response.data;
+ipcMain.handle('hacienda:public-batch-query', async (event, request) => {
+  const queries = Array.isArray(request?.queries) ? request.queries : [];
+  const results = [];
+  const total = queries.length;
+  let completed = 0;
+  let nextIndex = 0;
+
+  function reportProgress() {
+    event.sender.send('hacienda:public-batch-progress', { completed, total });
+  }
+
+  async function worker() {
+    while (nextIndex < queries.length) {
+      const currentIndex = nextIndex;
+      nextIndex += 1;
+
+      const query = queries[currentIndex];
+      try {
+        const data = await queryPublicHacienda(query);
+        results[currentIndex] = {
+          codigoGeneracion: query?.codigoGeneracion || '',
+          data
+        };
+      } catch {
+        results[currentIndex] = {
+          codigoGeneracion: query?.codigoGeneracion || '',
+          data: null
+        };
+      } finally {
+        completed += 1;
+        if (completed % 25 === 0 || completed === total) reportProgress();
+      }
+    }
+  }
+
+  await Promise.all(Array.from(
+    { length: Math.min(PUBLIC_BATCH_QUERY_CONCURRENCY, queries.length || 1) },
+    () => worker()
+  ));
+
+  return results;
 });
 
 ipcMain.handle('external:open', async (_event, url) => {

@@ -34,10 +34,21 @@ const REGISTER_CONFIG = {
   }
 };
 
-const IMPORTABLE_STRUCTURES = new Set([
-  '01|FCF EMISOR',
-  '03|CCF EMISOR VENTA'
-]);
+const IMPORTABLE_STRUCTURES = {
+  clients: new Set([
+    '01|FCF EMISOR',
+    '03|CCF EMISOR VENTA'
+  ]),
+  providers: new Set([
+    '03|CCF RECEPTOR COMPRA',
+    '14|FSE EMISOR'
+  ])
+};
+
+const IMPORTABLE_STRUCTURE_MESSAGES = {
+  clients: 'Importe disponible solo para 01 FCF EMISOR y 03 CCF EMISOR VENTA.',
+  providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA y 14 FSE EMISOR.'
+};
 
 function createRows(columns, count = INITIAL_ROW_COUNT) {
   return Array.from({ length: count }, () => createEmptyRow(columns));
@@ -112,12 +123,39 @@ function applyRegisterFilters(rows, filters, columns) {
   });
 }
 
-function mapSourceRowToRegister(row, type) {
+function splitProviderDocument(value) {
+  const rawValue = String(value || '').trim();
+  const digitCount = rawValue.replace(/\D/g, '').length;
+
+  return {
+    nit: digitCount === 14 ? rawValue : '',
+    dui: digitCount >= 9 && digitCount !== 14 ? rawValue : ''
+  };
+}
+
+function mapSourceRowToRegister(row, type, sourceTypeCode) {
   if (type === 'providers') {
+    if (sourceTypeCode === '14') {
+      const document = splitProviderDocument(row['Doc ID Sujeto Excluido']);
+
+      return {
+        NRC: '',
+        NIT: document.nit,
+        DUI: document.dui,
+        'NOMBRE DEL PROVEEDOR': row['Nombre sujetoExcluido'] || '',
+        'TIPO DE OPERACION (Renta)': '',
+        'CLASIFICACION (Renta)': '',
+        'SECTOR (Renta)': '',
+        'TIPO DE COSTO/GASTO (Renta)': ''
+      };
+    }
+
+    const document = splitProviderDocument(row['NIT emisor']);
+
     return {
       NRC: row['NRC emisor'] || '',
-      NIT: row['NIT emisor'] || '',
-      DUI: '',
+      NIT: document.nit,
+      DUI: document.dui,
       'NOMBRE DEL PROVEEDOR': row['Nombre emisor'] || '',
       'TIPO DE OPERACION (Renta)': '',
       'CLASIFICACION (Renta)': '',
@@ -240,15 +278,16 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   }
 
   function importRows() {
-    if (!IMPORTABLE_STRUCTURES.has(importableStructureKey(sourceTypeCode, sourceStructureName))) {
-      setMessage('Importe disponible solo para 01 FCF EMISOR y 03 CCF EMISOR VENTA.');
+    const importableStructures = IMPORTABLE_STRUCTURES[type] || IMPORTABLE_STRUCTURES.clients;
+    if (!importableStructures.has(importableStructureKey(sourceTypeCode, sourceStructureName))) {
+      setMessage(IMPORTABLE_STRUCTURE_MESSAGES[type] || IMPORTABLE_STRUCTURE_MESSAGES.clients);
       return;
     }
 
     const importedRows = sourceRows
       .map((sourceRow) => ({
         ...createEmptyRow(config.columns),
-        ...mapSourceRowToRegister(sourceRow, type)
+        ...mapSourceRowToRegister(sourceRow, type, sourceTypeCode)
       }))
       .filter((row) => hasUsefulData(row, config.columns));
 
@@ -274,6 +313,37 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
       if (filePath) setMessage(`Plantilla creada: ${filePath}`);
     } catch (error) {
       setMessage(`No se pudo crear la plantilla: ${error.message}`);
+    }
+  }
+
+  async function exportRegisterTable() {
+    try {
+      if (!window.dteApp?.exportRegisterTable) {
+        setMessage('Reinicie la aplicacion para exportar registros.');
+        return;
+      }
+
+      const exportRows = visibleRows
+        .filter((row) => hasUsefulData(row, config.columns))
+        .map((row, index) => ({
+          ...row,
+          'CORR.': String(index + 1)
+        }));
+
+      if (!exportRows.length) {
+        setMessage('No hay registros con datos para exportar.');
+        return;
+      }
+
+      const filePath = await window.dteApp.exportRegisterTable({
+        columns: config.columns.map((column) => column.header),
+        rows: exportRows,
+        title: config.title,
+        tone: config.tone
+      });
+      if (filePath) setMessage(`Tabla exportada: ${filePath}`);
+    } catch (error) {
+      setMessage(`No se pudo exportar la tabla: ${error.message}`);
     }
   }
 
@@ -353,6 +423,9 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
             <button className="actionButton" onClick={exportExcelTemplate} type="button">
               <FileSpreadsheet size={16} /> PLANTILLA EXCEL
             </button>
+            <button className="actionButton" onClick={exportRegisterTable} type="button">
+              <FileSpreadsheet size={16} /> EXPORTAR TABLA EXCEL
+            </button>
             <button className="actionButton" onClick={importExcelTemplate} type="button">
               <FileSpreadsheet size={16} /> IMPORTAR EXCEL
             </button>
@@ -361,7 +434,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
             </button>
           </div>
         </div>
-        <div className="registerTable" style={{ gridTemplateColumns }}>
+        <div className={`registerTable ${config.tone}`} style={{ gridTemplateColumns }}>
           {config.columns.map((column) => (
             <div className={`registerHeadCell ${config.tone}`} key={column.header}>
               <span>{column.header}</span>

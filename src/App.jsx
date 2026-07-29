@@ -27,7 +27,9 @@ const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').
   default: module.VirtualDataTable
 })));
 
-const HACIENDA_QUERY_CONCURRENCY = 6;
+function normalizeGenerationKey(value) {
+  return String(value || '').replace(/-/g, '').trim().toUpperCase();
+}
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
@@ -123,7 +125,7 @@ export default function App() {
       const publicData = await queryPublicHaciendaRow(selectedRow);
       if (publicData && publicData.estadoDoc !== 'Error') {
         const selectedCode = getSelectedGenerationCode(selectedRow);
-        updateDocumentsWithPublicData(new Map([[selectedCode, publicData]]));
+        updateDocumentsWithPublicData(new Map([[normalizeGenerationKey(selectedCode), publicData]]));
       }
 
       if (!window.dteApp?.openExternal) throw new Error('Reinicie la aplicacion para cargar el abridor externo.');
@@ -146,41 +148,37 @@ export default function App() {
     setLoading(true);
     setStatus(`Consultando Hacienda para ${queryableRows.length} documento(s)...`);
 
-    const publicDataByCode = new Map();
-    let completed = 0;
-    let failed = 0;
-    let nextIndex = 0;
+    let removeProgressListener = () => {};
 
-    async function worker() {
-      while (nextIndex < queryableRows.length) {
-        const row = queryableRows[nextIndex];
-        nextIndex += 1;
-        try {
-          const publicData = await queryPublicHaciendaRow(row);
-          if (publicData && publicData.estadoDoc !== 'Error') {
-            publicDataByCode.set(getSelectedGenerationCode(row), publicData);
-          } else {
-            failed += 1;
-          }
-        } catch {
+    try {
+      if (window.dteApp?.onPublicHaciendaBatchProgress) {
+        removeProgressListener = window.dteApp.onPublicHaciendaBatchProgress((progress) => {
+          setStatus(`Consultando Hacienda: ${progress.completed}/${progress.total} documento(s)...`);
+        });
+      }
+
+      const results = await queryPublicHaciendaRows(queryableRows);
+      const publicDataByCode = new Map();
+      let failed = 0;
+
+      for (const result of results) {
+        if (result?.data && result.data.estadoDoc !== 'Error') {
+          const responseCode = result.data.codGen || result.data.codigoGeneracion || result.codigoGeneracion;
+          publicDataByCode.set(normalizeGenerationKey(responseCode), result.data);
+        } else {
           failed += 1;
-        } finally {
-          completed += 1;
-          if (completed % 10 === 0 || completed === queryableRows.length) {
-            setStatus(`Consultando Hacienda: ${completed}/${queryableRows.length} documento(s)...`);
-          }
         }
       }
+
+      updateDocumentsWithPublicData(publicDataByCode, (updatedCount) => {
+        setStatus(`Consulta Hacienda terminada: ${updatedCount} documento(s) actualizado(s), ${failed} sin respuesta.`);
+      });
+    } catch (error) {
+      setStatus(`No se pudo completar la consulta masiva: ${error.message}`);
+    } finally {
+      removeProgressListener();
+      setLoading(false);
     }
-
-    await Promise.all(Array.from(
-      { length: Math.min(HACIENDA_QUERY_CONCURRENCY, queryableRows.length) },
-      () => worker()
-    ));
-
-    updateDocumentsWithPublicData(publicDataByCode);
-    setLoading(false);
-    setStatus(`Consulta Hacienda terminada: ${publicDataByCode.size} actualizado(s), ${failed} sin respuesta.`);
   }
 
   async function queryPublicHaciendaRow(row) {
@@ -188,6 +186,23 @@ export default function App() {
       ambiente: getSelectedEnvironment(row),
       codigoGeneracion: getSelectedGenerationCode(row),
       fechaEmi: getSelectedIssueDate(row)
+    });
+  }
+
+  async function queryPublicHaciendaRows(queryableRows) {
+    if (!window.dteApp?.publicHaciendaBatchQuery) {
+      return Promise.all(queryableRows.map(async (row) => ({
+        codigoGeneracion: getSelectedGenerationCode(row),
+        data: await queryPublicHaciendaRow(row)
+      })));
+    }
+
+    return window.dteApp.publicHaciendaBatchQuery({
+      queries: queryableRows.map((row) => ({
+        ambiente: getSelectedEnvironment(row),
+        codigoGeneracion: getSelectedGenerationCode(row),
+        fechaEmi: getSelectedIssueDate(row)
+      }))
     });
   }
 
@@ -233,12 +248,20 @@ export default function App() {
     setStatus(`${updatedCount} campo(s) vacio(s) de Serie del Documento rellenado(s) desde Sello de Recepcion.`);
   }
 
-  function updateDocumentsWithPublicData(publicDataByCode) {
-    setDocuments((currentDocuments) => currentDocuments.map((document) => {
-      const documentCode = getDocumentGenerationCode(document);
-      const publicData = publicDataByCode.get(documentCode);
-      return publicData ? { ...document, payload: { ...document.payload, __consultaPublica: publicData } } : document;
-    }));
+  function updateDocumentsWithPublicData(publicDataByCode, onUpdated) {
+    setDocuments((currentDocuments) => {
+      let updatedCount = 0;
+      const updatedDocuments = currentDocuments.map((document) => {
+        const documentCode = normalizeGenerationKey(getDocumentGenerationCode(document));
+        const publicData = publicDataByCode.get(documentCode);
+        if (!publicData) return document;
+        updatedCount += 1;
+        return { ...document, payload: { ...document.payload, __consultaPublica: publicData } };
+      });
+
+      if (onUpdated) window.queueMicrotask(() => onUpdated(updatedCount));
+      return updatedDocuments;
+    });
   }
 
   return (
