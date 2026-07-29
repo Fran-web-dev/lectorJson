@@ -30,16 +30,6 @@ npm run dev
 npm run build
 ```
 
-## Configuracion local
-
-Copie `.env.example` como `.env` y cambie la clave local:
-
-```bash
-VITE_REGISTER_CLEAR_KEY=su-clave-local
-```
-
-El archivo `.env` no se sube a GitHub.
-
 ## Objetivo
 
 Facilitar la lectura, validacion, consulta y exportacion de documentos tributarios electronicos de El Salvador desde archivos locales hacia reportes de Excel listos para revision contable.
