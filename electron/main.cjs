@@ -6,6 +6,7 @@ const fsSync = require('fs');
 const isDev = !app.isPackaged;
 app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('no-sandbox');
+const APP_ICON_PATH = path.join(__dirname, 'app-icon.ico');
 
 const EXCEL_FONT = 'Tw Cen MT Condensed';
 const EXCEL_FONT_SIZE = 12;
@@ -90,6 +91,7 @@ function createWindow() {
     minWidth: 1000,
     minHeight: 620,
     title: 'Lector DTE Hacienda',
+    icon: APP_ICON_PATH,
     backgroundColor: '#f8fafc',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -387,6 +389,29 @@ ipcMain.handle('register:table-export', async (_event, request) => {
   return result.filePath;
 });
 
+ipcMain.handle('iva-book:excel-export', async (_event, request) => {
+  const columns = Array.isArray(request?.columns) ? request.columns : [];
+  const rows = Array.isArray(request?.rows) ? request.rows : [];
+  if (!columns.length) throw new Error('No hay columnas para exportar.');
+  if (!rows.length) throw new Error('No hay registros para exportar.');
+
+  const title = request?.title || 'Libro de IVA';
+  const result = await dialog.showSaveDialog({
+    title: 'Exportar libro de IVA',
+    defaultPath: `${getIvaBookExportFileName(title, new Date())}.xlsx`,
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+  await writeIvaBookExcel(result.filePath, {
+    columns,
+    rows,
+    title,
+    totals: request?.totals || {}
+  });
+  return result.filePath;
+});
+
 ipcMain.handle('register:excel-import', async (_event, request) => {
   const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
   if (!columns.length) throw new Error('No hay columnas configuradas para importar.');
@@ -408,6 +433,25 @@ function formatExportTimestamp(date) {
   const minute = String(date.getMinutes()).padStart(2, '0');
   const second = String(date.getSeconds()).padStart(2, '0');
   return `${hour}-${minute}-${second}`;
+}
+
+function formatExportDateStamp(date) {
+  const day = String(date.getDate()).padStart(2, '0');
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = String(date.getFullYear()).slice(-2);
+  return `${day}-${month}-${year}`;
+}
+
+function getIvaBookExportPrefix(title) {
+  const normalizedTitle = String(title || '').toUpperCase();
+  if (normalizedTitle.includes('CONSUMIDOR FINAL')) return 'LIBRO VENTAS FCF';
+  if (normalizedTitle.includes('CREDITO FISCAL')) return 'LIBRO VENTAS CCF';
+  if (normalizedTitle.includes('COMPRAS')) return 'LIBRO COMPRAS';
+  return 'LIBRO IVA';
+}
+
+function getIvaBookExportFileName(title, date) {
+  return `${getIvaBookExportPrefix(title)} - ${formatExportDateStamp(date)} ${formatExportTimestamp(date)}`;
 }
 
 function sanitizeFileName(value) {
@@ -551,6 +595,124 @@ async function writeRegisterTableExcel(filePath, rows, columns, title, tone) {
     to: { row: 2, column: columns.length }
   };
   worksheet.views = [{ state: 'frozen', ySplit: 2 }];
+
+  await workbook.xlsx.writeFile(filePath);
+}
+
+function getIvaBookColumnWidth(column, rows) {
+  const header = column?.header || '';
+  const widthValue = Number(String(column?.width || '').replace(/px/i, ''));
+  const baseWidth = Number.isFinite(widthValue) && widthValue > 0 ? Math.round(widthValue / 7.4) : 14;
+  const maxValueLength = Math.max(
+    String(header).length,
+    ...rows.slice(0, 300).map((row) => String(row?.[header] || '').length)
+  );
+  return Math.min(Math.max(baseWidth, Math.min(maxValueLength + 2, 42)), /NOMBRE/i.test(header) ? 46 : 32);
+}
+
+async function writeIvaBookExcel(filePath, request) {
+  const ExcelJS = getExcelJs();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Libro IVA', {
+    views: [{ state: 'frozen', ySplit: 7 }]
+  });
+  const columns = request.columns;
+  const rows = request.rows;
+  const title = String(request.title || 'LIBRO DE IVA').toUpperCase();
+  const totals = request.totals || {};
+
+  worksheet.columns = columns.map((column) => ({
+    key: column.header,
+    width: getIvaBookColumnWidth(column, rows)
+  }));
+
+  worksheet.mergeCells(1, 1, 1, columns.length);
+  worksheet.getCell(1, 1).value = title;
+  worksheet.getCell(1, 1).font = { bold: true, color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE + 3 };
+  worksheet.getCell(1, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+  worksheet.getRow(1).height = 24;
+
+  const headerInfo = [
+    ['NOMBRE EMPRESA:', ''],
+    ['NRC:', '', 'NIT:', ''],
+    ['GIRO:', ''],
+    ['MES:', '', 'AÑO:', '']
+  ];
+
+  headerInfo.forEach((items, index) => {
+    const row = worksheet.getRow(index + 2);
+    row.height = 20;
+    items.forEach((value, itemIndex) => {
+      const cell = row.getCell(itemIndex + 1);
+      cell.value = value;
+      cell.font = { bold: itemIndex % 2 === 0, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+      cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+      if (itemIndex % 2 === 1) {
+        cell.border = { bottom: { style: 'thin', color: { argb: 'FF94A3B8' } } };
+      }
+    });
+  });
+
+  const totalsRow = worksheet.getRow(6);
+  columns.forEach((column, index) => {
+    const cell = totalsRow.getCell(index + 1);
+    cell.value = column.money ? parseAccountingMoney(totals[column.header]) : '';
+    cell.font = { bold: true, color: { argb: column.money ? 'FF047857' : 'FF94A3B8' }, name: EXCEL_FONT, size: 11 };
+    cell.alignment = { horizontal: 'right', vertical: 'middle', wrapText: false };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: column.money ? 'FFEFFDF5' : 'FFF8FAFC' } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+      left: { style: 'thin', color: { argb: 'FFE5E7EB' } },
+      bottom: { style: 'thin', color: { argb: 'FF86EFAC' } },
+      right: { style: 'thin', color: { argb: 'FFE5E7EB' } }
+    };
+    if (column.money) cell.numFmt = ACCOUNTING_NUMBER_FORMAT;
+  });
+  totalsRow.height = 18;
+
+  const headerRow = worksheet.getRow(7);
+  columns.forEach((column, index) => {
+    const cell = headerRow.getCell(index + 1);
+    cell.value = column.header;
+    cell.font = { bold: true, color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: false };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDFF2FB' } };
+    cell.border = {
+      top: { style: 'thin', color: { argb: 'FF0F172A' } },
+      left: { style: 'thin', color: { argb: 'FF0F172A' } },
+      bottom: { style: 'thin', color: { argb: 'FF0F172A' } },
+      right: { style: 'thin', color: { argb: 'FF0F172A' } }
+    };
+  });
+  headerRow.height = 22;
+
+  rows.forEach((rowData, rowIndex) => {
+    const row = worksheet.getRow(rowIndex + 8);
+    row.height = 18;
+    columns.forEach((column, columnIndex) => {
+      const cell = row.getCell(columnIndex + 1);
+      cell.value = column.money ? parseAccountingMoney(rowData?.[column.header]) : rowData?.[column.header] || '';
+      cell.font = { name: EXCEL_FONT, size: EXCEL_FONT_SIZE, color: { argb: 'FF0F172A' } };
+      cell.alignment = { horizontal: column.money ? 'right' : 'left', vertical: 'middle', wrapText: false };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: rowIndex % 2 === 0 ? 'FFF8FDFF' : TABLE_WHITE_FILL }
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        left: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        bottom: { style: 'thin', color: { argb: 'FFCBD5E1' } },
+        right: { style: 'thin', color: { argb: 'FFCBD5E1' } }
+      };
+      if (column.money) cell.numFmt = ACCOUNTING_NUMBER_FORMAT;
+    });
+  });
+
+  worksheet.autoFilter = {
+    from: { row: 7, column: 1 },
+    to: { row: 7, column: columns.length }
+  };
 
   await workbook.xlsx.writeFile(filePath);
 }

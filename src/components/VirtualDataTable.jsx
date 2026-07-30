@@ -63,6 +63,27 @@ function isMoneyColumn(column) {
     && !/letras/i.test(column);
 }
 
+function isDateColumn(column) {
+  return /^fecha$/i.test(String(column).trim());
+}
+
+function parseFilterDate(value) {
+  const text = String(value || '').trim();
+  const dayFirst = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (dayFirst) {
+    const [, day, month, year] = dayFirst;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  const yearFirst = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/);
+  if (yearFirst) {
+    const [, year, month, day] = yearFirst;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  }
+
+  return '';
+}
+
 function parseMoney(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   const text = String(value || '').trim();
@@ -70,6 +91,29 @@ function parseMoney(value) {
   const normalized = text.replace(/[$,\s]/g, '');
   const number = Number(normalized);
   return Number.isFinite(number) ? number : 0;
+}
+
+function compareCellValues(aValue, bValue, column) {
+  if (isDateColumn(column)) {
+    const aDate = parseFilterDate(aValue);
+    const bDate = parseFilterDate(bValue);
+    if (aDate || bDate) return aDate.localeCompare(bDate);
+  }
+
+  if (isMoneyColumn(column)) {
+    return parseMoney(aValue) - parseMoney(bValue);
+  }
+
+  const aNumber = Number(String(aValue ?? '').replace(/[$,\s]/g, ''));
+  const bNumber = Number(String(bValue ?? '').replace(/[$,\s]/g, ''));
+  if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) {
+    return aNumber - bNumber;
+  }
+
+  return String(aValue ?? '').localeCompare(String(bValue ?? ''), 'es', {
+    numeric: true,
+    sensitivity: 'base'
+  });
 }
 
 const totalFormatter = new Intl.NumberFormat('en-US', {
@@ -127,18 +171,26 @@ export function VirtualDataTable({
   const [scrollLeft, setScrollLeft] = useState(0);
   const [openFilter, setOpenFilter] = useState(null);
   const [filterSearch, setFilterSearch] = useState('');
+  const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
+  const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
+
+  const sortedRows = useMemo(() => {
+    if (!sortConfig.column) return rows;
+    const direction = sortConfig.direction === 'desc' ? -1 : 1;
+    return [...rows].sort((a, b) => compareCellValues(a?.[sortConfig.column], b?.[sortConfig.column], sortConfig.column) * direction);
+  }, [rows, sortConfig]);
 
   const visibleRange = useMemo(
-    () => getVisibleRange(viewport.scrollTop, viewport.height, rows.length),
-    [rows.length, viewport]
+    () => getVisibleRange(viewport.scrollTop, viewport.height, sortedRows.length),
+    [sortedRows.length, viewport]
   );
   const visibleRows = useMemo(
-    () => rows.slice(visibleRange.startIndex, visibleRange.endIndex),
-    [rows, visibleRange]
+    () => sortedRows.slice(visibleRange.startIndex, visibleRange.endIndex),
+    [sortedRows, visibleRange]
   );
   const columnWidths = useMemo(
-    () => columns.map((column) => getAutoColumnWidth(column, rows)),
-    [columns, rows]
+    () => columns.map((column) => getAutoColumnWidth(column, sortedRows)),
+    [columns, sortedRows]
   );
   const gridTemplateColumns = useMemo(
     () => columnWidths.map((width) => `${width}px`).join(' '),
@@ -153,11 +205,11 @@ export function VirtualDataTable({
     for (const column of columns) {
       if (!isMoneyColumn(column)) continue;
       let total = 0;
-      for (const row of rows) total += parseMoney(row[column]);
+      for (const row of sortedRows) total += parseMoney(row[column]);
       totals[column] = formatTotal(total);
     }
     return totals;
-  }, [columns, rows]);
+  }, [columns, sortedRows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>
@@ -170,7 +222,15 @@ export function VirtualDataTable({
     setViewport({ height: target.clientHeight, scrollTop: target.scrollTop });
   }
 
-  if (!rows.length) {
+  function toggleSort(column) {
+    setSortConfig((current) => ({
+      column,
+      direction: current.column === column && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setViewport((current) => ({ ...current, scrollTop: 0 }));
+  }
+
+  if (!sortedRows.length) {
     return (
       <div className="tableFrame">
         <div className="empty">Sin datos cargados</div>
@@ -198,14 +258,21 @@ export function VirtualDataTable({
               <div
                 className={`virtualHeadCell ${PUBLIC_QUERY_COLUMNS.has(column) ? 'publicQueryHeadCell' : ''}`}
                 key={column}
+                onClick={() => toggleSort(column)}
                 role="columnheader"
+                title={`Ordenar ${column}`}
               >
                 <span className="truncate">{column}</span>
+                {sortConfig.column === column ? (
+                  <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                ) : null}
                 <button
                   className={`excelFilterButton ${columnFilters[column]?.length ? 'active' : ''}`}
-                  onClick={() => {
+                  onClick={(event) => {
+                    event.stopPropagation();
                     setOpenFilter(openFilter === column ? null : column);
                     setFilterSearch('');
+                    setDateRangeFilter({ from: '', to: '' });
                   }}
                   title={`Filtrar ${column}`}
                   type="button"
@@ -219,14 +286,17 @@ export function VirtualDataTable({
                     onClose={() => setOpenFilter(null)}
                     onFilterSearchChange={setFilterSearch}
                     onColumnFilterChange={onColumnFilterChange}
+                    onDateRangeChange={setDateRangeFilter}
                     selectedValues={columnFilters[openFilter] || []}
+                    dateRange={dateRangeFilter}
+                    isDateFilter={isDateColumn(openFilter)}
                     values={openFilterValues}
                   />
                 ) : null}
               </div>
             ))}
           </div>
-          <div className="virtualBody" role="rowgroup" style={{ height: rows.length * ROW_HEIGHT + BOTTOM_SCROLL_PADDING }}>
+          <div className="virtualBody" role="rowgroup" style={{ height: sortedRows.length * ROW_HEIGHT + BOTTOM_SCROLL_PADDING }}>
             {visibleRows.map((row, index) => (
               <MemoDataRow
                 columns={columns}
@@ -253,7 +323,10 @@ function FilterMenu({
   filterSearch,
   onClose,
   onColumnFilterChange,
+  onDateRangeChange,
   onFilterSearchChange,
+  dateRange,
+  isDateFilter,
   selectedValues,
   values
 }) {
@@ -282,6 +355,24 @@ function FilterMenu({
     setColumnValues(nextMatchingValues);
   }
 
+  function applyDateRange(nextRange) {
+    onDateRangeChange(nextRange);
+
+    if (!nextRange.from && !nextRange.to) {
+      setColumnValues(values);
+      return;
+    }
+
+    const nextValues = values.filter((value) => {
+      const comparableDate = parseFilterDate(value);
+      if (!comparableDate) return false;
+      if (nextRange.from && comparableDate < nextRange.from) return false;
+      if (nextRange.to && comparableDate > nextRange.to) return false;
+      return true;
+    });
+    setColumnValues(nextValues);
+  }
+
   return (
     <div className="excelFilterMenu">
       <div className="excelFilterTitle">{column}</div>
@@ -291,6 +382,26 @@ function FilterMenu({
         placeholder="Buscar"
         value={filterSearch}
       />
+      {isDateFilter ? (
+        <div className="excelDateFilter">
+          <label>
+            Desde
+            <input
+              onChange={(event) => applyDateRange({ ...dateRange, from: event.target.value })}
+              type="date"
+              value={dateRange.from}
+            />
+          </label>
+          <label>
+            Hasta
+            <input
+              onChange={(event) => applyDateRange({ ...dateRange, to: event.target.value })}
+              type="date"
+              value={dateRange.to}
+            />
+          </label>
+        </div>
+      ) : null}
       <div className="excelFilterActions">
         <button onClick={() => setColumnValues(values)} type="button">
           Todos

@@ -1,4 +1,4 @@
-import { Building2, ChevronDown, FileText, Users } from 'lucide-react';
+import { BookOpen, Building2, ChevronDown, FileText, Users } from 'lucide-react';
 import logoFevv from '../assets/logo-fevv-technologies-startup.jpg';
 
 export function AppHeader({ activeView, onNavigate }) {
@@ -31,6 +31,30 @@ export function AppHeader({ activeView, onNavigate }) {
             <button onClick={() => onNavigate('registers-providers')} type="button">
               <Building2 size={15} />
               Registros de proveedores
+            </button>
+          </div>
+        </div>
+        <div className="navDropdown">
+          <button
+            className={`navButton ${activeView.startsWith('iva-books') ? 'active' : ''}`}
+            type="button"
+          >
+            <BookOpen size={16} />
+            LIBROS DE IVA
+            <ChevronDown className="navChevron" size={15} />
+          </button>
+          <div className="navDropdownMenu">
+            <button onClick={() => onNavigate('iva-books-purchases')} type="button">
+              <BookOpen size={15} />
+              Libro de compras
+            </button>
+            <button onClick={() => onNavigate('iva-books-ccf-sales')} type="button">
+              <BookOpen size={15} />
+              Libro de ventas CCF
+            </button>
+            <button onClick={() => onNavigate('iva-books-fcf-sales')} type="button">
+              <BookOpen size={15} />
+              Libro de ventas FCF
             </button>
           </div>
         </div>

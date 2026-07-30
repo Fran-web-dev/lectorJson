@@ -1,4 +1,4 @@
-import { FileJson, FolderOpen } from 'lucide-react';
+import { FileJson, FolderOpen, Trash2 } from 'lucide-react';
 import { getStructureOptions } from '../lib/dteStructureOptions.js';
 import { DTE_TYPES } from '../lib/dteTypes.js';
 
@@ -8,6 +8,7 @@ export function FilterPanel({
   loading,
   metricsSlot,
   onClearDates,
+  onClearTable,
   onExportExcel,
   onFromDateChange,
   onFolderChange,
@@ -25,7 +26,7 @@ export function FilterPanel({
 
   return (
     <section className="border-b border-slate-200 bg-white px-5 py-3">
-      <div className="grid grid-cols-[minmax(320px,460px)_240px_280px_430px] items-start gap-4">
+      <div className="grid grid-cols-[minmax(300px,430px)_240px_280px_560px] items-start gap-4">
         <div className="min-w-0">
           <label className="label">Seleccione la carpeta contenedora de los archivos JSON</label>
           <div className="flex items-end gap-2">
@@ -75,6 +76,9 @@ export function FilterPanel({
           </button>
           <button className="actionButton" disabled={loading || !folder.trim()} onClick={onReloadFolder}>
             <FileJson size={16} /> Cargar JSON
+          </button>
+          <button className="actionButton dangerActionButton" disabled={loading} onClick={onClearTable}>
+            <Trash2 size={16} /> Limpiar
           </button>
         </div>
 

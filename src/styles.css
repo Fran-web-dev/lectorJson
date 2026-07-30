@@ -337,12 +337,20 @@ body,
   }
 
   .virtualHeadCell {
-    @apply relative flex h-[42px] items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 px-2 text-left font-bold text-white;
+    @apply relative flex h-[42px] cursor-pointer items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 px-2 text-left font-bold text-white transition hover:bg-sky-600;
     font-size: 12px;
   }
 
   .publicQueryHeadCell {
     @apply border-green-200 bg-green-300 text-slate-950;
+  }
+
+  .publicQueryHeadCell:hover {
+    @apply bg-green-400;
+  }
+
+  .sortIndicator {
+    @apply shrink-0 text-[10px] font-black leading-none;
   }
 
   .excelFilterButton {
@@ -367,6 +375,18 @@ body,
 
   .excelFilterActions {
     @apply mb-2 flex gap-1;
+  }
+
+  .excelDateFilter {
+    @apply mb-2 grid grid-cols-2 gap-2 border border-slate-200 bg-slate-50 p-2;
+  }
+
+  .excelDateFilter label {
+    @apply flex flex-col gap-1 text-xs font-bold text-slate-700;
+  }
+
+  .excelDateFilter input {
+    @apply h-8 border border-slate-300 bg-white px-1.5 text-xs font-normal text-slate-900 outline-none focus:border-sky-600;
   }
 
   .excelFilterActions button {
@@ -565,12 +585,24 @@ body,
     @apply max-w-lg border-red-200;
   }
 
+  .emptyTableModal {
+    @apply max-w-lg overflow-hidden border-slate-200;
+  }
+
   .registerModalHeader {
     @apply flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3;
   }
 
   .registerModalHeader h2 {
     @apply text-base font-bold text-slate-950;
+  }
+
+  .emptyTableTitle {
+    @apply flex items-center gap-3;
+  }
+
+  .emptyTableIcon {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-full border border-sky-200 bg-sky-50 text-sky-700;
   }
 
   .modalIconButton {
@@ -597,6 +629,18 @@ body,
     @apply rounded-sm bg-red-50 px-1 font-black text-red-700;
   }
 
+  .emptyTableBody {
+    @apply px-4 py-5 text-sm leading-6 text-slate-700;
+  }
+
+  .emptyTableBody p {
+    @apply font-semibold text-slate-900;
+  }
+
+  .emptyTableBody span {
+    @apply mt-1 block text-xs text-slate-500;
+  }
+
   .clearConfirmModal .registerFormField {
     @apply px-4 py-4;
   }
@@ -605,8 +649,160 @@ body,
     @apply flex justify-end gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3;
   }
 
+  .primaryModalButton {
+    @apply inline-flex h-9 items-center justify-center border border-sky-700 bg-sky-700 px-4 text-sm font-bold text-white transition hover:bg-sky-800;
+  }
+
   .registerFilterMenu {
     @apply right-1 top-9 text-left normal-case;
+  }
+
+  .ivaBookView {
+    @apply overflow-auto bg-slate-50 px-6 py-5;
+    height: calc(100vh - 69px);
+  }
+
+  .ivaBookSheet {
+    @apply inline-block min-w-full border border-slate-300 bg-white p-3 shadow-sm;
+    font-family: "Arial Narrow", Arial, sans-serif;
+  }
+
+  .ivaBookToolbar {
+    @apply sticky left-0 mb-3 flex w-[calc(100vw-3rem)] flex-wrap items-center justify-end gap-2 border-b border-slate-200 bg-white pb-2;
+    z-index: 10;
+  }
+
+  .ivaBookMessage {
+    @apply mr-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-sky-800;
+  }
+
+  .ivaBookTypeSummary {
+    @apply text-xs font-black text-blue-700;
+  }
+
+  .ivaBookHeader {
+    @apply mb-2 grid text-xs font-bold text-slate-950;
+    grid-template-columns: 150px 220px 90px 220px 90px 220px;
+    width: max-content;
+    min-width: 980px;
+  }
+
+  .ivaBookHeaderLabel,
+  .ivaBookHeaderValue,
+  .ivaBookHeaderTitle {
+    @apply flex h-7 items-center px-2;
+  }
+
+  .ivaBookHeaderLabel {
+    @apply bg-white uppercase;
+  }
+
+  .ivaBookHeaderValue {
+    @apply bg-white;
+    border-bottom: 1px solid #94a3b8;
+  }
+
+  .ivaBookHeaderValue.spanWide {
+    grid-column: span 5;
+  }
+
+  .ivaBookHeaderValue.spanMedium {
+    grid-column: span 3;
+  }
+
+  .ivaBookHeaderTitle {
+    @apply justify-center bg-white text-center text-sm font-black uppercase;
+    border: 0;
+    grid-column: 1 / -1;
+  }
+
+  .ivaBookTable {
+    position: relative;
+    isolation: isolate;
+    display: grid;
+    width: max-content;
+    background: #ffffff;
+    border-left: 1px solid #0f172a;
+    border-top: 1px solid #0f172a;
+  }
+
+  .ivaBookTotalCell {
+    @apply sticky top-0 z-50 flex h-7 items-center justify-center overflow-visible whitespace-nowrap border-b border-r border-slate-400 bg-white px-1 text-[11px] font-black leading-none text-emerald-700;
+    box-shadow: 0 -32px 0 32px #ffffff;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ivaBookHeadCell {
+    @apply sticky top-7 z-[60] flex min-h-11 cursor-pointer items-center justify-center gap-1 border-b border-r border-slate-900 bg-sky-100 px-1.5 text-center text-xs font-black uppercase leading-tight text-slate-950 transition hover:bg-sky-200;
+    box-shadow: 0 -1px 0 #0f172a, 0 2px 6px rgba(15, 23, 42, 0.12);
+  }
+
+  .ivaBookHeadCell > span:first-child {
+    @apply min-w-0 flex-1;
+  }
+
+  .ivaBookLastColumn {
+    border-right: 0;
+  }
+
+  .ivaBookActionsHead {
+    @apply cursor-default;
+  }
+
+  .ivaBookFilterMenu {
+    @apply right-1 top-10 z-[80] text-left normal-case;
+  }
+
+  .ivaBookFilterMenu.alignStart {
+    @apply left-1 right-auto;
+  }
+
+  .ivaBookCell {
+    @apply flex h-6 items-center overflow-hidden whitespace-nowrap border-b border-r border-slate-300 px-1.5 text-xs leading-none text-slate-800;
+  }
+
+  .ivaBookCell.odd {
+    background-color: #f8fdff;
+  }
+
+  .ivaBookCell.even {
+    background-color: #ffffff;
+  }
+
+  .ivaBookCell.money {
+    @apply justify-end;
+  }
+
+  .ivaBookActionsCell {
+    @apply justify-center gap-1;
+  }
+
+  .ivaBookRowButton {
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border bg-white transition;
+  }
+
+  .ivaBookRowButton.edit {
+    @apply border-sky-200 text-sky-700 hover:bg-sky-50;
+  }
+
+  .ivaBookRowButton.delete,
+  .ivaBookRowButton.cancel {
+    @apply border-red-200 text-red-700 hover:bg-red-50;
+  }
+
+  .ivaBookRowButton.save {
+    @apply border-emerald-200 text-emerald-700 hover:bg-emerald-50;
+  }
+
+  .ivaBookEditInput {
+    @apply h-full w-full bg-white px-1 text-slate-900 outline-none;
+    box-shadow: inset 0 0 0 1px #2563eb;
+    font-family: "Arial Narrow", Arial, sans-serif;
+    font-size: 11px;
+  }
+
+  .ivaBookEditInput.money {
+    @apply text-right;
   }
 }
 

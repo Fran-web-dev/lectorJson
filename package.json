@@ -44,6 +44,7 @@
       "package.json"
     ],
     "win": {
+      "icon": "electron/app-icon.ico",
       "target": [
         "portable"
       ]

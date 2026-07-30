@@ -1,7 +1,9 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { Info, X } from 'lucide-react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
+import { IvaBooksView } from './components/IvaBooksView.jsx';
 import { RegisterView } from './components/RegisterView.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { DteSummaryBar, StatusBar } from './components/StatusBar.jsx';
@@ -26,6 +28,7 @@ import {
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
   default: module.VirtualDataTable
 })));
+const HOME_CLEAR_KEY = '1234';
 
 function normalizeGenerationKey(value) {
   return String(value || '').replace(/-/g, '').trim().toUpperCase();
@@ -43,10 +46,14 @@ export default function App() {
   const [toDate, setToDate] = useState('');
   const [columnFilters, setColumnFilters] = useState({});
   const [selectedRow, setSelectedRow] = useState(null);
-  const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON o CSV.');
+  const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON.');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
+  const [fcfIvaBookRows, setFcfIvaBookRows] = useState([]);
   const [activeView, setActiveView] = useState('dte');
+  const [showClearTableModal, setShowClearTableModal] = useState(false);
+  const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
+  const [clearTablePassword, setClearTablePassword] = useState('');
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 1100);
@@ -79,6 +86,37 @@ export default function App() {
       cancelled = true;
     };
   }, [documents, typeCode, structureName, fromDate, toDate]);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!documents.length) {
+      setFcfIvaBookRows([]);
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    import('./lib/extractor.js').then(({ extractRows }) => {
+      if (cancelled) return;
+      const fcfRows = extractRows(documents, {
+        typeCode: '01',
+        structureName: 'FCF EMISOR',
+        fromDate,
+        toDate
+      });
+      const fexRows = extractRows(documents, {
+        typeCode: '11',
+        structureName: 'FEX EMISOR',
+        fromDate,
+        toDate
+      });
+      setFcfIvaBookRows([...fcfRows, ...fexRows]);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [documents, fromDate, toDate]);
 
   const columns = useMemo(
     () => orderColumns(Object.keys(rows[0] || {}).filter((key) => !key.startsWith('__'))),
@@ -264,6 +302,37 @@ export default function App() {
     });
   }
 
+  function openClearTableModal() {
+    if (!rows.length && !documents.length) {
+      setShowEmptyTableModal(true);
+      return;
+    }
+
+    setClearTablePassword('');
+    setShowClearTableModal(true);
+  }
+
+  function closeClearTableModal() {
+    setClearTablePassword('');
+    setShowClearTableModal(false);
+  }
+
+  function confirmClearTable() {
+    if (clearTablePassword !== HOME_CLEAR_KEY) {
+      setStatus('Clave incorrecta. No se limpio la tabla.');
+      return;
+    }
+
+    setDocuments([]);
+    setRows([]);
+    setErrors([]);
+    setColumnFilters({});
+    setSelectedRow(null);
+    setTotalFileCount(0);
+    setStatus('Tabla limpiada correctamente.');
+    closeClearTableModal();
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       {showSplash ? <SplashScreen /> : null}
@@ -290,6 +359,7 @@ export default function App() {
               />
             )}
             onExportExcel={exportExcel}
+            onClearTable={openClearTableModal}
             onReloadFolder={reloadFolder}
             onSelectFiles={selectFiles}
             onFromDateChange={setFromDate}
@@ -328,7 +398,86 @@ export default function App() {
             )}
             <ErrorSummary errors={errors} />
           </section>
+          {showClearTableModal ? (
+            <div className="registerModalBackdrop">
+              <div className="registerModal clearConfirmModal" role="dialog" aria-modal="true" aria-labelledby="home-clear-modal-title">
+                <div className="registerModalHeader">
+                  <h2 id="home-clear-modal-title">Estas seguro que quieres limpiar la tabla?</h2>
+                  <button className="modalIconButton" onClick={closeClearTableModal} type="button">
+                    <X size={18} />
+                  </button>
+                </div>
+                <p className="clearConfirmText">
+                  Esta accion borrara todos los datos cargados en INICIO. Para confirmar, escriba la clave
+                  {' '}
+                  <strong>{HOME_CLEAR_KEY}</strong>
+                  .
+                </p>
+                <label className="registerFormField">
+                  <span>Clave de confirmacion</span>
+                  <input
+                    autoFocus
+                    onChange={(event) => setClearTablePassword(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' && clearTablePassword === HOME_CLEAR_KEY) confirmClearTable();
+                    }}
+                    placeholder="Escriba la clave de confirmacion"
+                    type="password"
+                    value={clearTablePassword}
+                  />
+                </label>
+                <div className="registerModalActions">
+                  <button className="actionButton" onClick={closeClearTableModal} type="button">
+                    NO
+                  </button>
+                  <button className="actionButton dangerActionButton" disabled={clearTablePassword !== HOME_CLEAR_KEY} onClick={confirmClearTable} type="button">
+                    SI
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {showEmptyTableModal ? (
+            <div className="registerModalBackdrop">
+              <div className="registerModal emptyTableModal" role="dialog" aria-modal="true" aria-labelledby="empty-table-modal-title">
+                <div className="registerModalHeader">
+                  <div className="emptyTableTitle">
+                    <span className="emptyTableIcon">
+                      <Info size={18} />
+                    </span>
+                    <h2 id="empty-table-modal-title">Tabla sin registros</h2>
+                  </div>
+                  <button className="modalIconButton" onClick={() => setShowEmptyTableModal(false)} type="button">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="emptyTableBody">
+                  <p>No hay datos cargados en INICIO para eliminar.</p>
+                  <span>Cargue una carpeta o seleccione archivos antes de usar esta accion.</span>
+                </div>
+                <div className="registerModalActions">
+                  <button className="primaryModalButton" onClick={() => setShowEmptyTableModal(false)} type="button">
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
+      ) : activeView.startsWith('iva-books') ? (
+        <IvaBooksView
+          key={activeView}
+          sourceRows={activeView === 'iva-books-fcf-sales' ? fcfIvaBookRows : filteredRows}
+          sourceStructureName={structureName}
+          sourceTypeCode={typeCode}
+          type={
+            activeView === 'iva-books-ccf-sales'
+              ? 'ccfSales'
+              : activeView === 'iva-books-fcf-sales'
+                ? 'fcfSales'
+                : 'purchases'
+          }
+        />
       ) : (
         <RegisterView
           key={activeView}
