@@ -48,6 +48,7 @@ export const CCF_RECEPTOR_COMPRA_STRUCTURE = [
   { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
+  { name: 'NIT receptor', sections: ['receptor'], fields: ['nit'] },
   { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
   { name: 'Cant,NP,PU', sections: ['cuerpoDocumento'], fields: ['cantidad', 'descripcion', 'precioUni'], perItem: true },
   { name: 'Total Gravado', sections: ['resumen'], fields: ['totalGravada'], style: 'money' },
@@ -79,6 +80,8 @@ export const CCF_EMISOR_VENTA_STRUCTURE = [
   { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
   { name: 'NIT receptor', sections: ['receptor'], fields: ['nit'] },
   { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
+  { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'DESCR,CANT,PU,VTAGR', sections: ['cuerpoDocumento'], fields: ['descripcion', 'cantidad', 'precioUni', 'ventaGravada'], perItem: true },
   { name: 'Total Gravado', sections: ['resumen'], fields: ['totalGravada'], style: 'money' },
@@ -106,8 +109,11 @@ export const CONSUMIDOR_FINAL_EMISOR_STRUCTURE = [
   { name: 'Numero de Control', sections: ['identificacion'], fields: ['numeroControl'], style: 'stripHyphen' },
   { name: 'Numero del Documento', sections: ['identificacion'], fields: ['codigoGeneracion'], style: 'stripHyphen' },
   { name: 'Serie del Documento', sections: ['selloRecibido', 'sello', 'selloRecepcion', 'SelloRecibido'], fields: ['*'] },
+  { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
   { name: 'NIT receptor', sections: ['receptor'], fields: ['numDocumento'] },
   { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
+  { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'DESCR,CANT,PU,VTA', sections: ['cuerpoDocumento'], fields: ['descripcion', 'cantidad', 'precioUni', 'ventaGravada'], perItem: true },
   { name: 'Total Gravado', sections: ['resumen'], fields: ['totalGravada'], style: 'money' },
@@ -137,6 +143,8 @@ export const NOTA_CREDITO_EMISOR_VENTA_STRUCTURE = [
   { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
   { name: 'NIT receptor', sections: ['receptor'], fields: ['nit'] },
   { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
+  { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'Nombre del Producto', sections: ['cuerpoDocumento'], fields: ['descripcion'], perItem: true },
   { name: 'Total Gravado', sections: ['resumen'], fields: ['totalGravada'], style: 'money' },
@@ -169,6 +177,7 @@ export const NOTA_CREDITO_RECEPTOR_COMPRA_STRUCTURE = [
   { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
+  { name: 'NIT receptor', sections: ['receptor'], fields: ['nit'] },
   { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
   { name: 'Cant,NP,PU', sections: ['cuerpoDocumento'], fields: ['cantidad', 'descripcion', 'ventaGravada'], perItem: true },
   { name: 'Total Gravado', sections: ['resumen'], fields: ['totalGravada'], style: 'money' },
@@ -227,6 +236,8 @@ export const RETENTION_RECEPTOR_STRUCTURE = [
   { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
   { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
+  { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
+  { name: 'NIT receptor', sections: ['receptor'], fields: ['nit'] },
   { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
   { name: 'Descripcion', sections: ['cuerpoDocumento'], fields: ['descripcion'], perItem: true },
   { name: 'No. Doc Relacionado', sections: ['cuerpoDocumento'], fields: ['numDocumento'], perItem: true },
@@ -252,6 +263,7 @@ export const FEX_EMISOR_STRUCTURE = [
   { name: 'Complemento Direccion', sections: ['receptor'], fields: ['complemento'] },
   { name: 'Actividad economica Receptor', sections: ['receptor'], fields: ['descActividad'] },
   { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre Emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'No.,Descripcion', sections: ['cuerpoDocumento'], fields: ['numItem', 'descripcion'], perItem: true },
   { name: 'Total Operac. Gravadas', sections: ['resumen'], fields: ['totalGravada'], style: 'money' },
@@ -273,6 +285,8 @@ export const FSE_EMISOR_STRUCTURE = [
   { name: 'Serie de Documento', sections: ['selloRecibido', 'selloRecepcion'], fields: ['*'] },
   { name: 'Doc ID Sujeto Excluido', sections: ['receptor'], fields: ['numDocumento'] },
   { name: 'Nombre sujetoExcluido', sections: ['receptor'], fields: ['nombre'] },
+  { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
   { name: 'Cant,Descrip,PU,compra', sections: ['cuerpoDocumento'], fields: ['cantidad', 'descripcion', 'precioUni', 'compra'], perItem: true },
   { name: 'Total Compra', sections: ['resumen'], fields: ['totalCompra'], style: 'money' },
@@ -351,7 +365,33 @@ export const NAMED_STRUCTURES_BY_DTE = {
   }
 };
 
+function buildUnifiedStructure() {
+  const rulesByName = new Map();
+  const structures = [
+    ...Object.values(STRUCTURES_BY_DTE),
+    ...Object.values(NAMED_STRUCTURES_BY_DTE).flatMap((structuresByName) => Object.values(structuresByName))
+  ];
+
+  for (const structure of structures) {
+    for (const rule of structure) {
+      if (!rulesByName.has(rule.name)) rulesByName.set(rule.name, rule);
+    }
+  }
+
+  return Array.from(rulesByName.values());
+}
+
+export const ALL_DTE_STRUCTURE = buildUnifiedStructure();
+
+export const MONEY_COLUMN_NAMES = new Set(ALL_DTE_STRUCTURE
+  .filter((rule) => rule?.style === 'money')
+  .map((rule) => rule.name));
+
 export function getStructureForType(typeCode, structureName = DEFAULT_STRUCTURE_NAME) {
+  if (structureName === 'TODOS') return [...ALL_DTE_STRUCTURE, ...PUBLIC_QUERY_COLUMNS];
+
   const namedStructure = NAMED_STRUCTURES_BY_DTE[typeCode]?.[structureName];
-  return namedStructure ? [...namedStructure, ...PUBLIC_QUERY_COLUMNS] : [];
+  const defaultStructure = STRUCTURES_BY_DTE[typeCode] || [];
+  const selectedStructure = namedStructure || defaultStructure;
+  return selectedStructure.length ? [...selectedStructure, ...PUBLIC_QUERY_COLUMNS] : [];
 }

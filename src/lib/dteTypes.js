@@ -1,4 +1,5 @@
 export const DTE_TYPES = [
+  { code: 'all', label: 'TODOS' },
   { code: '01', label: 'Factura de Consumidor Final' },
   { code: '03', label: 'Comprobante Credito Fiscal' },
   { code: '04', label: 'Nota de Remision' },

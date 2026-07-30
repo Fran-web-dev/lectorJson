@@ -1,5 +1,5 @@
 import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 
 const IVA_BOOKS = {
   purchases: {
@@ -206,8 +206,9 @@ function compareBookValues(aValue, bValue, column) {
 function applyBookFilters(rows, filters) {
   const activeFilters = Object.entries(filters).filter(([, values]) => values?.length);
   if (!activeFilters.length) return rows;
+  const filterSets = activeFilters.map(([column, values]) => [column, new Set(values)]);
 
-  return rows.filter((row) => activeFilters.every(([column, values]) => values.includes(String(row[column] || ''))));
+  return rows.filter((row) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
 }
 
 function matchesBookRequirement(requirement, sourceTypeCode, sourceStructureName) {
@@ -266,6 +267,11 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
   const [loadedTypeSummary, setLoadedTypeSummary] = useState('');
   const [openFilter, setOpenFilter] = useState('');
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
+  const indexedBookRows = useMemo(
+    () => bookRows.map((row, index) => ({ index, row })),
+    [bookRows]
+  );
+  const rowIndexByRef = useMemo(() => new WeakMap(indexedBookRows.map((item) => [item.row, item.index])), [indexedBookRows]);
   const filteredBookRows = useMemo(() => applyBookFilters(bookRows, filters), [bookRows, filters]);
   const visibleBookRows = useMemo(() => {
     if (!sortConfig.column) return filteredBookRows;
@@ -331,11 +337,9 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
     setLoadedTypeSummary(summarizeLoadedDteTypes(orderedSourceRows));
   }
 
-  function getBookRowIndex(row) {
-    return bookRows.indexOf(row);
-  }
+  const getBookRowIndex = useCallback((row) => rowIndexByRef.get(row) ?? -1, [rowIndexByRef]);
 
-  function deleteRow(row) {
+  const deleteRow = useCallback((row) => {
     const targetIndex = getBookRowIndex(row);
     if (targetIndex < 0) return;
     setBookRows((currentRows) => {
@@ -347,21 +351,21 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
       setEditingDraft(null);
     }
     setMessage('Linea eliminada correctamente.');
-  }
+  }, [config.columns, editingRowIndex, getBookRowIndex]);
 
-  function startEditing(row) {
+  const startEditing = useCallback((row) => {
     const targetIndex = getBookRowIndex(row);
     if (targetIndex < 0) return;
     setEditingRowIndex(targetIndex);
     setEditingDraft({ ...row });
-  }
+  }, [getBookRowIndex]);
 
-  function cancelEditing() {
+  const cancelEditing = useCallback(() => {
     setEditingRowIndex(-1);
     setEditingDraft(null);
-  }
+  }, []);
 
-  function saveEditing() {
+  const saveEditing = useCallback(() => {
     if (editingRowIndex < 0 || !editingDraft) return;
     setBookRows((currentRows) => currentRows.map((row, index) => (
       index === editingRowIndex ? { ...row, ...editingDraft } : row
@@ -369,11 +373,11 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
     setEditingRowIndex(-1);
     setEditingDraft(null);
     setMessage('Linea editada correctamente.');
-  }
+  }, [editingDraft, editingRowIndex]);
 
-  function updateEditingValue(column, value) {
+  const updateEditingValue = useCallback((column, value) => {
     setEditingDraft((draft) => ({ ...(draft || {}), [column]: value }));
-  }
+  }, []);
 
   async function exportExcel() {
     const exportRows = visibleBookRows.filter((row) => (

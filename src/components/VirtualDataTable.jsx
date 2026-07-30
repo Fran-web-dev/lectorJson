@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
@@ -173,6 +173,7 @@ export function VirtualDataTable({
   const [filterSearch, setFilterSearch] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
+  const [manualColumnWidths, setManualColumnWidths] = useState({});
 
   const sortedRows = useMemo(() => {
     if (!sortConfig.column) return rows;
@@ -188,9 +189,13 @@ export function VirtualDataTable({
     () => sortedRows.slice(visibleRange.startIndex, visibleRange.endIndex),
     [sortedRows, visibleRange]
   );
+  const autoColumnWidths = useMemo(
+    () => columns.map((column) => getAutoColumnWidth(column, rows)),
+    [columns, rows]
+  );
   const columnWidths = useMemo(
-    () => columns.map((column) => getAutoColumnWidth(column, sortedRows)),
-    [columns, sortedRows]
+    () => columns.map((column, index) => manualColumnWidths[column] || autoColumnWidths[index]),
+    [autoColumnWidths, columns, manualColumnWidths]
   );
   const gridTemplateColumns = useMemo(
     () => columnWidths.map((width) => `${width}px`).join(' '),
@@ -205,11 +210,11 @@ export function VirtualDataTable({
     for (const column of columns) {
       if (!isMoneyColumn(column)) continue;
       let total = 0;
-      for (const row of sortedRows) total += parseMoney(row[column]);
+      for (const row of rows) total += parseMoney(row[column]);
       totals[column] = formatTotal(total);
     }
     return totals;
-  }, [columns, sortedRows]);
+  }, [columns, rows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>
@@ -217,18 +222,58 @@ export function VirtualDataTable({
     );
   }, [filterSourceRows, openFilter]);
 
-  function handleScroll(event) {
+  const handleScroll = useCallback((event) => {
     const target = event.currentTarget;
     setViewport({ height: target.clientHeight, scrollTop: target.scrollTop });
-  }
+  }, []);
 
-  function toggleSort(column) {
+  const toggleSort = useCallback((column) => {
     setSortConfig((current) => ({
       column,
       direction: current.column === column && current.direction === 'asc' ? 'desc' : 'asc'
     }));
     setViewport((current) => ({ ...current, scrollTop: 0 }));
-  }
+  }, []);
+
+  const handleHorizontalScroll = useCallback((event) => {
+    setScrollLeft(event.currentTarget.scrollLeft);
+  }, []);
+
+  const startColumnResize = useCallback((event, column, currentWidth) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const { max, min } = getColumnWidthBounds(column);
+
+    function handleMouseMove(moveEvent) {
+      const nextWidth = Math.min(Math.max(currentWidth + moveEvent.clientX - startX, min), Math.max(max, currentWidth + 600));
+      setManualColumnWidths((current) => ({
+        ...current,
+        [column]: Math.round(nextWidth)
+      }));
+    }
+
+    function handleMouseUp() {
+      document.body.classList.remove('isColumnResizing');
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    document.body.classList.add('isColumnResizing');
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }, []);
+
+  const resetColumnWidth = useCallback((event, column) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setManualColumnWidths((current) => {
+      const next = { ...current };
+      delete next[column];
+      return next;
+    });
+  }, []);
 
   if (!sortedRows.length) {
     return (
@@ -254,7 +299,7 @@ export function VirtualDataTable({
             ))}
           </div>
           <div className="virtualHeader" role="row" style={{ gridTemplateColumns }}>
-            {columns.map((column) => (
+            {columns.map((column, columnIndex) => (
               <div
                 className={`virtualHeadCell ${PUBLIC_QUERY_COLUMNS.has(column) ? 'publicQueryHeadCell' : ''}`}
                 key={column}
@@ -293,6 +338,12 @@ export function VirtualDataTable({
                     values={openFilterValues}
                   />
                 ) : null}
+                <span
+                  className="columnResizeHandle"
+                  onDoubleClick={(event) => resetColumnWidth(event, column)}
+                  onMouseDown={(event) => startColumnResize(event, column, columnWidths[columnIndex])}
+                  title="Arrastrar para ajustar ancho. Doble click para autoajustar."
+                />
               </div>
             ))}
           </div>
@@ -311,7 +362,7 @@ export function VirtualDataTable({
           </div>
         </div>
       </div>
-      <div className="horizontalScrollbar" onScroll={(event) => setScrollLeft(event.currentTarget.scrollLeft)}>
+      <div className="horizontalScrollbar" onScroll={handleHorizontalScroll}>
         <div style={{ height: 1, width: tableWidth }} />
       </div>
     </div>

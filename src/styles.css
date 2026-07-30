@@ -341,6 +341,29 @@ body,
     font-size: 12px;
   }
 
+  .columnResizeHandle {
+    @apply absolute bottom-0 right-0 top-0 z-20 w-2 cursor-col-resize;
+    transform: translateX(50%);
+  }
+
+  .columnResizeHandle::after {
+    @apply absolute bottom-1 top-1 w-px bg-white/40;
+    content: '';
+    right: 3px;
+  }
+
+  .columnResizeHandle:hover::after,
+  .isColumnResizing .columnResizeHandle::after {
+    @apply bg-slate-950;
+    width: 2px;
+  }
+
+  .isColumnResizing,
+  .isColumnResizing * {
+    cursor: col-resize !important;
+    user-select: none !important;
+  }
+
   .publicQueryHeadCell {
     @apply border-green-200 bg-green-300 text-slate-950;
   }
@@ -508,6 +531,11 @@ body,
 
   .registerHeadCell span {
     @apply min-w-0 flex-1 text-center;
+  }
+
+  .registerColumnResizeHandle {
+    flex: 0 0 auto !important;
+    min-width: 0 !important;
   }
 
   .registerHeadCell.client {
