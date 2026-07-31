@@ -1,4 +1,9 @@
-import { memo, useMemo, useCallback, useMemo useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useMemo,
+  useState
+} from 'react';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
@@ -173,7 +178,8 @@ export function VirtualDataTable({
   const [filterSearch, setFilterSearch] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
-
+  const [manualColumnWidths, setManualColumnWidths] = useState({});
+  
   const sortedRows = useMemo(() => {
     if (!sortConfig.column) return rows;
     const direction = sortConfig.direction === 'desc' ? -1 : 1;
@@ -205,15 +211,22 @@ export function VirtualDataTable({
     [columnWidths]
   );
   const columnTotals = useMemo(() => {
-    const totals = {};
-    for (const column of columns) {
-      if (!isMoneyColumn(column)) continue;
-      let total = 0;
-      for (const row of sortedRows) total += parseMoney(row[column]);
-      totals[column] = formatTotal(total);
+  const totals = {};
+
+  for (const column of columns) {
+    if (!isMoneyColumn(column)) continue;
+
+    let total = 0;
+
+    for (const row of sortedRows) {
+      total += parseMoney(row[column]);
     }
-    return totals;
-  }, [columns, rows]);
+
+    totals[column] = formatTotal(total);
+  }
+
+  return totals;
+}, [columns, sortedRows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>
@@ -222,9 +235,61 @@ export function VirtualDataTable({
   }, [filterSourceRows, openFilter]);
 
   const handleScroll = useCallback((event) => {
-    const target = event.currentTarget;
-    setViewport({ height: target.clientHeight, scrollTop: target.scrollTop });
+  const target = event.currentTarget;
+
+  setViewport({
+    height: target.clientHeight,
+    scrollTop: target.scrollTop
+  });
+}, []);
+
+const handleHorizontalScroll = useCallback((event) => {
+  setScrollLeft(event.currentTarget.scrollLeft);
+}, []);
+
+function startColumnResize(event, column, currentWidth) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  const initialMouseX = event.clientX;
+  const initialWidth = currentWidth;
+
+  function handleMouseMove(moveEvent) {
+    const difference = moveEvent.clientX - initialMouseX;
+    const { min, max } = getColumnWidthBounds(column);
+
+    const nextWidth = Math.min(
+      Math.max(initialWidth + difference, min),
+      max
+    );
+
+    setManualColumnWidths((current) => ({
+      ...current,
+      [column]: nextWidth
+    }));
   }
+
+  function handleMouseUp() {
+    document.removeEventListener('mousemove', handleMouseMove);
+    document.removeEventListener('mouseup', handleMouseUp);
+  }
+
+  document.addEventListener('mousemove', handleMouseMove);
+  document.addEventListener('mouseup', handleMouseUp);
+}
+
+function resetColumnWidth(event, column) {
+  event.preventDefault();
+  event.stopPropagation();
+
+  setManualColumnWidths((current) => {
+    const nextWidths = { ...current };
+
+    delete nextWidths[column];
+
+    return nextWidths;
+  });
+}
 
   function toggleSort(column) {
     setSortConfig((current) => ({

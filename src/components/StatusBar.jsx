@@ -1,4 +1,5 @@
 import { ExternalLink, Loader2, Stamp } from 'lucide-react';
+import logoM from '../assets/LogoM.png';
 
 const STATUS_COUNT_SEPARATOR = ' | ';
 
@@ -41,7 +42,8 @@ export function StatusBar({
           title="Consultar Hacienda para todas las lineas visibles"
           type="button"
         >
-          <ExternalLink size={15} /> Consulta masiva Hacienda
+          <img src={logoM} alt="Hacienda" className="mr-1 h-5 w-5 right-0" />
+          Consulta masiva Hacienda
         </button>
         <button
           className="actionButton statusActionButton"

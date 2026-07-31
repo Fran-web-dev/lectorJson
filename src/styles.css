@@ -149,7 +149,7 @@ body,
 
   .iconButton,
   .actionButton {
-    @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap border border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
+    @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap border rounded-md border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
   }
 
   .dangerActionButton {
