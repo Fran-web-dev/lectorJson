@@ -1,10 +1,8 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
-import { IvaBooksView } from './components/IvaBooksView.jsx';
-import { RegisterView } from './components/RegisterView.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { DteSummaryBar, StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
@@ -29,7 +27,25 @@ import {
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
   default: module.VirtualDataTable
 })));
+const AnexosView = lazy(() => import('./components/AnexosView.jsx').then((module) => ({
+  default: module.AnexosView
+})));
+const IvaBooksView = lazy(() => import('./components/IvaBooksView.jsx').then((module) => ({
+  default: module.IvaBooksView
+})));
+const RegisterView = lazy(() => import('./components/RegisterView.jsx').then((module) => ({
+  default: module.RegisterView
+})));
 const HOME_CLEAR_KEY = '1234';
+const ANEXOS_VIEW_TYPES = {
+  'anexos-sales-ccf': 'salesCcf',
+  'anexos-sales-fcf': 'salesFcf',
+  'anexos-purchases': 'purchases',
+  'anexos-excluded-subject': 'excludedSubject',
+  'anexos-advance-vat': 'advanceVat',
+  'anexos-retention-vat': 'retentionVat',
+  'anexos-perception-vat': 'perceptionVat'
+};
 
 function normalizeGenerationKey(value) {
   return String(value || '').replace(/-/g, '').trim().toUpperCase();
@@ -67,14 +83,25 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
   const [fcfIvaBookRows, setFcfIvaBookRows] = useState([]);
+  const [ivaBookRowsByType, setIvaBookRowsByType] = useState({});
+  const [anexoRowsByType, setAnexoRowsByType] = useState({});
   const [activeView, setActiveView] = useState('dte');
   const [showClearTableModal, setShowClearTableModal] = useState(false);
   const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
   const [clearTablePassword, setClearTablePassword] = useState('');
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setShowSplash(false), 1100);
+    const timer = window.setTimeout(() => setShowSplash(false), 650);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const warmup = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 250));
+    const cancelWarmup = window.cancelIdleCallback || window.clearTimeout;
+    const warmupId = warmup(() => {
+      import('./lib/extractor.js');
+    });
+    return () => cancelWarmup(warmupId);
   }, []);
 
   useEffect(() => {
@@ -111,7 +138,7 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
-    if (!documents.length) {
+    if (!documents.length || activeView !== 'iva-books-fcf-sales') {
       setFcfIvaBookRows([]);
       return () => {
         cancelled = true;
@@ -138,7 +165,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [documents, fromDate, toDate]);
+  }, [activeView, documents, fromDate, toDate]);
 
   const columns = useMemo(
     () => getTableColumns(rows, typeCode),
@@ -154,6 +181,36 @@ export default function App() {
     () => summarizeDteTypes(extractRowsForSummary(documents)),
     [documents]
   );
+
+  const activeIvaBookType = activeView === 'iva-books-ccf-sales'
+    ? 'ccfSales'
+    : activeView === 'iva-books-fcf-sales'
+      ? 'fcfSales'
+      : 'purchases';
+
+  const handleIvaBookRowsChange = useCallback((nextRows) => {
+    setIvaBookRowsByType((current) => (
+      current[activeIvaBookType] === nextRows
+        ? current
+        : {
+            ...current,
+            [activeIvaBookType]: nextRows
+          }
+    ));
+  }, [activeIvaBookType]);
+
+  const activeAnexoType = ANEXOS_VIEW_TYPES[activeView] || 'salesCcf';
+
+  const handleAnexoRowsChange = useCallback((nextRows) => {
+    setAnexoRowsByType((current) => (
+      current[activeAnexoType] === nextRows
+        ? current
+        : {
+            ...current,
+            [activeAnexoType]: nextRows
+          }
+    ));
+  }, [activeAnexoType]);
 
   const { exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
     documents,
@@ -487,27 +544,42 @@ export default function App() {
           ) : null}
         </>
       ) : activeView.startsWith('iva-books') ? (
-        <IvaBooksView
-          key={activeView}
-          sourceRows={activeView === 'iva-books-fcf-sales' ? fcfIvaBookRows : filteredRows}
-          sourceStructureName={structureName}
-          sourceTypeCode={typeCode}
-          type={
-            activeView === 'iva-books-ccf-sales'
-              ? 'ccfSales'
-              : activeView === 'iva-books-fcf-sales'
-                ? 'fcfSales'
-                : 'purchases'
-          }
-        />
+        <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando libro...</div></div>}>
+          <IvaBooksView
+            key={activeView}
+            savedRows={ivaBookRowsByType[activeIvaBookType]}
+            onRowsChange={handleIvaBookRowsChange}
+            sourceRows={activeView === 'iva-books-fcf-sales' ? fcfIvaBookRows : filteredRows}
+            sourceStructureName={structureName}
+            sourceTypeCode={typeCode}
+            type={
+              activeView === 'iva-books-ccf-sales'
+                ? 'ccfSales'
+                : activeView === 'iva-books-fcf-sales'
+                  ? 'fcfSales'
+                  : 'purchases'
+            }
+          />
+        </Suspense>
+      ) : activeView.startsWith('anexos') ? (
+        <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando anexos...</div></div>}>
+          <AnexosView
+            ccfSalesRows={ivaBookRowsByType.ccfSales || []}
+            onRowsChange={handleAnexoRowsChange}
+            savedRows={anexoRowsByType[activeAnexoType]}
+            type={activeAnexoType}
+          />
+        </Suspense>
       ) : (
-        <RegisterView
-          key={activeView}
-          sourceRows={rows}
-          sourceStructureName={structureName}
-          sourceTypeCode={typeCode}
-          type={activeView === 'registers-providers' ? 'providers' : 'clients'}
-        />
+        <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando registros...</div></div>}>
+          <RegisterView
+            key={activeView}
+            sourceRows={rows}
+            sourceStructureName={structureName}
+            sourceTypeCode={typeCode}
+            type={activeView === 'registers-providers' ? 'providers' : 'clients'}
+          />
+        </Suspense>
       )}
     </main>
   );

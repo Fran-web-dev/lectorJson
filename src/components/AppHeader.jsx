@@ -1,4 +1,4 @@
-import { BookOpen, Building2, ChevronDown, FileText, Users } from 'lucide-react';
+import { BookOpen, Building2, ChevronDown, FileText, TableProperties, Users } from 'lucide-react';
 import logoFevv from '../assets/logo-fevv-technologies-startup.jpg';
 
 export function AppHeader({ activeView, onNavigate }) {
@@ -55,6 +55,46 @@ export function AppHeader({ activeView, onNavigate }) {
             <button onClick={() => onNavigate('iva-books-fcf-sales')} type="button">
               <BookOpen size={15} />
               Libro de ventas FCF
+            </button>
+          </div>
+        </div>
+        <div className="navDropdown">
+          <button
+            className={`navButton ${activeView.startsWith('anexos') ? 'active' : ''}`}
+            type="button"
+          >
+            <TableProperties size={16} />
+            ANEXOS
+            <ChevronDown className="navChevron" size={15} />
+          </button>
+          <div className="navDropdownMenu">
+            <button onClick={() => onNavigate('anexos-sales-ccf')} type="button">
+              <TableProperties size={15} />
+              Anexo venta CCF
+            </button>
+            <button onClick={() => onNavigate('anexos-sales-fcf')} type="button">
+              <TableProperties size={15} />
+              Anexo venta FCF
+            </button>
+            <button onClick={() => onNavigate('anexos-purchases')} type="button">
+              <TableProperties size={15} />
+              Anexo compras
+            </button>
+            <button onClick={() => onNavigate('anexos-excluded-subject')} type="button">
+              <TableProperties size={15} />
+              Anexo compra sujeto excluido FSE
+            </button>
+            <button onClick={() => onNavigate('anexos-advance-vat')} type="button">
+              <TableProperties size={15} />
+              Anexo anticipo IVA 2%
+            </button>
+            <button onClick={() => onNavigate('anexos-retention-vat')} type="button">
+              <TableProperties size={15} />
+              Anexo retencion IVA 1%
+            </button>
+            <button onClick={() => onNavigate('anexos-perception-vat')} type="button">
+              <TableProperties size={15} />
+              Anexo percepcion IVA 1%
             </button>
           </div>
         </div>

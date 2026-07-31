@@ -1,5 +1,5 @@
 import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 const IVA_BOOKS = {
   purchases: {
@@ -38,7 +38,7 @@ const IVA_BOOKS = {
       { header: 'NO SUJETAS', width: '115px', money: true },
       { header: 'EXENTAS', width: '115px', money: true },
       { header: 'VENTAS INTERNAS GRAVADAS VALOR NETO', width: '155px', money: true },
-      { header: 'VENTAS INTERNAS GRAVADAS IVA', width: '130px', money: true },
+      { header: 'IVA DEBITO', width: '130px', money: true },
       { header: 'VENTA TOTAL', width: '130px', money: true },
       { header: 'RETENCION 1%', width: '120px', money: true },
       { header: 'TIPO DE OPERACION', width: '155px' },
@@ -86,7 +86,7 @@ const IVA_BOOK_MAPPINGS = {
     'NO SUJETAS': 'Total no Sujetas',
     EXENTAS: 'Total Exenta',
     'VENTAS INTERNAS GRAVADAS VALOR NETO': 'Total Gravado',
-    'VENTAS INTERNAS GRAVADAS IVA': ['Debito Fiscal', 'Credito Fiscal'],
+    'IVA DEBITO': ['Debito Fiscal', 'Credito Fiscal'],
     'VENTA TOTAL': 'Monto Total de la Operacion',
     'RETENCION 1%': 'IVA Retenido',
     'TIPO DE OPERACION': 'Condicion de la operacion',
@@ -99,7 +99,7 @@ const IVA_BOOK_MAPPINGS = {
     'SELLO DE RECEPCION': ['Serie del Documento', 'Serie Documento'],
     'N.R.C / NIT': 'NRC emisor',
     'NOMBRE DEL PROVEEDOR': 'Nombre emisor',
-    'COMPRAS EXENTAS INTERNAS': 'Total Exenta',
+    'COMPRAS EXENTAS INTERNAS': { sum: ['FOVIAL', 'COTRANS'] },
     'COMPRAS GRAVADAS INTERNAS': 'Total Gravado',
     IVA: 'Credito Fiscal',
     'TOTAL COMPRAS': 'Total de Compra',
@@ -150,6 +150,11 @@ function renumberBookRows(rows, columns) {
 
 function getSourceValue(row, sourceColumn) {
   if (sourceColumn && typeof sourceColumn === 'object' && !Array.isArray(sourceColumn)) {
+    if (sourceColumn.sum) {
+      const total = sourceColumn.sum.reduce((sum, column) => sum + parseCurrency(row?.[column]), 0);
+      return total ? `$${currencyFormatter.format(total)}` : '';
+    }
+
     const sourceType = String(row?.['Tipo DTE'] || '').padStart(2, '0');
     if (sourceColumn.onlyTypeCode && sourceType !== sourceColumn.onlyTypeCode) return sourceColumn.fallback || '';
     if (sourceColumn.exceptTypeCode && sourceType === sourceColumn.exceptTypeCode) return sourceColumn.fallback || '';
@@ -166,6 +171,13 @@ function getSourceValue(row, sourceColumn) {
   }
 
   return sourceColumn ? row?.[sourceColumn] ?? '' : '';
+}
+
+function normalizeIvaBookValue(columnHeader, value) {
+  if (columnHeader === 'NOMBRE DEL CLIENTE' || columnHeader === 'NOMBRE DEL PROVEEDOR') {
+    return String(value || '').toLocaleUpperCase('es-SV');
+  }
+  return value;
 }
 
 function hasInvalidOrRejectedStatus(row) {
@@ -255,10 +267,19 @@ function summarizeLoadedDteTypes(rows) {
     .join(' | ');
 }
 
-export function IvaBooksView({ sourceRows = [], sourceStructureName = '', sourceTypeCode = '', type }) {
+export function IvaBooksView({
+  onRowsChange,
+  savedRows,
+  sourceRows = [],
+  sourceStructureName = '',
+  sourceTypeCode = '',
+  type
+}) {
   const config = IVA_BOOKS[type] || IVA_BOOKS.purchases;
   const gridTemplateColumns = [ACTIONS_COLUMN_WIDTH, ...config.columns.map((column) => column.width)].join(' ');
-  const [bookRows, setBookRows] = useState(() => createEmptyBookRows(config.columns));
+  const [bookRows, setBookRows] = useState(() => (
+    savedRows?.length ? savedRows : createEmptyBookRows(config.columns)
+  ));
   const [editingRowIndex, setEditingRowIndex] = useState(-1);
   const [editingDraft, setEditingDraft] = useState(null);
   const [filters, setFilters] = useState({});
@@ -267,6 +288,10 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
   const [loadedTypeSummary, setLoadedTypeSummary] = useState('');
   const [openFilter, setOpenFilter] = useState('');
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
+
+  useEffect(() => {
+    onRowsChange?.(bookRows);
+  }, [bookRows, onRowsChange]);
   const indexedBookRows = useMemo(
     () => bookRows.map((row, index) => ({ index, row })),
     [bookRows]
@@ -281,10 +306,15 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
   }, [config.columns, filteredBookRows, sortConfig]);
   const totals = useMemo(() => {
     const nextTotals = {};
-    for (const column of config.columns) {
-      if (!column.money) continue;
-      nextTotals[column.header] = bookRows.reduce((total, row) => total + parseCurrency(row[column.header]), 0);
+    const moneyColumns = config.columns.filter((column) => column.money);
+    for (const column of moneyColumns) nextTotals[column.header] = 0;
+
+    for (const row of bookRows) {
+      for (const column of moneyColumns) {
+        nextTotals[column.header] += parseCurrency(row[column.header]);
+      }
     }
+
     return nextTotals;
   }, [bookRows, config.columns]);
   const openFilterValues = useMemo(() => {
@@ -314,7 +344,7 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
 
       return Object.fromEntries(
         config.columns.map((column, columnIndex) => {
-          const value = getSourceValue(sourceRow, mapping[column.header]);
+          const value = normalizeIvaBookValue(column.header, getSourceValue(sourceRow, mapping[column.header]));
           return [
             column.header,
             columnIndex === 0
@@ -424,20 +454,19 @@ export function IvaBooksView({ sourceRows = [], sourceStructureName = '', source
 
   return (
     <section className="ivaBookView">
-      <div className="ivaBookSheet">
-        <div className="ivaBookToolbar">
-          {(message || loadedTypeSummary) ? (
-            <span className="ivaBookMessage">
-              {message ? <span>{message}</span> : null}
-              {loadedTypeSummary ? <strong className="ivaBookTypeSummary">{loadedTypeSummary}</strong> : null}
-            </span>
-          ) : null}
-          <button className="actionButton" onClick={importData} type="button">CARGAR DATOS</button>
-          <button className="actionButton" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
-          <button className="actionButton dangerActionButton" onClick={clearTable} type="button">LIMPIAR TABLA</button>
-          <button className="actionButton" type="button">ANEXOS CSV</button>
-        </div>
+      <div className="ivaBookToolbar">
+        {(message || loadedTypeSummary) ? (
+          <span className="ivaBookMessage">
+            {message ? <span>{message}</span> : null}
+            {loadedTypeSummary ? <strong className="ivaBookTypeSummary">{loadedTypeSummary}</strong> : null}
+          </span>
+        ) : null}
+        <button className="actionButton" onClick={importData} type="button">CARGAR DATOS</button>
+        <button className="actionButton" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
+        <button className="actionButton dangerActionButton" onClick={clearTable} type="button">LIMPIAR TABLA</button>
+      </div>
 
+      <div className="ivaBookSheet">
         <div className="ivaBookHeader">
           <div className="ivaBookHeaderLabel">NOMBRE EMPRESA:</div>
           <div className="ivaBookHeaderValue spanWide" />

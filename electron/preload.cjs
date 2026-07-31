@@ -14,6 +14,7 @@ contextBridge.exposeInMainWorld('dteApp', {
   exportIvaBookExcel: (request) => ipcRenderer.invoke('iva-book:excel-export', request),
   exportRegisterTemplate: (request) => ipcRenderer.invoke('register:template-export', request),
   exportRegisterTable: (request) => ipcRenderer.invoke('register:table-export', request),
+  exportAnexoCsv: (request) => ipcRenderer.invoke('anexo:csv-export', request),
   importRegisterExcel: (request) => ipcRenderer.invoke('register:excel-import', request),
   publicHaciendaQuery: (request) => ipcRenderer.invoke('hacienda:public-query', request),
   publicHaciendaBatchQuery: (request) => ipcRenderer.invoke('hacienda:public-batch-query', request),

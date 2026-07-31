@@ -7,6 +7,19 @@ const OPERATION_CONDITIONS = {
   3: 'Otro'
 };
 const DTE_TYPES_BY_CODE = new Map(DTE_TYPES.map((item) => [item.code, item]));
+const ADJUSTED_DTE_TYPES = {
+  '01': 'FACTURA DE CONSUMIDOR FINAL',
+  '03': 'COMPROBANTE DE CREDITO FISCAL',
+  '04': 'NOTA DE REMISION',
+  '05': 'NOTA DE CREDITO',
+  '06': 'NOTA DE DEBITO',
+  '07': 'COMPROBANTE DE RETENCION',
+  '08': 'COMPROBANTE DE LIQUIDACION',
+  '09': 'DOCUMENTO CONTABLE DE LIQUIDACION',
+  '11': 'FACTURA DE EXPORTACION',
+  '14': 'FACTURA SUJETO EXCLUIDO',
+  '15': 'COMPROBANTE DE DONACION'
+};
 const documentIndexCache = new WeakMap();
 
 function normalizeKey(key) {
@@ -27,6 +40,7 @@ function flattenVisible(value) {
 }
 
 function formatValue(value, style) {
+  if (style === 'adjustedDocument') return formatAdjustedDocuments(value);
   if (style === 'money' && (value === null || value === undefined || value === '')) {
     return moneyFormatter.format(0);
   }
@@ -41,6 +55,54 @@ function formatValue(value, style) {
     }
   }
   return flattenVisible(value);
+}
+
+function formatAdjustedDocuments(value) {
+  if (!value) return '';
+  const items = Array.isArray(value) ? value : [value];
+
+  return items
+    .map((item, index) => {
+      if (!item || typeof item !== 'object') return flattenVisible(item);
+
+      const typeCode = String(item.tipDteRef || item.tipoDteRef || item.tipoDte || '').padStart(2, '0');
+      const date = formatPublicGenerationDate(item.fecHorEmi || item.fechaGeneracion || item.fechaProcesado || item.fechaEmi);
+      const generationCode = item.codigoGeneracionRef || item.codGenRef || item.codigoGeneracion || item.codGen || '';
+      const receptionSeal = item.numValidacionRef || item.selloVal || item.selloRecepcion || item.sello || '';
+      const documentType = ADJUSTED_DTE_TYPES[typeCode] || item.nombDte || typeCode || '';
+
+      return [
+        `#${index + 1}`,
+        date ? `Fecha de Generacion: ${date}` : '',
+        generationCode ? `Codigo de Generacion: ${generationCode}` : '',
+        receptionSeal ? `Sello de Recepcion: ${receptionSeal}` : '',
+        documentType ? `Tipo de Documento: ${documentType}` : ''
+      ].filter(Boolean).join(' | ');
+    })
+    .filter(Boolean)
+    .join('\n');
+}
+
+function formatPublicGenerationDate(value) {
+  if (!value) return '';
+  const text = String(value).trim();
+  const spanishDate = text.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[ T](\d{1,2}:\d{2}(?::\d{2})?))?/);
+  if (spanishDate) {
+    const [, year, month, day, time = ''] = spanishDate;
+    return `${day.padStart(2, '0')}/${month.padStart(2, '0')}/${year}${time ? ` ${time}` : ''}`;
+  }
+
+  const englishDate = text.match(/^[A-Za-z]{3}\s+([A-Za-z]{3})\s+(\d{1,2})\s+(\d{1,2}:\d{2}(?::\d{2})?)\s+[A-Z]{2,4}\s+(\d{4})$/);
+  if (englishDate) {
+    const [, monthText, day, time, year] = englishDate;
+    const month = {
+      Jan: '01', Feb: '02', Mar: '03', Apr: '04', May: '05', Jun: '06',
+      Jul: '07', Aug: '08', Sep: '09', Oct: '10', Nov: '11', Dec: '12'
+    }[monthText] || '';
+    if (month) return `${day.padStart(2, '0')}/${month}/${year} ${time}`;
+  }
+
+  return text;
 }
 
 function formatDate(value) {

@@ -45,7 +45,7 @@ body,
 @layer components {
   .splashScreen {
     @apply fixed inset-0 z-[9999] flex items-center justify-center bg-white;
-    animation: splashFadeOut 450ms ease 1350ms forwards;
+    animation: splashFadeOut 260ms ease 640ms forwards;
   }
 
   .splashContent {
@@ -58,7 +58,7 @@ body,
     height: auto;
     object-fit: contain;
     transform-origin: center;
-    animation: splashLogoIn 900ms cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation: splashLogoIn 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
 
   .splashLoader {
@@ -73,11 +73,11 @@ body,
     inset: 0;
     width: 44%;
     background: #2563eb;
-    animation: splashLoaderMove 1300ms ease-in-out infinite;
+    animation: splashLoaderMove 820ms ease-in-out infinite;
   }
 
   .brandHeader {
-    @apply flex items-center gap-8 border-b border-slate-200 bg-white px-6 py-2;
+    @apply relative z-[200] flex items-center gap-8 border-b border-slate-200 bg-white px-6 py-2;
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
   }
 
@@ -115,7 +115,7 @@ body,
   }
 
   .navDropdownMenu {
-    @apply invisible absolute left-0 top-10 z-50 min-w-64 border border-slate-200 bg-white p-1.5 opacity-0 shadow-xl transition;
+    @apply invisible absolute left-0 top-10 z-[220] min-w-64 border border-slate-200 bg-white p-1.5 opacity-0 shadow-xl transition;
     transform: translateY(4px);
   }
 
@@ -490,12 +490,12 @@ body,
   }
 
   .registerView {
-    @apply overflow-auto bg-slate-50 px-6 py-5;
+    @apply overflow-hidden bg-slate-50 px-6 py-5;
     height: calc(100vh - 69px);
   }
 
   .registerSheet {
-    @apply inline-block min-w-full border border-slate-200 bg-white shadow-sm;
+    @apply flex h-full min-w-full flex-col border border-slate-200 bg-white shadow-sm;
   }
 
   .registerToolbar {
@@ -514,6 +514,10 @@ body,
     @apply text-sm font-bold text-slate-950;
   }
 
+  .registerTableViewport {
+    @apply min-h-0 flex-1 overflow-auto;
+  }
+
   .registerTable {
     display: grid;
     width: max-content;
@@ -524,9 +528,10 @@ body,
   }
 
   .registerHeadCell {
-    @apply relative flex min-h-10 items-center justify-between gap-2 bg-sky-500 px-2 text-left text-xs font-bold uppercase leading-tight text-white;
+    @apply sticky top-0 z-40 flex min-h-10 items-center justify-between gap-2 bg-sky-500 px-2 text-left text-xs font-bold uppercase leading-tight text-white;
     border-bottom: 1px solid #bae6fd;
     border-right: 1px solid #bae6fd;
+    box-shadow: 0 1px 0 #bae6fd;
   }
 
   .registerHeadCell span {
@@ -556,6 +561,8 @@ body,
     @apply flex min-h-[30px] items-center whitespace-normal px-1.5 leading-tight text-slate-700;
     border-bottom: 1px solid #e0f2fe;
     border-right: 1px solid #e0f2fe;
+    content-visibility: auto;
+    contain-intrinsic-size: 30px 160px;
   }
 
   .registerCell.even {
@@ -645,7 +652,8 @@ body,
     @apply flex flex-col gap-1 text-xs font-bold uppercase text-slate-700;
   }
 
-  .registerFormField input {
+  .registerFormField input,
+  .registerFormField select {
     @apply h-9 border border-slate-300 bg-white px-2 text-sm font-normal normal-case text-slate-900 outline-none transition focus:border-sky-600 focus:ring-1 focus:ring-sky-600;
   }
 
@@ -686,18 +694,19 @@ body,
   }
 
   .ivaBookView {
-    @apply overflow-auto bg-slate-50 px-6 py-5;
+    @apply overflow-auto bg-slate-50 px-6 pb-5;
     height: calc(100vh - 69px);
   }
 
   .ivaBookSheet {
-    @apply inline-block min-w-full border border-slate-300 bg-white p-3 shadow-sm;
+    @apply inline-block min-w-full border border-slate-300 bg-white px-3 py-3 shadow-sm;
     font-family: "Arial Narrow", Arial, sans-serif;
   }
 
   .ivaBookToolbar {
-    @apply sticky left-0 mb-3 flex w-[calc(100vw-3rem)] flex-wrap items-center justify-end gap-2 border-b border-slate-200 bg-white pb-2;
-    z-index: 10;
+    @apply sticky left-0 top-0 mb-3 flex min-h-12 w-full flex-wrap items-center justify-end gap-2 border border-slate-200 bg-white px-3 py-2;
+    z-index: 120;
+    box-shadow: 0 10px 18px -18px rgba(15, 23, 42, 0.55);
   }
 
   .ivaBookMessage {
@@ -787,6 +796,8 @@ body,
 
   .ivaBookCell {
     @apply flex h-6 items-center overflow-hidden whitespace-nowrap border-b border-r border-slate-300 px-1.5 text-xs leading-none text-slate-800;
+    content-visibility: auto;
+    contain-intrinsic-size: 24px 160px;
   }
 
   .ivaBookCell.odd {
@@ -823,6 +834,118 @@ body,
   }
 
   .ivaBookEditInput {
+    @apply h-full w-full bg-white px-1 text-slate-900 outline-none;
+    box-shadow: inset 0 0 0 1px #2563eb;
+    font-family: "Arial Narrow", Arial, sans-serif;
+    font-size: 11px;
+  }
+
+  .anexosView {
+    @apply overflow-auto bg-slate-50 px-6 py-5;
+    height: calc(100vh - 69px);
+  }
+
+  .anexosSheet {
+    @apply inline-block min-w-full border border-slate-300 bg-white p-3 shadow-sm;
+    font-family: "Arial Narrow", Arial, sans-serif;
+  }
+
+  .anexosHeader {
+    @apply sticky left-0 top-0 z-[120] mb-3 flex min-h-14 w-full items-center justify-between gap-4 border border-slate-200 bg-white px-3 py-2 shadow-sm;
+  }
+
+  .anexosToolbar {
+    @apply flex min-w-0 flex-1 items-center justify-end gap-2;
+  }
+
+  .anexosMessage {
+    @apply mr-auto min-w-0 truncate text-xs font-bold text-sky-800;
+  }
+
+  .anexosTitle {
+    @apply inline-flex h-9 shrink-0 items-center border border-slate-900 bg-yellow-100 px-4 text-base font-black uppercase text-slate-950;
+  }
+
+  .anexosTable {
+    @apply grid border-l border-t border-slate-900 bg-white;
+    width: max-content;
+  }
+
+  .anexosHeadCell,
+  .anexosMetaCell,
+  .anexosLengthCell,
+  .anexosTotalCell,
+  .anexosCell {
+    @apply flex items-center border-b border-r border-slate-900 px-2 text-xs text-slate-950;
+  }
+
+  .anexosTotalCell {
+    @apply sticky top-[68px] z-40 h-7 justify-end overflow-visible whitespace-nowrap border-slate-300 bg-white text-right font-black text-emerald-700;
+    font-size: 12px;
+  }
+
+  .anexosHeadCell {
+    @apply sticky top-[95px] z-40 min-h-12 justify-center gap-1 bg-sky-100 text-center font-black uppercase leading-tight;
+    position: sticky;
+  }
+
+  .anexosHeadCell > span:first-child {
+    @apply min-w-0 flex-1;
+  }
+
+  .anexosActionsHead {
+    @apply left-0 z-50;
+  }
+
+  .anexosColumnResizeHandle {
+    @apply absolute bottom-0 right-0 top-0 w-2 cursor-col-resize;
+  }
+
+  .anexosColumnResizeHandle:hover {
+    background: rgba(2, 132, 199, 0.24);
+  }
+
+  .anexosFilterMenu {
+    @apply right-1 top-10 z-[90] text-left normal-case;
+  }
+
+  .anexosMetaCell {
+    @apply sticky top-[95px] z-40 min-h-8 justify-center bg-sky-100 text-center font-black uppercase;
+    left: 92px;
+  }
+
+  .anexosCorrHead {
+    @apply min-h-12 border-slate-900;
+  }
+
+  .anexosLengthCell {
+    @apply min-h-8 justify-center bg-slate-50 font-bold text-slate-700;
+  }
+
+  .anexosCell {
+    @apply h-7 overflow-hidden whitespace-nowrap border-slate-300 text-slate-800;
+    content-visibility: auto;
+    contain-intrinsic-size: 28px 160px;
+  }
+
+  .anexosCell.odd {
+    background: #f8fdff;
+  }
+
+  .anexosCell.even {
+    background: #ffffff;
+  }
+
+  .anexosCell.rowNumber {
+    @apply sticky z-20 justify-center font-bold;
+    left: 92px;
+  }
+
+  .anexosActionsCell {
+    @apply sticky left-0 z-30 justify-center gap-1;
+  }
+
+  .anexosEditInput {
     @apply h-full w-full bg-white px-1 text-slate-900 outline-none;
     box-shadow: inset 0 0 0 1px #2563eb;
     font-family: "Arial Narrow", Arial, sans-serif;

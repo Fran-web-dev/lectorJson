@@ -412,6 +412,23 @@ ipcMain.handle('iva-book:excel-export', async (_event, request) => {
   return result.filePath;
 });
 
+ipcMain.handle('anexo:csv-export', async (_event, request) => {
+  const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
+  const rows = Array.isArray(request?.rows) ? request.rows : [];
+  if (!columns.length) throw new Error('No hay columnas para exportar.');
+  if (!rows.length) throw new Error('No hay registros para exportar.');
+
+  const result = await dialog.showSaveDialog({
+    title: 'Generar CSV de anexo',
+    defaultPath: `${sanitizeFileName(request?.title || 'Anexo')}-${formatExportTimestamp(new Date())}.csv`,
+    filters: [{ name: 'CSV', extensions: ['csv'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+  await fs.writeFile(result.filePath, buildDelimitedCsv(rows, columns), 'utf8');
+  return result.filePath;
+});
+
 ipcMain.handle('register:excel-import', async (_event, request) => {
   const columns = Array.isArray(request?.columns) ? request.columns.filter(Boolean) : [];
   if (!columns.length) throw new Error('No hay columnas configuradas para importar.');
@@ -427,6 +444,19 @@ ipcMain.handle('register:excel-import', async (_event, request) => {
   if (result.canceled || !result.filePaths[0]) return null;
   return readRegisterExcel(result.filePaths[0], columns);
 });
+
+function escapeCsvValue(value) {
+  const text = String(value ?? '');
+  return `"${text.replace(/"/g, '""')}"`;
+}
+
+function buildDelimitedCsv(rows, columns) {
+  const lines = [
+    columns.map(escapeCsvValue).join(';'),
+    ...rows.map((row) => columns.map((column) => escapeCsvValue(row[column])).join(';'))
+  ];
+  return `\uFEFF${lines.join('\r\n')}`;
+}
 
 function formatExportTimestamp(date) {
   const hour = String(date.getHours()).padStart(2, '0');

@@ -50,6 +50,32 @@ const IMPORTABLE_STRUCTURE_MESSAGES = {
   providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA y 14 FSE EMISOR.'
 };
 
+const CLIENT_TYPE_OPERATION_OPTIONS = [
+  '0 PARA PERIODOS ANTERIORES A ENERO 2025',
+  '01 GRAVADA',
+  '02 NO GRAVADA O EXENTA',
+  '03 EXCLUIDO O NO CONSTITUYE RENTA',
+  '04 MIXTA (SE REFIERE CUANDO EN UN MISMO DOCUMENTO SE ENCUENTRE UNA OPERACION GRAVADA Y EXENTA.)',
+  '12 INGRESOS QUE YA FUERON SUJETOS DE RETENCION EN F910',
+  '13 SUJETOS PASIVOS EXCLUIDOS (ART. 6 LISR) E INGRESOS QUE NO CONSTITUYEN HECHO GENERADOR DEL ISR'
+];
+
+const CLIENT_TYPE_INCOME_OPTIONS = [
+  '0 PARA PERIODOS ANTERIORES A ENERO 2025',
+  '01 PROFESIONES, ARTES Y OFICIOS',
+  '02 ACTIVIDADES DE SERVICIOS',
+  '03 ACTIVIDADES COMERCIALES',
+  '04 ACTIVIDADES INDUSTRIALES',
+  '05 ACTIVIDADES AGROPECUARIAS',
+  '06 UTILIDADES Y DIVIDENDOS',
+  '07 EXPORTACIONES DE BIENES',
+  '08 SERVICIOS REALIZADOS EN EL EXTERIOR Y UTILIZADOS EN EL SALVADOR',
+  '09 EXPORTACIONES DE SERVICIOS',
+  '10 OTRAS RENTAS GRAVABLES',
+  '12 INGRESOS QUE YA FUERON SUJETOS DE RETENCION EN F910',
+  '13 SUJETOS PASIVOS EXCLUIDOS (ART. 6 LISR) E INGRESOS QUE NO CONSTITUYEN HECHO GENERADOR DEL ISR'
+];
+
 function createRows(columns, count = INITIAL_ROW_COUNT) {
   return Array.from({ length: count }, () => createEmptyRow(columns));
 }
@@ -116,6 +142,18 @@ function importableStructureKey(typeCode, structureName) {
 function parseColumnWidth(width) {
   const parsedWidth = Number.parseInt(String(width || ''), 10);
   return Number.isFinite(parsedWidth) ? parsedWidth : 120;
+}
+
+function getRegisterColumnOptions(type, header, value = '') {
+  if (type !== 'clients') return [];
+  const options = header === 'TIPO DE OPERACION'
+    ? CLIENT_TYPE_OPERATION_OPTIONS
+    : header === 'TIPO DE INGRESO'
+      ? CLIENT_TYPE_INCOME_OPTIONS
+      : [];
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedValue || options.includes(normalizedValue)) return options;
+  return [normalizedValue, ...options];
 }
 
 function applyRegisterFilters(rows, filters, columns) {
@@ -480,73 +518,77 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
             </button>
           </div>
         </div>
-        <div className={`registerTable ${config.tone}`} style={{ gridTemplateColumns }}>
-          {config.columns.map((column, columnIndex) => (
-            <div className={`registerHeadCell ${config.tone}`} key={column.header}>
-              <span>{column.header}</span>
-              {column.header !== 'CORR.' ? (
-                <button
-                  className={`excelFilterButton ${filters[column.header]?.length ? 'active' : ''}`}
-                  onClick={() => {
-                    setOpenFilter(openFilter === column.header ? null : column.header);
-                    setFilterSearch('');
-                  }}
-                  title={`Filtrar ${column.header}`}
-                  type="button"
-                >
-                  v
-                </button>
-              ) : null}
-              {openFilter === column.header ? (
-                <RegisterFilterMenu
-                  column={column.header}
-                  filterSearch={filterSearch}
-                  onClose={() => setOpenFilter(null)}
-                  onFilterSearchChange={setFilterSearch}
-                  onFiltersChange={setFilters}
-                  selectedValues={filters[column.header] || []}
-                  values={openFilterValues}
-                />
-              ) : null}
-              <span
-                className="columnResizeHandle registerColumnResizeHandle"
-                onDoubleClick={(event) => resetColumnWidth(event, column)}
-                onMouseDown={(event) => startColumnResize(event, column, columnWidths[columnIndex])}
-                title="Arrastrar para ajustar ancho. Doble click para autoajustar."
-              />
-            </div>
-          ))}
-          {visibleRows.flatMap((row, rowIndex) => (
-            config.columns.map((column, columnIndex) => (
-              <div
-                className={`registerCell ${rowIndex % 2 === 0 ? 'odd' : 'even'}`}
-                key={`${rowIndex}-${column.header}`}
-              >
-                {columnIndex === 0 ? (
-                  <div className="registerCorrCell">
-                    <span>{rowIndex + 1}</span>
-                    <button
-                      className="registerDeleteButton"
-                      disabled={!hasUsefulData(row, config.columns)}
-                      onClick={() => deleteRow(row)}
-                      title="Borrar registro"
-                      type="button"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                ) : isEditing && hasUsefulData(row, config.columns) ? (
-                  <input
-                    className="registerEditInput"
-                    onChange={(event) => updateExistingCell(row, column.header, event.target.value)}
-                    value={row[column.header] || ''}
+        <div className="registerTableViewport">
+          <div className={`registerTable ${config.tone}`} style={{ gridTemplateColumns }}>
+            {config.columns.map((column, columnIndex) => (
+              <div className={`registerHeadCell ${config.tone}`} key={column.header}>
+                <span>{column.header}</span>
+                {column.header !== 'CORR.' ? (
+                  <button
+                    className={`excelFilterButton ${filters[column.header]?.length ? 'active' : ''}`}
+                    onClick={() => {
+                      setOpenFilter(openFilter === column.header ? null : column.header);
+                      setFilterSearch('');
+                    }}
+                    title={`Filtrar ${column.header}`}
+                    type="button"
+                  >
+                    v
+                  </button>
+                ) : null}
+                {openFilter === column.header ? (
+                  <RegisterFilterMenu
+                    column={column.header}
+                    filterSearch={filterSearch}
+                    onClose={() => setOpenFilter(null)}
+                    onFilterSearchChange={setFilterSearch}
+                    onFiltersChange={setFilters}
+                    selectedValues={filters[column.header] || []}
+                    values={openFilterValues}
                   />
-                ) : (
-                  row[column.header] || ''
-                )}
+                ) : null}
+                <span
+                  className="columnResizeHandle registerColumnResizeHandle"
+                  onDoubleClick={(event) => resetColumnWidth(event, column)}
+                  onMouseDown={(event) => startColumnResize(event, column, columnWidths[columnIndex])}
+                  title="Arrastrar para ajustar ancho. Doble click para autoajustar."
+                />
               </div>
-            ))
-          ))}
+            ))}
+            {visibleRows.flatMap((row, rowIndex) => (
+              config.columns.map((column, columnIndex) => (
+                <div
+                  className={`registerCell ${rowIndex % 2 === 0 ? 'odd' : 'even'}`}
+                  key={`${rowIndex}-${column.header}`}
+                >
+                  {columnIndex === 0 ? (
+                    <div className="registerCorrCell">
+                      <span>{rowIndex + 1}</span>
+                      <button
+                        className="registerDeleteButton"
+                        disabled={!hasUsefulData(row, config.columns)}
+                        onClick={() => deleteRow(row)}
+                        title="Borrar registro"
+                        type="button"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ) : isEditing && hasUsefulData(row, config.columns) ? (
+                    <RegisterFieldControl
+                      className="registerEditInput"
+                      column={column}
+                      onChange={(value) => updateExistingCell(row, column.header, value)}
+                      options={getRegisterColumnOptions(type, column.header, row[column.header])}
+                      value={row[column.header] || ''}
+                    />
+                  ) : (
+                    row[column.header] || ''
+                  )}
+                </div>
+              ))
+            ))}
+          </div>
         </div>
       </div>
       {showAddModal ? (
@@ -562,11 +604,13 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
               {config.columns.slice(1).map((column) => (
                 <label className="registerFormField" key={column.header}>
                   <span>{column.header}</span>
-                  <input
+                  <RegisterFieldControl
+                    column={column}
+                    options={getRegisterColumnOptions(type, column.header, draftRow[column.header])}
                     value={draftRow[column.header] || ''}
-                    onChange={(event) => setDraftRow((currentRow) => ({
+                    onChange={(value) => setDraftRow((currentRow) => ({
                       ...currentRow,
-                      [column.header]: toRegisterUppercase(event.target.value)
+                      [column.header]: toRegisterUppercase(value)
                     }))}
                   />
                 </label>
@@ -619,6 +663,37 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
         </div>
       ) : null}
     </section>
+  );
+}
+
+function RegisterFieldControl({ className = '', column, onChange, options = [], value }) {
+  if (options.length) {
+    const listId = `register-options-${column.header.replace(/\W+/g, '-').toLowerCase()}`;
+
+    return (
+      <>
+        <input
+          className={className}
+          list={listId}
+          onChange={(event) => onChange(event.target.value)}
+          placeholder="SELECCIONE O PEGUE UN VALOR..."
+          value={value}
+        />
+        <datalist id={listId}>
+          {options.map((option) => (
+            <option key={option} value={option} />
+          ))}
+        </datalist>
+      </>
+    );
+  }
+
+  return (
+    <input
+      className={className}
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    />
   );
 }
 

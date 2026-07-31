@@ -312,6 +312,7 @@ export const PUBLIC_QUERY_COLUMNS = [
     source: 'publicQuery',
     sections: ['ajustes', 'documentoAjustado', 'docAjustado'],
     fields: ['*'],
+    style: 'adjustedDocument',
     searchKeys: ['documentoAjustado', 'docAjustado', 'ajustado', 'ajustes']
   },
   {
@@ -365,23 +366,21 @@ export const NAMED_STRUCTURES_BY_DTE = {
   }
 };
 
-function buildUnifiedStructure() {
-  const rulesByName = new Map();
-  const structures = [
-    ...Object.values(STRUCTURES_BY_DTE),
-    ...Object.values(NAMED_STRUCTURES_BY_DTE).flatMap((structuresByName) => Object.values(structuresByName))
-  ];
-
-  for (const structure of structures) {
-    for (const rule of structure) {
-      if (!rulesByName.has(rule.name)) rulesByName.set(rule.name, rule);
-    }
-  }
-
-  return Array.from(rulesByName.values());
-}
-
-export const ALL_DTE_STRUCTURE = buildUnifiedStructure();
+export const ALL_DTE_STRUCTURE = [
+  { name: 'Tipo DTE', sections: ['identificacion'], fields: ['tipoDte'] },
+  { name: 'Hora', sections: ['identificacion'], fields: ['horEmi'] },
+  { name: 'Fecha', sections: ['identificacion'], fields: ['fecEmi'], style: 'date' },
+  { name: 'Numero de Control', sections: ['identificacion'], fields: ['numeroControl'] },
+  { name: 'Numero del Documento', sections: ['identificacion'], fields: ['codigoGeneracion'] },
+  { name: 'Serie del Documento', sections: ['selloRecibido', 'sello', 'selloRecepcion', 'SelloRecibido'], fields: ['*'] },
+  { name: 'NRC receptor', sections: ['receptor'], fields: ['nrc'] },
+  { name: 'NIT receptor', sections: ['receptor'], fields: ['nit', 'numDocumento'] },
+  { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
+  { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
+  { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
+  { name: 'Descripcion', sections: ['cuerpoDocumento'], fields: ['descripcion'], perItem: true }
+];
 
 export const MONEY_COLUMN_NAMES = new Set(ALL_DTE_STRUCTURE
   .filter((rule) => rule?.style === 'money')

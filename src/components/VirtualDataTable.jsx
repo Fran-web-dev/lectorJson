@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
@@ -174,6 +174,11 @@ export function VirtualDataTable({
   const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
   const [manualColumnWidths, setManualColumnWidths] = useState({});
+  const scrollFrameRef = useRef(0);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
 
   const sortedRows = useMemo(() => {
     if (!sortConfig.column) return rows;
@@ -207,12 +212,16 @@ export function VirtualDataTable({
   );
   const columnTotals = useMemo(() => {
     const totals = {};
-    for (const column of columns) {
-      if (!isMoneyColumn(column)) continue;
-      let total = 0;
-      for (const row of rows) total += parseMoney(row[column]);
-      totals[column] = formatTotal(total);
+    const moneyColumns = columns.filter((column) => isMoneyColumn(column));
+    for (const column of moneyColumns) totals[column] = 0;
+
+    for (const row of rows) {
+      for (const column of moneyColumns) {
+        totals[column] += parseMoney(row[column]);
+      }
     }
+
+    for (const column of moneyColumns) totals[column] = formatTotal(totals[column]);
     return totals;
   }, [columns, rows]);
   const openFilterValues = useMemo(() => {
@@ -224,7 +233,16 @@ export function VirtualDataTable({
 
   const handleScroll = useCallback((event) => {
     const target = event.currentTarget;
-    setViewport({ height: target.clientHeight, scrollTop: target.scrollTop });
+    const nextViewport = { height: target.clientHeight, scrollTop: target.scrollTop };
+    if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      setViewport((current) => (
+        current.height === nextViewport.height && current.scrollTop === nextViewport.scrollTop
+          ? current
+          : nextViewport
+      ));
+      scrollFrameRef.current = 0;
+    });
   }, []);
 
   const toggleSort = useCallback((column) => {
@@ -236,7 +254,8 @@ export function VirtualDataTable({
   }, []);
 
   const handleHorizontalScroll = useCallback((event) => {
-    setScrollLeft(event.currentTarget.scrollLeft);
+    const nextScrollLeft = event.currentTarget.scrollLeft;
+    setScrollLeft((current) => (current === nextScrollLeft ? current : nextScrollLeft));
   }, []);
 
   const startColumnResize = useCallback((event, column, currentWidth) => {
