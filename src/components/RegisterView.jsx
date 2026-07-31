@@ -113,6 +113,11 @@ function importableStructureKey(typeCode, structureName) {
   return `${typeCode}|${structureName}`;
 }
 
+function parseColumnWidth(width) {
+  const parsedWidth = Number.parseInt(String(width || ''), 10);
+  return Number.isFinite(parsedWidth) ? parsedWidth : 120;
+}
+
 function applyRegisterFilters(rows, filters, columns) {
   const activeFilters = Object.entries(filters).filter(([, values]) => values?.length);
   if (!activeFilters.length) return rows;
@@ -175,7 +180,12 @@ function mapSourceRowToRegister(row, type, sourceTypeCode) {
 
 export function RegisterView({ sourceRows = [], sourceStructureName = '', sourceTypeCode = '', type }) {
   const config = REGISTER_CONFIG[type] || REGISTER_CONFIG.clients;
-  const gridTemplateColumns = config.columns.map((column) => column.width).join(' ');
+  const [manualColumnWidths, setManualColumnWidths] = useState({});
+  const columnWidths = useMemo(
+    () => config.columns.map((column) => manualColumnWidths[column.header] || parseColumnWidth(column.width)),
+    [config.columns, manualColumnWidths]
+  );
+  const gridTemplateColumns = columnWidths.map((width) => `${width}px`).join(' ');
   const [rows, setRows] = useState(() => loadRows(type, config.columns));
   const [draftRow, setDraftRow] = useState(() => createEmptyRow(config.columns));
   const [filters, setFilters] = useState({});
@@ -218,6 +228,42 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   function openAddModal() {
     setDraftRow(createEmptyRow(config.columns));
     setShowAddModal(true);
+  }
+
+  function startColumnResize(event, column, currentWidth) {
+    event.preventDefault();
+    event.stopPropagation();
+
+    const startX = event.clientX;
+    const minWidth = column.header === 'CORR.' ? 56 : 90;
+
+    function handleMouseMove(moveEvent) {
+      const nextWidth = Math.max(minWidth, currentWidth + moveEvent.clientX - startX);
+      setManualColumnWidths((current) => ({
+        ...current,
+        [column.header]: Math.round(nextWidth)
+      }));
+    }
+
+    function handleMouseUp() {
+      document.body.classList.remove('isColumnResizing');
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    }
+
+    document.body.classList.add('isColumnResizing');
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+  }
+
+  function resetColumnWidth(event, column) {
+    event.preventDefault();
+    event.stopPropagation();
+    setManualColumnWidths((current) => {
+      const next = { ...current };
+      delete next[column.header];
+      return next;
+    });
   }
 
   function saveDraftRow() {
@@ -430,12 +476,12 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
               <FileSpreadsheet size={16} /> IMPORTAR EXCEL
             </button>
             <button className="actionButton" onClick={importRows} type="button">
-              <Download size={16} /> IMPORTAR
+              <Download size={16} /> CARGAR
             </button>
           </div>
         </div>
         <div className={`registerTable ${config.tone}`} style={{ gridTemplateColumns }}>
-          {config.columns.map((column) => (
+          {config.columns.map((column, columnIndex) => (
             <div className={`registerHeadCell ${config.tone}`} key={column.header}>
               <span>{column.header}</span>
               {column.header !== 'CORR.' ? (
@@ -462,6 +508,12 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                   values={openFilterValues}
                 />
               ) : null}
+              <span
+                className="columnResizeHandle registerColumnResizeHandle"
+                onDoubleClick={(event) => resetColumnWidth(event, column)}
+                onMouseDown={(event) => startColumnResize(event, column, columnWidths[columnIndex])}
+                title="Arrastrar para ajustar ancho. Doble click para autoajustar."
+              />
             </div>
           ))}
           {visibleRows.flatMap((row, rowIndex) => (

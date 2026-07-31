@@ -9,6 +9,7 @@ import { SplashScreen } from './components/SplashScreen.jsx';
 import { DteSummaryBar, StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
 import { DEFAULT_STRUCTURE_NAME, getStructureOptions } from './lib/dteStructureOptions.js';
+import { MONEY_COLUMN_NAMES } from './lib/dteStructures.js';
 import {
   buildHaciendaQueryUrl,
   getDocumentGenerationCode,
@@ -32,6 +33,22 @@ const HOME_CLEAR_KEY = '1234';
 
 function normalizeGenerationKey(value) {
   return String(value || '').replace(/-/g, '').trim().toUpperCase();
+}
+
+function getTableColumns(rows, typeCode) {
+  const columnSet = new Set();
+  for (const row of rows) {
+    for (const key of Object.keys(row)) {
+      if (!key.startsWith('__')) columnSet.add(key);
+    }
+  }
+
+  const columns = Array.from(columnSet);
+  const visibleColumns = typeCode === 'all'
+    ? columns.filter((column) => !MONEY_COLUMN_NAMES.has(column))
+    : columns;
+
+  return orderColumns(visibleColumns);
 }
 
 export default function App() {
@@ -65,6 +82,11 @@ export default function App() {
     if (!structureOptions.includes(structureName)) {
       setStructureName(structureOptions[0] || '');
     }
+  }, [structureName, typeCode]);
+
+  useEffect(() => {
+    setColumnFilters({});
+    setSelectedRow(null);
   }, [structureName, typeCode]);
 
   useEffect(() => {
@@ -119,8 +141,8 @@ export default function App() {
   }, [documents, fromDate, toDate]);
 
   const columns = useMemo(
-    () => orderColumns(Object.keys(rows[0] || {}).filter((key) => !key.startsWith('__'))),
-    [rows]
+    () => getTableColumns(rows, typeCode),
+    [rows, typeCode]
   );
 
   const filteredRows = useMemo(

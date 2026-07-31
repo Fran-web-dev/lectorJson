@@ -47,7 +47,9 @@ export function FilterPanel({
           <label className="label">Tipo de Documento</label>
           <select className="select" value={typeCode} onChange={(event) => onTypeCodeChange(event.target.value)}>
             {DTE_TYPES.map((type) => (
-              <option key={type.code} value={type.code}>{type.code} {type.label}</option>
+              <option key={type.code} value={type.code}>
+                {type.code === 'all' ? type.label : `${type.code} ${type.label}`}
+              </option>
             ))}
           </select>
         </div>
