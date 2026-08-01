@@ -14,7 +14,7 @@ export function AppHeader({ activeView, onNavigate }) {
           <FileText size={16} />
           INICIO
         </button>
-        <div className="navDropdown">
+        <div className="navDropdown navDropdownRegisters">
           <button
             className={`navButton ${activeView.startsWith('registers') ? 'active' : ''}`}
             type="button"

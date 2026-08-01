@@ -129,6 +129,28 @@ body,
     @apply flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-800;
   }
 
+  .navDropdownRegisters .navButton {
+    @apply hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800;
+  }
+
+  .navDropdownRegisters .navButton.active {
+    @apply border-teal-300 bg-teal-50 text-teal-800;
+    box-shadow: inset 0 -2px 0 #0f766e;
+  }
+
+  .navDropdownRegisters .navButton svg,
+  .navDropdownRegisters .navDropdownMenu svg {
+    @apply text-teal-700;
+  }
+
+  .navDropdownRegisters .navDropdownMenu {
+    @apply border-teal-200 bg-teal-50;
+  }
+
+  .navDropdownRegisters .navDropdownMenu button {
+    @apply text-slate-700 hover:bg-teal-100 hover:text-teal-900;
+  }
+
   .label {
     @apply mb-1 block text-sm font-bold text-slate-900;
   }
