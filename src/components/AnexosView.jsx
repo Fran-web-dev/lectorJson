@@ -450,109 +450,111 @@ export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 
   return (
     <section className="anexosView">
       <div className="anexosSheet">
+        <div className="anexosToolbar">
+          {message ? <span className="anexosMessage">{message}</span> : null}
+          <button className="actionButton" onClick={loadData} type="button">CARGAR DATOS</button>
+          <button className="actionButton" onClick={exportCsv} type="button">GENERAR CSV</button>
+          <button className="actionButton dangerActionButton" onClick={clearData} type="button">BORRAR DATOS</button>
+        </div>
         <div className="anexosHeader">
           <h1 className="anexosTitle">{config.title}</h1>
-          <div className="anexosToolbar">
-            {message ? <span className="anexosMessage">{message}</span> : null}
-            <button className="actionButton" onClick={loadData} type="button">CARGAR DATOS</button>
-            <button className="actionButton" onClick={exportCsv} type="button">GENERAR CSV</button>
-            <button className="actionButton dangerActionButton" onClick={clearData} type="button">BORRAR DATOS</button>
-          </div>
         </div>
-        <div className="anexosTable" style={{ gridTemplateColumns }}>
-          <div className="anexosTotalCell" />
-          <div className="anexosTotalCell" />
-          {config.columns.map(([header]) => {
-            const totalValue = isAnexoAmountColumn(header) ? `$${formatAnexoTotal(anexoTotals[header] || 0)}` : '';
+        <div className="anexosTableViewport">
+          <div className="anexosTable" style={{ gridTemplateColumns }}>
+            <div className="anexosTotalCell" />
+            <div className="anexosTotalCell" />
+            {config.columns.map(([header]) => {
+              const totalValue = isAnexoAmountColumn(header) ? `$${formatAnexoTotal(anexoTotals[header] || 0)}` : '';
 
-            return (
-              <div className="anexosTotalCell" key={`total-${header}`} title={totalValue}>
-                {totalValue}
-              </div>
-            );
-          })}
+              return (
+                <div className="anexosTotalCell" key={`total-${header}`} title={totalValue}>
+                  {totalValue}
+                </div>
+              );
+            })}
 
-          <div className="anexosHeadCell anexosActionsHead">ACCIONES</div>
-          <div className="anexosMetaCell anexosCorrHead">CORR.</div>
-          {config.columns.map(([header]) => (
-            <div className="anexosHeadCell" key={header}>
-              <span>{header}</span>
-              <button
-                className={`excelFilterButton ${filters[header]?.length ? 'active' : ''}`}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  setOpenFilter(openFilter === header ? '' : header);
-                  setFilterSearch('');
-                }}
-                title={`Filtrar ${header}`}
-                type="button"
-              >
-                v
-              </button>
-              {openFilter === header ? (
-                <AnexoFilterMenu
-                  column={header}
-                  filterSearch={filterSearch}
-                  onClose={() => setOpenFilter('')}
-                  onFilterSearchChange={setFilterSearch}
-                  onFiltersChange={setFilters}
-                  selectedValues={filters[header] || []}
-                  values={openFilterValues}
-                />
-              ) : null}
-              <span
-                className="anexosColumnResizeHandle"
-                onDoubleClick={(event) => resetColumnWidth(event, header)}
-                onMouseDown={(event) => startColumnResize(event, header)}
-                title="Arrastrar para ajustar ancho. Doble click para autoajustar."
-              />
-            </div>
-          ))}
-
-          {visibleRows.flatMap(({ row, index }) => {
-            const rowNumber = index + 1;
-            const isEditing = index === editingRowIndex;
-
-            return [
-            <div className={`anexosCell anexosActionsCell ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-actions`}>
-              {isEditing ? (
-                <>
-                  <button className="ivaBookRowButton save" onClick={saveEditing} title="Guardar" type="button">
-                    <Check size={13} />
-                  </button>
-                  <button className="ivaBookRowButton cancel" onClick={cancelEditing} title="Cancelar" type="button">
-                    <X size={13} />
-                  </button>
-                </>
-              ) : (
-                <>
-                  <button className="ivaBookRowButton edit" onClick={() => startEditing(index)} title="Editar linea" type="button">
-                    <Pencil size={13} />
-                  </button>
-                  <button className="ivaBookRowButton delete" onClick={() => clearRow(index)} title="Borrar linea" type="button">
-                    <Trash2 size={13} />
-                  </button>
-                </>
-              )}
-            </div>,
-            <div className={`anexosCell rowNumber ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-number`}>
-              {rowNumber}
-            </div>,
-            ...config.columns.map(([header]) => (
-              <div className={`anexosCell ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-${header}`} title={String(row[header] || '')}>
-                {isEditing ? (
-                  <input
-                    className="anexosEditInput"
-                    onChange={(event) => updateEditingValue(header, event.target.value)}
-                    value={editingDraft?.[header] || ''}
+            <div className="anexosHeadCell anexosActionsHead">ACCIONES</div>
+            <div className="anexosMetaCell anexosCorrHead">CORR.</div>
+            {config.columns.map(([header]) => (
+              <div className="anexosHeadCell" key={header}>
+                <span>{header}</span>
+                <button
+                  className={`excelFilterButton ${filters[header]?.length ? 'active' : ''}`}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    setOpenFilter(openFilter === header ? '' : header);
+                    setFilterSearch('');
+                  }}
+                  title={`Filtrar ${header}`}
+                  type="button"
+                >
+                  v
+                </button>
+                {openFilter === header ? (
+                  <AnexoFilterMenu
+                    column={header}
+                    filterSearch={filterSearch}
+                    onClose={() => setOpenFilter('')}
+                    onFilterSearchChange={setFilterSearch}
+                    onFiltersChange={setFilters}
+                    selectedValues={filters[header] || []}
+                    values={openFilterValues}
                   />
-                ) : (
-                  row[header]
-                )}
+                ) : null}
+                <span
+                  className="anexosColumnResizeHandle"
+                  onDoubleClick={(event) => resetColumnWidth(event, header)}
+                  onMouseDown={(event) => startColumnResize(event, header)}
+                  title="Arrastrar para ajustar ancho. Doble click para autoajustar."
+                />
               </div>
-            ))
-          ];
-          })}
+            ))}
+
+            {visibleRows.flatMap(({ row, index }) => {
+              const rowNumber = index + 1;
+              const isEditing = index === editingRowIndex;
+
+              return [
+              <div className={`anexosCell anexosActionsCell ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-actions`}>
+                {isEditing ? (
+                  <>
+                    <button className="ivaBookRowButton save" onClick={saveEditing} title="Guardar" type="button">
+                      <Check size={13} />
+                    </button>
+                    <button className="ivaBookRowButton cancel" onClick={cancelEditing} title="Cancelar" type="button">
+                      <X size={13} />
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="ivaBookRowButton edit" onClick={() => startEditing(index)} title="Editar linea" type="button">
+                      <Pencil size={13} />
+                    </button>
+                    <button className="ivaBookRowButton delete" onClick={() => clearRow(index)} title="Borrar linea" type="button">
+                      <Trash2 size={13} />
+                    </button>
+                  </>
+                )}
+              </div>,
+              <div className={`anexosCell rowNumber ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-number`}>
+                {rowNumber}
+              </div>,
+              ...config.columns.map(([header]) => (
+                <div className={`anexosCell ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-${header}`} title={String(row[header] || '')}>
+                  {isEditing ? (
+                    <input
+                      className="anexosEditInput"
+                      onChange={(event) => updateEditingValue(header, event.target.value)}
+                      value={editingDraft?.[header] || ''}
+                    />
+                  ) : (
+                    row[header]
+                  )}
+                </div>
+              ))
+            ];
+            })}
+          </div>
         </div>
       </div>
     </section>

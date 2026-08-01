@@ -42,7 +42,7 @@ export function StatusBar({
           title="Consultar Hacienda para todas las lineas visibles"
           type="button"
         >
-          <img src={logoM} alt="Hacienda" className="mr-1 h-5 w-5 right-0" />
+          <img src={logoM} alt="Hacienda" className="h-4 w-4 object-contain" />
           Consulta masiva Hacienda
         </button>
         <button
@@ -68,21 +68,29 @@ export function StatusBar({
   );
 }
 
-export function DteSummaryBar({ dteSummary }) {
-  if (!dteSummary?.length) return null;
+export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidOrRejectedCount = 0 }) {
+  if (!dteSummary?.length && !duplicateCount && !invalidOrRejectedCount) return null;
 
   return (
     <div className="mb-3">
-      {dteSummary?.length ? (
-        <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-sm">
-          <span className="font-bold text-slate-600">Resumen por tipo:</span>
+      <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-sm">
+        {dteSummary?.length ? (
+          <>
+            <span className="font-bold text-slate-600">Resumen por tipo carpeta contenedora:</span>
           {dteSummary.map((item) => (
             <span className="rounded-sm border border-blue-200 bg-blue-50 px-2 py-1 font-bold text-blue-700" key={item.code}>
               DTE-{item.code}: {item.count}
             </span>
           ))}
-        </div>
-      ) : null}
+          </>
+        ) : null}
+        <span className="rounded-sm border border-red-200 bg-red-50 px-2 py-1 font-bold text-red-700">
+          DTE duplicados: {duplicateCount}
+        </span>
+        <span className="rounded-sm border border-violet-200 bg-violet-50 px-2 py-1 font-bold text-violet-700">
+          DTE invalidados o rechazados: {invalidOrRejectedCount}
+        </span>
+      </div>
     </div>
   );
 }

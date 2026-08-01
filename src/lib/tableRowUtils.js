@@ -21,18 +21,13 @@ export function applyColumnFilters(rows, filters) {
 }
 
 export function extractRowsForSummary(documents) {
-  return documents.map((document) => ({
-    'Tipo DTE': document?.payload?.identificacion?.tipoDte
-      || document?.payload?.tipoDte
-      || document?.payload?.documento?.identificacion?.tipoDte
-      || ''
-  }));
+  return documents;
 }
 
 export function summarizeDteTypes(rows) {
   const counts = new Map();
   for (const row of rows) {
-    const code = String(row['Tipo DTE'] || '').trim().padStart(2, '0');
+    const code = String(row?.payload?.identificacion?.tipoDte || row?.['Tipo DTE'] || '').trim().padStart(2, '0');
     if (!code || code === '00') continue;
     counts.set(code, (counts.get(code) || 0) + 1);
   }

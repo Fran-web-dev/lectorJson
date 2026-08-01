@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useMemo, useEffect, useRef, useState } from 'react';
 import { Check, Download, FileSpreadsheet, Pencil, Plus, Trash2, X } from 'lucide-react';
 
 const INITIAL_ROW_COUNT = 14;
@@ -76,6 +76,47 @@ const CLIENT_TYPE_INCOME_OPTIONS = [
   '13 SUJETOS PASIVOS EXCLUIDOS (ART. 6 LISR) E INGRESOS QUE NO CONSTITUYEN HECHO GENERADOR DEL ISR'
 ];
 
+const PROVIDER_TYPE_OPERATION_OPTIONS = [
+  '1 GRAVADA',
+  '2 NO GRAVADA O EXENTA',
+  '3 EXCLUIDO O NO CONSTITUYE RENTA',
+  '4 MIXTA (CONTRIBUYENTES QUE GOZAN DE REGIMENES ESPECIALES CON INCENTIVOS FISCALES)',
+  '8 OPERACIONES INFORMADAS EN MAS DE 1 ANEXO',
+  '9 EXCEPCIONES (INSTITUCIONES PUBLICAS, NO INSCRITOS A IVA, OPERACIONES NO DEDUCIBLES PARA RENTA, ENTRE OTROS.)',
+  '0 CUANDO SE TRATE DE PERIODOS TRIBUTARIOS ANTERIORES A FEBRERO DE 2024'
+];
+
+const PROVIDER_CLASSIFICATION_OPTIONS = [
+  '1 COSTO',
+  '2 GASTO',
+  '8 OPERACIONES INFORMADAS EN MAS DE 1 ANEXO',
+  '9 EXCEPCIONES (INSTITUCIONES PUBLICAS, NO INSCRITOS A IVA, OPERACIONES NO DEDUCIBLES PARA RENTA, ENTRE OTROS.)',
+  '0 CUANDO SE TRATE DE PERIODOS TRIBUTARIOS ANTERIORES A FEBRERO DE 2024'
+];
+
+const PROVIDER_SECTOR_OPTIONS = [
+  '1 INDUSTRIA',
+  '2 COMERCIO',
+  '3 AGROPECUARIA',
+  '4 SERVICIOS, PROFESIONES, ARTES Y OFICIOS',
+  '8 OPERACIONES INFORMADAS EN MAS DE 1 ANEXO',
+  '9 EXCEPCIONES (INSTITUCIONES PUBLICAS, NO INSCRITOS A IVA, OPERACIONES NO DEDUCIBLES PARA RENTA, ENTRE OTROS.)',
+  '0 CUANDO SE TRATE DE PERIODOS TRIBUTARIOS ANTERIORES A FEBRERO DE 2024'
+];
+
+const PROVIDER_COST_EXPENSE_OPTIONS = [
+  '1 GASTO DE VENTA SIN DONACION',
+  '2 GASTO DE ADMINISTRACION SIN DONACION',
+  '3 GASTOS FINANCIEROS SIN DONACION',
+  '4 COSTO ARTICULOS PRODUCIDOS/COMPRADOS IMPORTACIONES/INTERNACIONES',
+  '5 COSTO ARTICULOS PRODUCIDOS/COMPRADOS INTERNO',
+  '6 COSTO INDIRECTOS DE FABRICACION',
+  '7 MANO DE OBRA',
+  '8 OPERACIONES INFORMADAS EN MAS DE 1 ANEXO',
+  '9 EXCEPCIONES (INSTITUCIONES PUBLICAS, NO INSCRITOS A IVA, OPERACIONES NO DEDUCIBLES PARA RENTA, ENTRE OTROS.)',
+  '0 CUANDO SE TRATE DE PERIODOS TRIBUTARIOS ANTERIORES A FEBRERO DE 2024'
+];
+
 function createRows(columns, count = INITIAL_ROW_COUNT) {
   return Array.from({ length: count }, () => createEmptyRow(columns));
 }
@@ -145,12 +186,24 @@ function parseColumnWidth(width) {
 }
 
 function getRegisterColumnOptions(type, header, value = '') {
-  if (type !== 'clients') return [];
-  const options = header === 'TIPO DE OPERACION'
-    ? CLIENT_TYPE_OPERATION_OPTIONS
-    : header === 'TIPO DE INGRESO'
-      ? CLIENT_TYPE_INCOME_OPTIONS
+  const options = type === 'clients'
+    ? header === 'TIPO DE OPERACION'
+      ? CLIENT_TYPE_OPERATION_OPTIONS
+      : header === 'TIPO DE INGRESO'
+        ? CLIENT_TYPE_INCOME_OPTIONS
+        : []
+    : type === 'providers'
+      ? header === 'TIPO DE OPERACION (Renta)'
+        ? PROVIDER_TYPE_OPERATION_OPTIONS
+        : header === 'CLASIFICACION (Renta)'
+          ? PROVIDER_CLASSIFICATION_OPTIONS
+          : header === 'SECTOR (Renta)'
+            ? PROVIDER_SECTOR_OPTIONS
+            : header === 'TIPO DE COSTO/GASTO (Renta)'
+              ? PROVIDER_COST_EXPENSE_OPTIONS
+              : []
       : [];
+  if (!options.length) return [];
   const normalizedValue = String(value || '').trim();
   if (!normalizedValue || options.includes(normalizedValue)) return options;
   return [normalizedValue, ...options];
@@ -168,11 +221,11 @@ function applyRegisterFilters(rows, filters, columns) {
 
 function splitProviderDocument(value) {
   const rawValue = String(value || '').trim();
-  const digitCount = rawValue.replace(/\D/g, '').length;
+  const digits = rawValue.replace(/\D/g, '');
 
   return {
-    nit: digitCount === 14 ? rawValue : '',
-    dui: digitCount >= 9 && digitCount !== 14 ? rawValue : ''
+    nit: digits.length === 14 ? digits : '',
+    dui: digits.length === 9 ? digits : ''
   };
 }
 
@@ -233,6 +286,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   const [showAddModal, setShowAddModal] = useState(false);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearPassword, setClearPassword] = useState('');
+  const [activeComboKey, setActiveComboKey] = useState('');
   const [message, setMessage] = useState('');
   const visibleRows = useMemo(
     () => applyRegisterFilters(rows, filters, config.columns),
@@ -324,13 +378,14 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   function toggleEditMode() {
     if (isEditing) {
       setRows((currentRows) => normalizeRows(currentRows, config.columns));
-      setMessage('Cambios guardados.');
-      setIsEditing(false);
-      return;
-    }
+    setMessage('Cambios guardados.');
+    setIsEditing(false);
+    setActiveComboKey('');
+    return;
+  }
 
-    setMessage('Edicion activada.');
-    setIsEditing(true);
+  setMessage('Edicion activada.');
+  setIsEditing(true);
   }
 
   function mergeImportedRegisterRows(importedRows, successMessage) {
@@ -576,10 +631,13 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                     </div>
                   ) : isEditing && hasUsefulData(row, config.columns) ? (
                     <RegisterFieldControl
+                      activeComboKey={activeComboKey}
                       className="registerEditInput"
+                      comboKey={`${rowIndex}-${column.header}`}
                       column={column}
                       onChange={(value) => updateExistingCell(row, column.header, value)}
                       options={getRegisterColumnOptions(type, column.header, row[column.header])}
+                      setActiveComboKey={setActiveComboKey}
                       value={row[column.header] || ''}
                     />
                   ) : (
@@ -666,25 +724,98 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   );
 }
 
-function RegisterFieldControl({ className = '', column, onChange, options = [], value }) {
-  if (options.length) {
-    const listId = `register-options-${column.header.replace(/\W+/g, '-').toLowerCase()}`;
+function RegisterFieldControl({
+  activeComboKey = '',
+  className = '',
+  column,
+  comboKey = '',
+  onChange,
+  options = [],
+  setActiveComboKey,
+  value
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({});
+  const closeTimerRef = useRef(null);
+  const comboRef = useRef(null);
+  const isControlledCombo = Boolean(comboKey && setActiveComboKey);
+  const comboIsOpen = isControlledCombo ? activeComboKey === comboKey : isOpen;
 
+  function openOptions() {
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    const rect = comboRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMenuStyle({
+        left: `${rect.left}px`,
+        top: `${rect.bottom + 2}px`,
+        width: `${Math.max(rect.width, 360)}px`
+      });
+    }
+    if (isControlledCombo) {
+      setActiveComboKey(comboKey);
+    } else {
+      setIsOpen(true);
+    }
+  }
+
+  function scheduleClose() {
+    closeTimerRef.current = window.setTimeout(() => {
+      if (isControlledCombo) {
+        setActiveComboKey('');
+      } else {
+        setIsOpen(false);
+      }
+    }, 140);
+  }
+
+  if (options.length) {
     return (
-      <>
+      <div className={`registerCombobox ${comboIsOpen ? 'open' : ''}`} ref={comboRef}>
         <input
           className={className}
-          list={listId}
+          onBlur={scheduleClose}
+          onClick={openOptions}
           onChange={(event) => onChange(event.target.value)}
+          onFocus={openOptions}
           placeholder="SELECCIONE O PEGUE UN VALOR..."
           value={value}
         />
-        <datalist id={listId}>
-          {options.map((option) => (
-            <option key={option} value={option} />
-          ))}
-        </datalist>
-      </>
+        <button
+          className="registerComboboxButton"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            if (comboIsOpen) {
+              if (isControlledCombo) setActiveComboKey('');
+              else setIsOpen(false);
+            } else {
+              openOptions();
+            }
+          }}
+          tabIndex={-1}
+          type="button"
+        >
+          v
+        </button>
+        {comboIsOpen ? (
+          <div className="registerComboboxMenu" style={menuStyle}>
+            {options.map((option) => (
+              <button
+                className="registerComboboxOption"
+                key={option}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onChange(option);
+                  if (isControlledCombo) setActiveComboKey('');
+                  else setIsOpen(false);
+                }}
+                type="button"
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+        ) : null}
+      </div>
     );
   }
 

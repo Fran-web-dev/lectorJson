@@ -37,6 +37,7 @@ const PUBLIC_QUERY_LIMIT = 300;
 const PUBLIC_QUERY_CONCURRENCY = 8;
 const PUBLIC_BATCH_QUERY_CONCURRENCY = 18;
 const FILE_READ_CONCURRENCY = 32;
+const FOLDER_SCAN_CONCURRENCY = 16;
 const ENRICH_PUBLIC_QUERY_ON_LOAD = false;
 const publicQueryCache = new Map();
 let papaParser;
@@ -126,17 +127,48 @@ function createWindow() {
   });
 }
 
+function shouldSkipDirectory(name) {
+  return /^\./.test(name) || /^(node_modules|dist|release|build|out|coverage|tmp|temp)$/i.test(name);
+}
+
+function isSupportedDataFile(name) {
+  if (/^\./.test(name)) return false;
+  const extension = path.extname(name).toLowerCase();
+  return extension === '.json' || extension === '.csv' || extension === '';
+}
+
 async function collectFiles(folderPath) {
-  const entries = await fs.readdir(folderPath, { withFileTypes: true });
   const files = [];
-  for (const entry of entries) {
-    const fullPath = path.join(folderPath, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...await collectFiles(fullPath));
-    } else if (!/^\./.test(entry.name) && !/\.(xlsx|xls|pdf|png|jpg|jpeg|gif|exe|dll|zip|rar|7z)$/i.test(entry.name)) {
-      files.push(fullPath);
+  let pendingFolders = [folderPath];
+
+  async function scanFolder(currentFolder) {
+    const nextFolders = [];
+    let entries;
+    try {
+      entries = await fs.readdir(currentFolder, { withFileTypes: true });
+    } catch (error) {
+      writeStartupLog(`No se pudo leer carpeta ${currentFolder}: ${error.message}`);
+      return nextFolders;
     }
+
+    for (const entry of entries) {
+      const fullPath = path.join(currentFolder, entry.name);
+      if (entry.isDirectory()) {
+        if (!shouldSkipDirectory(entry.name)) nextFolders.push(fullPath);
+      } else if (entry.isFile() && isSupportedDataFile(entry.name)) {
+        files.push(fullPath);
+      }
+    }
+
+    return nextFolders;
   }
+
+  while (pendingFolders.length) {
+    const currentBatch = pendingFolders.splice(0, FOLDER_SCAN_CONCURRENCY);
+    const nextBatches = await Promise.all(currentBatch.map((folder) => scanFolder(folder)));
+    pendingFolders = pendingFolders.concat(...nextBatches);
+  }
+
   return files;
 }
 
@@ -181,12 +213,22 @@ async function loadFiles(filePaths, sourcePath) {
       const filePath = filePaths[fileIndex];
       try {
         const items = await readDataFile(filePath);
-        documentsByFile[fileIndex] = items.map((item) => ({
-          sourceFile: filePath,
-          fileName: path.basename(filePath),
-          folderName: path.basename(path.dirname(filePath)),
-          payload: item
-        }));
+        documentsByFile[fileIndex] = items
+          .map((item, itemIndex) => {
+            if (!item?.identificacion?.tipoDte) {
+              const suffix = items.length > 1 ? ` item ${itemIndex + 1}` : '';
+              errors.push({ filePath, message: `No cargado${suffix}: no se encontro identificacion.tipoDte.` });
+              return null;
+            }
+
+            return {
+              sourceFile: filePath,
+              fileName: path.basename(filePath),
+              folderName: path.basename(path.dirname(filePath)),
+              payload: item
+            };
+          })
+          .filter(Boolean);
       } catch (error) {
         documentsByFile[fileIndex] = [];
         errors.push({ filePath, message: error.message });

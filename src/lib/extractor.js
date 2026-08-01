@@ -229,6 +229,10 @@ function findIndexedAny(index, keyName) {
   return index.sections.get(normalizedKey) ?? index.fields.get(normalizedKey) ?? '';
 }
 
+function getPayloadDteType(payload, payloadIndex) {
+  return payload?.identificacion?.tipoDte || '';
+}
+
 function extractField(payloadIndex, rule) {
   if (rule.calculate === 'divide') {
     const section = findIndexedSection(payloadIndex, rule.sections[0]);
@@ -298,9 +302,62 @@ function extractField(payloadIndex, rule) {
   return '';
 }
 
+function extractFieldDirect(payload, rule) {
+  if (!payload || typeof payload !== 'object') return { found: false, value: '' };
+
+  if (rule.calculate === 'divide') {
+    const direct = extractFieldDirect(payload, { ...rule, calculate: undefined });
+    if (!direct.found) return direct;
+    const number = Number(String(direct.value).replace(/[$,\s]/g, ''));
+    return { found: true, value: Number.isFinite(number) ? number / rule.by : '' };
+  }
+
+  for (const sectionName of rule.sections) {
+    if (!Object.prototype.hasOwnProperty.call(payload, sectionName)) continue;
+    const section = payload[sectionName];
+
+    if (section === null || section === undefined) return { found: true, value: '' };
+    if (rule.fields.includes('*')) return { found: true, value: section };
+    if (typeof section !== 'object') return { found: true, value: section };
+
+    if (rule.filter && Array.isArray(section)) {
+      const match = section.find((item) => String(item?.[rule.filter.key]) === String(rule.filter.value));
+      return { found: true, value: match?.[rule.filter.field] ?? '' };
+    }
+
+    if (Array.isArray(section)) {
+      const parts = section.map((item) => extractFromPlainObject(item, rule.fields, rule.style));
+      return { found: true, value: parts.filter(Boolean).join(' | ') };
+    }
+
+    if (rule.filter) {
+      for (const field of rule.fields) {
+        const directValue = section[field];
+        if (Array.isArray(directValue)) {
+          const match = directValue.find((item) => String(item?.[rule.filter.key]) === String(rule.filter.value));
+          if (match?.[rule.filter.field] !== undefined && match?.[rule.filter.field] !== null) {
+            return { found: true, value: match[rule.filter.field] };
+          }
+        }
+      }
+      return { found: true, value: '' };
+    }
+
+    for (const field of rule.fields) {
+      const value = section[field];
+      if (value !== undefined && value !== null && value !== '') {
+        return { found: true, value };
+      }
+    }
+    return { found: true, value: '' };
+  }
+
+  return { found: false, value: '' };
+}
+
 export function detectDteType(payload, selectedType = '') {
   const index = createDocumentIndex(payload);
-  const code = selectedType || findIndexedField(index, 'tipoDte');
+  const code = getPayloadDteType(payload, index) || selectedType;
   const dte = DTE_TYPES_BY_CODE.get(String(code).padStart(2, '0'));
   return dte || { code: String(code || 'ND'), label: 'No detectado' };
 }
@@ -315,12 +372,20 @@ export function extractRows(documents, options = {}) {
   const structureCache = new Map();
 
   for (const document of documents) {
-    const payloadIndex = createDocumentIndex(document.payload);
-    const publicQueryIndex = document.payload?.__consultaPublica
-      ? createDocumentIndex(document.payload.__consultaPublica)
-      : null;
-    const actualCode = String(findIndexedField(payloadIndex, 'tipoDte') || '').padStart(2, '0');
+    const actualCode = String(document.payload?.identificacion?.tipoDte || '').padStart(2, '0');
     if (selectedType && actualCode !== String(selectedType).padStart(2, '0')) continue;
+
+    let payloadIndex = null;
+    let publicQueryIndex = null;
+    const getPayloadIndex = () => {
+      payloadIndex ||= createDocumentIndex(document.payload);
+      return payloadIndex;
+    };
+    const getPublicQueryIndex = () => {
+      if (!document.payload?.__consultaPublica) return null;
+      publicQueryIndex ||= createDocumentIndex(document.payload.__consultaPublica);
+      return publicQueryIndex;
+    };
 
     const dte = DTE_TYPES_BY_CODE.get(actualCode) || { code: actualCode || 'ND', label: 'No detectado' };
     const structureKey = `${dte.code}|${structureName}`;
@@ -341,8 +406,14 @@ export function extractRows(documents, options = {}) {
           .filter(Boolean)
           .join('\n');
       } else {
-        const sourceIndex = rule.source === 'publicQuery' ? publicQueryIndex : payloadIndex;
-        baseRow[rule.name] = sourceIndex ? formatValue(extractField(sourceIndex, rule), rule.style) : '';
+        const sourcePayload = rule.source === 'publicQuery' ? document.payload?.__consultaPublica : document.payload;
+        const directValue = extractFieldDirect(sourcePayload, rule);
+        if (directValue.found) {
+          baseRow[rule.name] = formatValue(directValue.value, rule.style);
+        } else {
+          const sourceIndex = rule.source === 'publicQuery' ? getPublicQueryIndex() : getPayloadIndex();
+          baseRow[rule.name] = sourceIndex ? formatValue(extractField(sourceIndex, rule), rule.style) : '';
+        }
       }
     }
 

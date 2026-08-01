@@ -8,7 +8,7 @@ import {
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
 const AUTO_WIDTH_SAMPLE_SIZE = 300;
-const BOTTOM_SCROLL_PADDING = 24;
+const BOTTOM_SCROLL_PADDING = 56;
 const PUBLIC_QUERY_COLUMNS = new Set([
   'Estado del DTE',
   'Descripcion del DTE',

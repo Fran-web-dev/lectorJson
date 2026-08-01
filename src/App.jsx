@@ -67,6 +67,19 @@ function getTableColumns(rows, typeCode) {
   return orderColumns(visibleColumns);
 }
 
+function getInicioAlertCounts(rows) {
+  let duplicateCount = 0;
+  let invalidOrRejectedCount = 0;
+
+  for (const row of rows) {
+    if (row?.__isDuplicate) duplicateCount += 1;
+    const status = String(row?.['Estado del DTE'] || '').toLowerCase();
+    if (status.includes('invalidado') || status.includes('rechazado')) invalidOrRejectedCount += 1;
+  }
+
+  return { duplicateCount, invalidOrRejectedCount };
+}
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [folder, setFolder] = useState('');
@@ -180,6 +193,10 @@ export default function App() {
   const dteSummary = useMemo(
     () => summarizeDteTypes(extractRowsForSummary(documents)),
     [documents]
+  );
+  const inicioAlertCounts = useMemo(
+    () => getInicioAlertCounts(rows),
+    [rows]
   );
 
   const activeIvaBookType = activeView === 'iva-books-ccf-sales'
@@ -457,7 +474,11 @@ export default function App() {
           />
 
           <section className="px-6 py-4">
-            <DteSummaryBar dteSummary={dteSummary} />
+            <DteSummaryBar
+              duplicateCount={inicioAlertCounts.duplicateCount}
+              dteSummary={dteSummary}
+              invalidOrRejectedCount={inicioAlertCounts.invalidOrRejectedCount}
+            />
             {documents.length ? (
               <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>
                 <VirtualDataTable
