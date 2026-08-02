@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
@@ -140,7 +140,10 @@ export default function App() {
 
     import('./lib/extractor.js').then(({ extractRows }) => {
       if (!cancelled) {
-        setRows(markDuplicateRows(extractRows(documents, { typeCode, structureName, fromDate, toDate })));
+        const nextRows = markDuplicateRows(extractRows(documents, { typeCode, structureName, fromDate, toDate }));
+        startTransition(() => {
+          setRows(nextRows);
+        });
       }
     });
 
@@ -161,24 +164,20 @@ export default function App() {
     import('./lib/extractor.js').then(({ extractRows }) => {
       if (cancelled) return;
       const fcfRows = extractRows(documents, {
-        typeCode: '01',
-        structureName: 'FCF EMISOR',
+        typeCode,
+        structureName,
         fromDate,
         toDate
       });
-      const fexRows = extractRows(documents, {
-        typeCode: '11',
-        structureName: 'FEX EMISOR',
-        fromDate,
-        toDate
+      startTransition(() => {
+        setFcfIvaBookRows(fcfRows);
       });
-      setFcfIvaBookRows([...fcfRows, ...fexRows]);
     });
 
     return () => {
       cancelled = true;
     };
-  }, [activeView, documents, fromDate, toDate]);
+  }, [activeView, documents, fromDate, structureName, toDate, typeCode]);
 
   const columns = useMemo(
     () => getTableColumns(rows, typeCode),

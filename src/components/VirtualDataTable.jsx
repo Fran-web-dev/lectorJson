@@ -1,6 +1,7 @@
 import {
   memo,
   useCallback,
+  useEffect,
   useMemo,
   useState
 } from 'react';
@@ -130,6 +131,24 @@ function formatTotal(value) {
   return `$${totalFormatter.format(value)}`;
 }
 
+function calculateColumnTotals(columns, rows) {
+  const totals = {};
+
+  for (const column of columns) {
+    if (!isMoneyColumn(column)) continue;
+
+    let total = 0;
+
+    for (const row of rows) {
+      total += parseMoney(row[column]);
+    }
+
+    totals[column] = formatTotal(total);
+  }
+
+  return totals;
+}
+
 function DataRow({ columns, gridTemplateColumns, isSelected, onRowSelect, row, rowIndex }) {
   const isRejectedOrInvalid = /invalidado|rechazado/i.test(String(row['Estado del DTE'] || ''));
 
@@ -179,6 +198,7 @@ export function VirtualDataTable({
   const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
   const [manualColumnWidths, setManualColumnWidths] = useState({});
+  const [columnTotals, setColumnTotals] = useState({});
   
   const sortedRows = useMemo(() => {
     if (!sortConfig.column) return rows;
@@ -210,23 +230,22 @@ export function VirtualDataTable({
     () => columnWidths.reduce((total, width) => total + width, 0),
     [columnWidths]
   );
-  const columnTotals = useMemo(() => {
-  const totals = {};
+  useEffect(() => {
+    let cancelled = false;
+    setColumnTotals({});
 
-  for (const column of columns) {
-    if (!isMoneyColumn(column)) continue;
+    const scheduleIdle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 0));
+    const cancelIdle = window.cancelIdleCallback || window.clearTimeout;
+    const idleId = scheduleIdle(() => {
+      const nextTotals = calculateColumnTotals(columns, sortedRows);
+      if (!cancelled) setColumnTotals(nextTotals);
+    });
 
-    let total = 0;
-
-    for (const row of sortedRows) {
-      total += parseMoney(row[column]);
-    }
-
-    totals[column] = formatTotal(total);
-  }
-
-  return totals;
-}, [columns, sortedRows]);
+    return () => {
+      cancelled = true;
+      cancelIdle(idleId);
+    };
+  }, [columns, sortedRows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>

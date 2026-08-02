@@ -1,9 +1,14 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 const haciendaProgressListeners = new Set();
+const fileLoadProgressListeners = new Set();
 
 ipcRenderer.on('hacienda:public-batch-progress', (_event, progress) => {
   for (const listener of haciendaProgressListeners) listener(progress);
+});
+
+ipcRenderer.on('files:load-progress', (_event, progress) => {
+  for (const listener of fileLoadProgressListeners) listener(progress);
 });
 
 contextBridge.exposeInMainWorld('dteApp', {
@@ -22,6 +27,11 @@ contextBridge.exposeInMainWorld('dteApp', {
     if (typeof listener !== 'function') return () => {};
     haciendaProgressListeners.add(listener);
     return () => haciendaProgressListeners.delete(listener);
+  },
+  onFileLoadProgress: (listener) => {
+    if (typeof listener !== 'function') return () => {};
+    fileLoadProgressListeners.add(listener);
+    return () => fileLoadProgressListeners.delete(listener);
   },
   openExternal: (url) => ipcRenderer.invoke('external:open', url)
 });

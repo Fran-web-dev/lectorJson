@@ -200,10 +200,41 @@ function parseJsonWithRepair(raw) {
   }
 }
 
-async function loadFiles(filePaths, sourcePath) {
+function getLoadableDtePayload(item) {
+  if (item?.identificacion?.tipoDte) return item;
+
+  if (item?.dteJson?.identificacion?.tipoDte) {
+    return {
+      ...item.dteJson,
+      selloRecibido: item.dteJson.selloRecibido || item.dteJson.sello_recibido || item.sello_recibido || item.selloRecibido || '',
+      sello_recibido: item.dteJson.sello_recibido || item.dteJson.selloRecibido || item.sello_recibido || item.selloRecibido || ''
+    };
+  }
+
+  return null;
+}
+
+async function loadFiles(filePaths, sourcePath, progressWebContents) {
   const documentsByFile = new Array(filePaths.length);
   const errors = [];
   let nextFileIndex = 0;
+  let completedFiles = 0;
+  let lastProgressAt = 0;
+
+  function sendLoadProgress(force = false) {
+    if (!progressWebContents || progressWebContents.isDestroyed()) return;
+
+    const now = Date.now();
+    if (!force && completedFiles < filePaths.length && now - lastProgressAt < 250) return;
+
+    lastProgressAt = now;
+    progressWebContents.send('files:load-progress', {
+      completed: completedFiles,
+      total: filePaths.length
+    });
+  }
+
+  sendLoadProgress(true);
 
   async function worker() {
     while (nextFileIndex < filePaths.length) {
@@ -215,7 +246,9 @@ async function loadFiles(filePaths, sourcePath) {
         const items = await readDataFile(filePath);
         documentsByFile[fileIndex] = items
           .map((item, itemIndex) => {
-            if (!item?.identificacion?.tipoDte) {
+            const payload = getLoadableDtePayload(item);
+
+            if (!payload) {
               const suffix = items.length > 1 ? ` item ${itemIndex + 1}` : '';
               errors.push({ filePath, message: `No cargado${suffix}: no se encontro identificacion.tipoDte.` });
               return null;
@@ -225,18 +258,22 @@ async function loadFiles(filePaths, sourcePath) {
               sourceFile: filePath,
               fileName: path.basename(filePath),
               folderName: path.basename(path.dirname(filePath)),
-              payload: item
+              payload
             };
           })
           .filter(Boolean);
       } catch (error) {
         documentsByFile[fileIndex] = [];
         errors.push({ filePath, message: error.message });
+      } finally {
+        completedFiles += 1;
+        sendLoadProgress();
       }
     }
   }
 
   await Promise.all(Array.from({ length: Math.min(FILE_READ_CONCURRENCY, filePaths.length || 1) }, () => worker()));
+  sendLoadProgress(true);
 
   const documents = documentsByFile.flat();
   const enrichedDocuments = ENRICH_PUBLIC_QUERY_ON_LOAD ? await enrichDocumentsWithPublicQuery(documents) : documents;
@@ -351,7 +388,7 @@ async function enrichDocumentsWithPublicQuery(documents) {
   return enrichedDocuments;
 }
 
-ipcMain.handle('folder:select', async () => {
+ipcMain.handle('folder:select', async (event) => {
   const result = await dialog.showOpenDialog({
     title: 'Seleccione la carpeta contenedora de los archivos JSON',
     properties: ['openDirectory']
@@ -360,19 +397,19 @@ ipcMain.handle('folder:select', async () => {
   if (result.canceled || !result.filePaths[0]) return null;
   const folderPath = result.filePaths[0];
   const files = await collectFiles(folderPath);
-  return loadFiles(files, folderPath);
+  return loadFiles(files, folderPath, event.sender);
 });
 
-ipcMain.handle('folder:reload', async (_event, folderPath) => {
+ipcMain.handle('folder:reload', async (event, folderPath) => {
   const resolvedFolderPath = path.resolve(String(folderPath || ''));
   const stat = await fs.stat(resolvedFolderPath);
   if (!stat.isDirectory()) throw new Error('La carpeta seleccionada ya no existe o no es valida.');
 
   const files = await collectFiles(resolvedFolderPath);
-  return loadFiles(files, resolvedFolderPath);
+  return loadFiles(files, resolvedFolderPath, event.sender);
 });
 
-ipcMain.handle('files:select', async () => {
+ipcMain.handle('files:select', async (event) => {
   const result = await dialog.showOpenDialog({
     title: 'Seleccione archivos JSON o CSV',
     properties: ['openFile', 'multiSelections'],
@@ -384,7 +421,7 @@ ipcMain.handle('files:select', async () => {
   });
 
   if (result.canceled || !result.filePaths.length) return null;
-  return loadFiles(result.filePaths, `${result.filePaths.length} archivo(s) seleccionado(s)`);
+  return loadFiles(result.filePaths, `${result.filePaths.length} archivo(s) seleccionado(s)`, event.sender);
 });
 
 ipcMain.handle('excel:export', async (_event, rows) => {

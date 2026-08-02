@@ -10,6 +10,27 @@ export function useDteActions({
   setStatus,
   setTotalFileCount
 }) {
+  const withFileLoadProgress = useCallback(async (action) => {
+    let removeProgressListener = () => {};
+
+    if (window.dteApp?.onFileLoadProgress) {
+      removeProgressListener = window.dteApp.onFileLoadProgress((progress) => {
+        const completed = Number(progress?.completed || 0);
+        const total = Number(progress?.total || 0);
+
+        if (total > 0) {
+          setStatus(`Cargando archivos: ${completed}/${total} archivo(s) cargado(s)...`);
+        }
+      });
+    }
+
+    try {
+      return await action();
+    } finally {
+      removeProgressListener();
+    }
+  }, [setStatus]);
+
   const applyLoadResult = useCallback((result) => {
     setFolder(result.sourcePath);
     setDocuments(result.documents);
@@ -22,7 +43,7 @@ export function useDteActions({
     setLoading(true);
     setStatus('Leyendo carpeta y subcarpetas...');
     try {
-      const result = await window.dteApp.selectFolder();
+      const result = await withFileLoadProgress(() => window.dteApp.selectFolder());
       if (!result) {
         setStatus('Seleccion cancelada.');
         return;
@@ -34,13 +55,13 @@ export function useDteActions({
     } finally {
       setLoading(false);
     }
-  }, [applyLoadResult, setLoading, setStatus]);
+  }, [applyLoadResult, setLoading, setStatus, withFileLoadProgress]);
 
   const selectFiles = useCallback(async () => {
     setLoading(true);
     setStatus('Leyendo archivos CSV/JSON...');
     try {
-      const result = await window.dteApp.selectFiles();
+      const result = await withFileLoadProgress(() => window.dteApp.selectFiles());
       if (!result) {
         setStatus('Seleccion cancelada.');
         return;
@@ -52,7 +73,7 @@ export function useDteActions({
     } finally {
       setLoading(false);
     }
-  }, [applyLoadResult, setLoading, setStatus]);
+  }, [applyLoadResult, setLoading, setStatus, withFileLoadProgress]);
 
   const reloadFolder = useCallback(async () => {
     const folderPath = String(folder || '').trim();
@@ -67,14 +88,14 @@ export function useDteActions({
       if (!window.dteApp?.reloadFolder) {
         throw new Error('Reinicie la aplicacion para habilitar la carga por ruta pegada.');
       }
-      const result = await window.dteApp.reloadFolder(folderPath);
+      const result = await withFileLoadProgress(() => window.dteApp.reloadFolder(folderPath));
       applyLoadResult(result);
     } catch (error) {
       setStatus(`Error al cargar JSON: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  }, [applyLoadResult, folder, setLoading, setStatus]);
+  }, [applyLoadResult, folder, setLoading, setStatus, withFileLoadProgress]);
 
   const exportExcel = useCallback(async () => {
     if (!rows.length) {

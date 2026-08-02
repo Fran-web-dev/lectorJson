@@ -57,6 +57,8 @@ const IVA_BOOKS = {
       { header: 'NUMERO DE CONTROL', width: '190px' },
       { header: 'CODIGO DE GENERACION', width: '190px' },
       { header: 'SELLO DE RECEPCION', width: '190px' },
+      { header: 'N.R.C', width: '110px' },
+      { header: 'NIT', width: '135px' },
       { header: 'VENTAS NO SUJETAS', width: '175px', money: true },
       { header: 'VENTAS EXENTAS', width: '165px', money: true },
       { header: 'VENTAS GRAVADAS LOCALES', width: '185px', money: true },
@@ -70,6 +72,7 @@ const IVA_BOOKS = {
 
 const EMPTY_ROWS = 24;
 const ACTIONS_COLUMN_WIDTH = '92px';
+const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
 const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
 const PROVIDER_RENT_COLUMNS = {
   operation: 'TIPO DE OPERACION (Renta)',
@@ -95,12 +98,18 @@ const PURCHASE_RENT_COLUMN_TOKENS = {
   sector: ['SECTOR'],
   costExpense: ['TIPO', 'COSTO', 'GASTO']
 };
+const CLIENT_REGISTER_COLUMN_TOKENS = {
+  operation: ['TIPO', 'OPERACION'],
+  income: ['TIPO', 'INGRESO']
+};
 const IVA_BOOK_MAPPINGS = {
   fcfSales: {
     'FECHA EMISION': 'Fecha',
     'NUMERO DE CONTROL': 'Numero de Control',
     'CODIGO DE GENERACION': ['Codigo de generacion local', 'Numero del Documento', 'Numero Documento'],
     'SELLO DE RECEPCION': ['Serie del Documento', 'Serie Documento'],
+    'N.R.C': 'NRC receptor',
+    NIT: 'NIT receptor',
     'VENTAS NO SUJETAS': 'Total no Sujetas',
     'VENTAS EXENTAS': 'Total Exenta',
     'VENTAS GRAVADAS LOCALES': { exceptTypeCode: '11', source: 'Total Gravado' },
@@ -112,16 +121,59 @@ const IVA_BOOK_MAPPINGS = {
     'NUMERO DE CONTROL': 'Numero de Control',
     'CODIGO DE GENERACION': ['Codigo de generacion local', 'Numero del Documento', 'Numero Documento'],
     'SELLO DE RECEPCION': ['Serie del Documento', 'Serie Documento'],
-    'N.R.C / NIT': 'NRC receptor',
-    'NOMBRE DEL CLIENTE': 'Nombre receptor',
-    'NO SUJETAS': 'Total no Sujetas',
-    EXENTAS: 'Total Exenta',
-    'VENTAS INTERNAS GRAVADAS VALOR NETO': 'Total Gravado',
-    'IVA DEBITO': ['Debito Fiscal', 'Credito Fiscal'],
-    'VENTA TOTAL': 'Monto Total de la Operacion',
-    'RETENCION 1%': 'IVA Retenido',
-    'TIPO DE OPERACION': 'Condicion de la operacion',
-    'TIPO DE INGRESO': { fallback: 'Gravado', source: ['Tipo de ingreso', 'Tipo de Ingreso', 'TIPO DE INGRESO'] }
+    'N.R.C / NIT': {
+      byTypeCode: {
+        '07': ['NRC emisor', 'NIT emisor'],
+        default: ['NRC receptor', 'NIT receptor']
+      }
+    },
+    'NOMBRE DEL CLIENTE': {
+      byTypeCode: {
+        '07': 'Nombre emisor',
+        default: 'Nombre receptor'
+      }
+    },
+    'NO SUJETAS': {
+      byTypeCode: {
+        '05': { calculate: [{ add: 'Total no Sujetas' }, { subtract: 'Desc. no Sujeta' }] },
+        '07': { fixed: '$0.00' },
+        default: 'Total no Sujetas'
+      }
+    },
+    EXENTAS: {
+      byTypeCode: {
+        '05': { calculate: [{ add: 'Total Exenta' }, { subtract: 'Desc. Exenta' }] },
+        '07': { fixed: '$0.00' },
+        default: 'Total Exenta'
+      }
+    },
+    'VENTAS INTERNAS GRAVADAS VALOR NETO': {
+      byTypeCode: {
+        '05': { calculate: [{ add: 'Total Gravado' }, { subtract: 'Desc. Gravado' }] },
+        '07': { fixed: '$0.00' },
+        default: 'Total Gravado'
+      }
+    },
+    'IVA DEBITO': {
+      byTypeCode: {
+        '07': { fixed: '$0.00' },
+        default: ['Debito Fiscal', 'Credito Fiscal']
+      }
+    },
+    'VENTA TOTAL': {
+      byTypeCode: {
+        '07': { fixed: '$0.00' },
+        default: 'Monto Total de la Operacion'
+      }
+    },
+    'RETENCION 1%': {
+      byTypeCode: {
+        '07': ['Retencion IVA', 'IVA retenido', 'IVA Retenido'],
+        default: 'IVA Retenido'
+      }
+    },
+    'TIPO DE OPERACION': '',
+    'TIPO DE INGRESO': ''
   },
   purchases: {
     'FECHA DE EMISION': 'Fecha',
@@ -168,9 +220,14 @@ const IVA_BOOK_REQUIREMENTS = {
     message: 'Para cargar datos en Libro de Ventas FCF seleccione en INICIO: Tipo de Documento 01 con estructura FCF EMISOR, o Tipo de Documento 11 con estructura FEX EMISOR.'
   },
   ccfSales: {
-    typeCode: '03',
-    structureName: 'CCF EMISOR VENTA',
-    message: 'Para importar datos en Libro de Ventas CCF seleccione en INICIO: Tipo de Documento 03 y Nombre de estructura CCF EMISOR VENTA.'
+    accepted: [
+      { typeCode: '03', structureName: 'CCF EMISOR VENTA' },
+      { typeCode: '05', structureName: 'NOTA DE CREDITO EMISOR VENTA' },
+      { typeCode: '05', structureName: 'NOTA DE CREDITO EMISOR VENTAS' },
+      { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPTOR' },
+      { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPCION' }
+    ],
+    message: 'Para importar datos en Libro de Ventas CCF seleccione en INICIO: Tipo de Documento 03 con estructura CCF EMISOR VENTA, Tipo de Documento 05 con estructura NOTA DE CREDITO EMISOR VENTA, o Tipo de Documento 07 con estructura COMPROBANTE DE RETENCION RECEPTOR.'
   },
   purchases: {
     accepted: [
@@ -206,7 +263,7 @@ function hasBookRowData(row, columns) {
   return columns.some((column, columnIndex) => columnIndex > 0 && String(row?.[column.header] || '').trim());
 }
 
-function mergePurchaseRows(currentRows, importedRows, importedTypeCode, columns) {
+function mergeTypedBookRows(currentRows, importedRows, importedTypeCode, columns, type) {
   const normalizedImportedType = String(importedTypeCode || '').padStart(2, '0');
   const existingRows = currentRows.filter((row) => (
     hasBookRowData(row, columns) && row.__sourceTypeCode !== normalizedImportedType
@@ -216,7 +273,7 @@ function mergePurchaseRows(currentRows, importedRows, importedTypeCode, columns)
     __sourceTypeCode: normalizedImportedType
   }));
 
-  return renumberBookRows(orderRowsForIvaBook([...existingRows, ...taggedImportedRows], 'purchases'), columns);
+  return renumberBookRows(orderRowsForIvaBook([...existingRows, ...taggedImportedRows], type), columns);
 }
 
 function getSourceValue(row, sourceColumn) {
@@ -225,6 +282,10 @@ function getSourceValue(row, sourceColumn) {
 
     if (sourceColumn.byTypeCode) {
       return getSourceValue(row, sourceColumn.byTypeCode[sourceType] ?? sourceColumn.byTypeCode.default);
+    }
+
+    if (Object.prototype.hasOwnProperty.call(sourceColumn, 'fixed')) {
+      return sourceColumn.fixed;
     }
 
     if (sourceColumn.calculate) {
@@ -336,6 +397,30 @@ function loadProviderRegisterLookup() {
   }
 }
 
+function loadClientRegisterLookup() {
+  if (typeof window === 'undefined') return { nit: new Map(), nrc: new Map() };
+
+  try {
+    const rows = JSON.parse(window.localStorage.getItem(CLIENT_REGISTER_STORAGE_KEY) || '[]');
+    if (!Array.isArray(rows)) return { nit: new Map(), nrc: new Map() };
+
+    const lookup = { nit: new Map(), nrc: new Map() };
+    for (const row of rows) {
+      const hasClientData = Object.values(CLIENT_REGISTER_COLUMN_TOKENS).some((tokens) => String(getValueByTokens(row, tokens)).trim());
+      if (!hasClientData) continue;
+
+      const nrcKey = normalizeRegisterLookupKey(row?.NRC);
+      const nitKey = normalizeRegisterLookupKey(row?.NIT);
+      if (nrcKey && !lookup.nrc.has(nrcKey)) lookup.nrc.set(nrcKey, row);
+      if (nitKey && !lookup.nit.has(nitKey)) lookup.nit.set(nitKey, row);
+    }
+
+    return lookup;
+  } catch {
+    return { nit: new Map(), nrc: new Map() };
+  }
+}
+
 function applyProviderRentDataToPurchaseRow(bookRow, providerLookup) {
   const providerKey = normalizeRegisterLookupKey(bookRow?.['N.R.C / NIT']);
   const provider = providerLookup.get(providerKey);
@@ -347,6 +432,18 @@ function applyProviderRentDataToPurchaseRow(bookRow, providerLookup) {
   nextRow = setValueByTokens(nextRow, PURCHASE_RENT_COLUMN_TOKENS.sector, getValueByTokens(provider, PROVIDER_RENT_COLUMN_TOKENS.sector));
   nextRow = setValueByTokens(nextRow, PURCHASE_RENT_COLUMN_TOKENS.costExpense, getValueByTokens(provider, PROVIDER_RENT_COLUMN_TOKENS.costExpense));
   return nextRow;
+}
+
+function applyClientRentDataToCcfSaleRow(bookRow, clientLookup) {
+  const clientKey = normalizeRegisterLookupKey(bookRow?.['N.R.C / NIT']);
+  const client = clientLookup.nrc.get(clientKey) || clientLookup.nit.get(clientKey);
+  if (!client) return bookRow;
+
+  return {
+    ...bookRow,
+    'TIPO DE OPERACION': getValueByTokens(client, CLIENT_REGISTER_COLUMN_TOKENS.operation),
+    'TIPO DE INGRESO': getValueByTokens(client, CLIENT_REGISTER_COLUMN_TOKENS.income)
+  };
 }
 
 function getInvalidOrRejectedOverride(bookType, columnHeader) {
@@ -410,6 +507,11 @@ function orderRowsForIvaBook(rows, type) {
     fcfSales: new Map([
       ['01', 0],
       ['11', 1]
+    ]),
+    ccfSales: new Map([
+      ['03', 0],
+      ['05', 1],
+      ['07', 2]
     ]),
     purchases: new Map([
       ['03', 0],
@@ -541,6 +643,7 @@ export function IvaBooksView({
 
     const mapping = IVA_BOOK_MAPPINGS[type] || IVA_BOOK_MAPPINGS.purchases;
     const providerLookup = type === 'purchases' ? loadProviderRegisterLookup() : new Map();
+    const clientLookup = type === 'ccfSales' ? loadClientRegisterLookup() : { nit: new Map(), nrc: new Map() };
     const orderedSourceRows = orderRowsForIvaBook(sourceRows, type);
     const nextRows = orderedSourceRows.map((sourceRow, rowIndex) => {
       const forceZeroMoney = hasInvalidOrRejectedStatus(sourceRow);
@@ -573,13 +676,13 @@ export function IvaBooksView({
         __sourceTypeCode: String(sourceRow?.['Tipo DTE'] || sourceTypeCode || '').padStart(2, '0')
       };
 
-      return type === 'purchases'
-        ? applyProviderRentDataToPurchaseRow(bookRow, providerLookup)
-        : bookRow;
+      if (type === 'purchases') return applyProviderRentDataToPurchaseRow(bookRow, providerLookup);
+      if (type === 'ccfSales') return applyClientRentDataToCcfSaleRow(bookRow, clientLookup);
+      return bookRow;
     });
-    if (type === 'purchases') {
+    if (type === 'purchases' || type === 'ccfSales' || type === 'fcfSales') {
       setBookRows((currentRows) => {
-        const mergedRows = mergePurchaseRows(currentRows, nextRows, sourceTypeCode, config.columns);
+        const mergedRows = mergeTypedBookRows(currentRows, nextRows, sourceTypeCode, config.columns, type);
         return mergedRows.length ? mergedRows : createEmptyBookRows(config.columns);
       });
     } else {
