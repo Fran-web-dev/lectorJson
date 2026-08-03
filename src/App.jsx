@@ -51,6 +51,26 @@ function normalizeGenerationKey(value) {
   return String(value || '').replace(/-/g, '').trim().toUpperCase();
 }
 
+function getRowDeleteKey(row) {
+  return {
+    controlNumber: normalizeGenerationKey(row?.['Numero de Control']),
+    generationCode: normalizeGenerationKey(row?.['Codigo de generacion local'] || row?.['Numero del Documento'] || row?.['Codigo de Generacion']),
+    sourceFile: String(row?.__sourceFile || '')
+  };
+}
+
+function documentMatchesRow(document, rowKey) {
+  if (!document || !rowKey?.sourceFile || document.sourceFile !== rowKey.sourceFile) return false;
+
+  const documentGenerationCode = normalizeGenerationKey(getDocumentGenerationCode(document));
+  const documentControlNumber = normalizeGenerationKey(document.payload?.identificacion?.numeroControl);
+
+  return Boolean(
+    (rowKey.generationCode && documentGenerationCode === rowKey.generationCode)
+    || (rowKey.controlNumber && documentControlNumber === rowKey.controlNumber)
+  );
+}
+
 function getTableColumns(rows, typeCode) {
   const columnSet = new Set();
   for (const row of rows) {
@@ -102,6 +122,7 @@ export default function App() {
   const [showClearTableModal, setShowClearTableModal] = useState(false);
   const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
   const [clearTablePassword, setClearTablePassword] = useState('');
+  const [rowPendingDelete, setRowPendingDelete] = useState(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 650);
@@ -128,6 +149,17 @@ export default function App() {
     setColumnFilters({});
     setSelectedRow(null);
   }, [structureName, typeCode]);
+
+  useEffect(() => {
+    if (!rowPendingDelete) return undefined;
+
+    function handleDeleteRowModalKeyDown(event) {
+      if (event.key === 'Escape') setRowPendingDelete(null);
+    }
+
+    window.addEventListener('keydown', handleDeleteRowModalKeyDown);
+    return () => window.removeEventListener('keydown', handleDeleteRowModalKeyDown);
+  }, [rowPendingDelete]);
 
   useEffect(() => {
     let cancelled = false;
@@ -428,6 +460,30 @@ export default function App() {
     closeClearTableModal();
   }
 
+  function requestDeleteInicioRow(row) {
+    setRowPendingDelete(row);
+  }
+
+  function closeDeleteRowModal() {
+    setRowPendingDelete(null);
+  }
+
+  function confirmDeleteInicioRow() {
+    const row = rowPendingDelete;
+    if (!row) return;
+    const rowKey = getRowDeleteKey(row);
+    setDocuments((currentDocuments) => {
+      const nextDocuments = currentDocuments.filter((document) => !documentMatchesRow(document, rowKey));
+      const deletedCount = currentDocuments.length - nextDocuments.length;
+      window.queueMicrotask(() => {
+        setStatus(deletedCount ? `${deletedCount} linea(s) eliminada(s).` : 'No se pudo identificar la linea para eliminar.');
+      });
+      return nextDocuments;
+    });
+    if (selectedRow === row) setSelectedRow(null);
+    setRowPendingDelete(null);
+  }
+
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       {showSplash ? <SplashScreen /> : null}
@@ -485,6 +541,7 @@ export default function App() {
                   columns={columns}
                   filterSourceRows={rows}
                   onColumnFilterChange={setColumnFilters}
+                  onRowDelete={requestDeleteInicioRow}
                   onRowSelect={setSelectedRow}
                   rows={filteredRows}
                   selectedRow={selectedRow}
@@ -530,6 +587,26 @@ export default function App() {
                     NO
                   </button>
                   <button className="actionButton dangerActionButton" disabled={clearTablePassword !== HOME_CLEAR_KEY} onClick={confirmClearTable} type="button">
+                    SI
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
+          {rowPendingDelete ? (
+            <div className="registerModalBackdrop">
+              <div className="registerModal deleteRowConfirmModal" role="dialog" aria-modal="true" aria-labelledby="delete-row-modal-title">
+                <div className="registerModalHeader">
+                  <h2 id="delete-row-modal-title">Deseas borrar el registro</h2>
+                  <button className="modalIconButton" onClick={closeDeleteRowModal} type="button">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="registerModalActions">
+                  <button className="actionButton" onClick={closeDeleteRowModal} type="button">
+                    NO
+                  </button>
+                  <button className="actionButton dangerActionButton" onClick={confirmDeleteInicioRow} type="button">
                     SI
                   </button>
                 </div>

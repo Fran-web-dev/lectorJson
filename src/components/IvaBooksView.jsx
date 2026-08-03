@@ -1,5 +1,6 @@
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const IVA_BOOKS = {
   purchases: {
@@ -45,8 +46,8 @@ const IVA_BOOKS = {
       { header: 'IVA DEBITO', width: '130px', money: true },
       { header: 'VENTA TOTAL', width: '130px', money: true },
       { header: 'RETENCION 1%', width: '120px', money: true },
-      { header: 'TIPO DE OPERACION', width: '155px', redHeader: true },
-      { header: 'TIPO DE INGRESO', width: '165px', redHeader: true }
+      { header: 'TIPO DE OPERACION (RENTA)', width: '155px', redHeader: true },
+      { header: 'TIPO DE INGRESO (Renta)', width: '165px', redHeader: true }
     ]
   },
   fcfSales: {
@@ -57,8 +58,7 @@ const IVA_BOOKS = {
       { header: 'NUMERO DE CONTROL', width: '190px' },
       { header: 'CODIGO DE GENERACION', width: '190px' },
       { header: 'SELLO DE RECEPCION', width: '190px' },
-      { header: 'N.R.C', width: '110px' },
-      { header: 'NIT', width: '135px' },
+      { header: 'Estado del DTE', width: '135px' },
       { header: 'VENTAS NO SUJETAS', width: '175px', money: true },
       { header: 'VENTAS EXENTAS', width: '165px', money: true },
       { header: 'VENTAS GRAVADAS LOCALES', width: '185px', money: true },
@@ -72,6 +72,9 @@ const IVA_BOOKS = {
 
 const EMPTY_ROWS = 24;
 const ACTIONS_COLUMN_WIDTH = '92px';
+const IVA_BOOK_ROW_HEIGHT = 24;
+const IVA_BOOK_OVERSCAN = 10;
+const FCF_IMPORT_PROGRESS_BATCH_SIZE = 250;
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
 const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
 const PROVIDER_RENT_COLUMNS = {
@@ -80,6 +83,32 @@ const PROVIDER_RENT_COLUMNS = {
   sector: 'SECTOR (Renta)',
   costExpense: 'TIPO DE COSTO/GASTO (Renta)'
 };
+const FCF_RENT_OPERATION_COLUMN_TOKENS = ['TIPO', 'OPERACION', 'RENTA'];
+const FCF_RENT_INCOME_COLUMN_TOKENS = ['TIPO', 'INGRESO', 'RENTA'];
+const FCF_RENT_OPERATION_OPTIONS = [
+  '0 Para periodos anteriores a enero 2025',
+  '01 Gravada',
+  '02 No gravada o exenta',
+  '03 Excluido o no constituye renta',
+  '04 Mixta (Se refiere cuando en un mismo documento se encuentre una operaciÃ³n gravada y exenta.)',
+  '12 Ingresos que ya fueron sujetos de retenciÃ³n en F910',
+  '13 Sujetos pasivos excluidos (art. 6 LISR) e ingresos que no constituyen hecho generador del ISR'
+];
+const FCF_RENT_INCOME_OPTIONS = [
+  '0 Para periodos anteriores a enero 2025',
+  '01 Profesiones, Artes y Oficios',
+  '02 Actividades de Servicios',
+  '03 Actividades Comerciales',
+  '04 Actividades Industriales',
+  '05 Actividades Agropecuarias',
+  '06 Utilidades y Dividendos',
+  '07 Exportaciones de bienes',
+  '08 Servicios Realizados en el Exterior y Utilizados en El Salvador',
+  '09 Exportaciones de servicios',
+  '10 Otras rentas gravables',
+  '12 Ingresos que ya fueron sujetos de retenciÃ³n en F910',
+  '13 Sujetos pasivos excluidos (art. 6 LISR) e ingresos que no constituyen hecho generador del ISR'
+];
 const PURCHASE_RENT_COLUMNS = {
   operation: 'TIPO DE OPERACIÃ“N',
   classification: 'CLASIFICACIÃ“N',
@@ -108,13 +137,14 @@ const IVA_BOOK_MAPPINGS = {
     'NUMERO DE CONTROL': 'Numero de Control',
     'CODIGO DE GENERACION': ['Codigo de generacion local', 'Numero del Documento', 'Numero Documento'],
     'SELLO DE RECEPCION': ['Serie del Documento', 'Serie Documento'],
-    'N.R.C': 'NRC receptor',
-    NIT: 'NIT receptor',
+    'Estado del DTE': 'Estado del DTE',
     'VENTAS NO SUJETAS': 'Total no Sujetas',
     'VENTAS EXENTAS': 'Total Exenta',
     'VENTAS GRAVADAS LOCALES': { exceptTypeCode: '11', source: 'Total Gravado' },
     'VENTAS GRAVADAS EXPORTAC.': { onlyTypeCode: '11', source: ['Monto Total Operación', 'Monto Total de la Operacion'] },
-    TOTAL: 'Total a Pagar'
+    TOTAL: 'Total a Pagar',
+    'TIPO DE OPERACIÓN (Renta)': { fixed: '01 Gravada' },
+    'TIPO DE INGRESO (Renta)': { fromItemType: true }
   },
   ccfSales: {
     'FECHA DE EMISION': 'Fecha',
@@ -172,8 +202,8 @@ const IVA_BOOK_MAPPINGS = {
         default: 'IVA Retenido'
       }
     },
-    'TIPO DE OPERACION': '',
-    'TIPO DE INGRESO': ''
+    'TIPO DE OPERACION (RENTA)': { fixed: '01 Gravada' },
+    'TIPO DE INGRESO (Renta)': { fromItemType: true }
   },
   purchases: {
     'FECHA DE EMISION': 'Fecha',
@@ -259,6 +289,13 @@ function renumberBookRows(rows, columns) {
   }));
 }
 
+function getVisibleBookRange(scrollTop, viewportHeight, rowCount) {
+  const startIndex = Math.max(0, Math.floor(scrollTop / IVA_BOOK_ROW_HEIGHT) - IVA_BOOK_OVERSCAN);
+  const visibleCount = Math.ceil(viewportHeight / IVA_BOOK_ROW_HEIGHT) + IVA_BOOK_OVERSCAN * 2;
+  const endIndex = Math.min(rowCount, startIndex + visibleCount);
+  return { endIndex, startIndex };
+}
+
 function hasBookRowData(row, columns) {
   return columns.some((column, columnIndex) => columnIndex > 0 && String(row?.[column.header] || '').trim());
 }
@@ -276,6 +313,51 @@ function mergeTypedBookRows(currentRows, importedRows, importedTypeCode, columns
   return renumberBookRows(orderRowsForIvaBook([...existingRows, ...taggedImportedRows], type), columns);
 }
 
+function resolveDominantItemType(value) {
+  const itemTypes = String(value || '').match(/[123]/g) || [];
+  if (!itemTypes.length) return '';
+
+  const counts = new Map();
+  for (const itemType of itemTypes) {
+    counts.set(itemType, (counts.get(itemType) || 0) + 1);
+  }
+
+  return itemTypes.reduce((dominant, itemType) => (
+    (counts.get(itemType) || 0) > (counts.get(dominant) || 0) ? itemType : dominant
+  ), itemTypes[0]);
+}
+
+function normalizeColumnText(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
+}
+
+function columnMatchesTokens(header, tokens) {
+  const normalizedHeader = normalizeColumnText(header);
+  return tokens.every((token) => normalizedHeader.includes(token));
+}
+
+function getSalesRentColumnOptions(type, header, value = '') {
+  if (type !== 'fcfSales' && type !== 'ccfSales') return [];
+  const options = columnMatchesTokens(header, FCF_RENT_OPERATION_COLUMN_TOKENS)
+    ? FCF_RENT_OPERATION_OPTIONS
+    : columnMatchesTokens(header, FCF_RENT_INCOME_COLUMN_TOKENS)
+      ? FCF_RENT_INCOME_OPTIONS
+      : [];
+  if (!options.length) return [];
+  const normalizedValue = String(value || '').trim();
+  if (!normalizedValue || options.includes(normalizedValue)) return options;
+  return [normalizedValue, ...options];
+}
+
+function isSalesRentColumn(type, header) {
+  if (type !== 'fcfSales' && type !== 'ccfSales') return false;
+  return columnMatchesTokens(header, FCF_RENT_OPERATION_COLUMN_TOKENS)
+    || columnMatchesTokens(header, FCF_RENT_INCOME_COLUMN_TOKENS);
+}
+
 function getSourceValue(row, sourceColumn) {
   if (sourceColumn && typeof sourceColumn === 'object' && !Array.isArray(sourceColumn)) {
     const sourceType = String(row?.['Tipo DTE'] || '').padStart(2, '0');
@@ -286,6 +368,13 @@ function getSourceValue(row, sourceColumn) {
 
     if (Object.prototype.hasOwnProperty.call(sourceColumn, 'fixed')) {
       return sourceColumn.fixed;
+    }
+
+    if (sourceColumn.fromItemType) {
+      const itemType = resolveDominantItemType(row?.['Tipo de Item']);
+      if (itemType === '1' || itemType === '3') return '03 Actividades comerciales';
+      if (itemType === '2') return '02 Actividades de servicios';
+      return '';
     }
 
     if (sourceColumn.calculate) {
@@ -548,16 +637,49 @@ function summarizeLoadedDteTypes(rows) {
 }
 
 function summarizeBookAlerts(rows) {
-  let duplicateCount = 0;
   let invalidOrRejectedCount = 0;
+  const duplicateKeys = new Map();
 
   for (const row of rows) {
-    if (row?.__isDuplicate) duplicateCount += 1;
+    if (!hasBookRowData(row, [
+      { header: 'CODIGO DE GENERACION' },
+      { header: 'NUMERO DE CONTROL' }
+    ])) continue;
+
+    const duplicateKey = String(row?.['CODIGO DE GENERACION'] || row?.['NUMERO DE CONTROL'] || '').trim().toUpperCase();
+    if (duplicateKey) duplicateKeys.set(duplicateKey, (duplicateKeys.get(duplicateKey) || 0) + 1);
+
     const status = String(row?.__dteStatus || row?.['Estado del DTE'] || '').toLowerCase();
     if (status.includes('invalidado') || status.includes('rechazado')) invalidOrRejectedCount += 1;
   }
 
+  let duplicateCount = 0;
+  for (const row of rows) {
+    const duplicateKey = String(row?.['CODIGO DE GENERACION'] || row?.['NUMERO DE CONTROL'] || '').trim().toUpperCase();
+    if (row?.__isDuplicate || (duplicateKey && duplicateKeys.get(duplicateKey) > 1)) duplicateCount += 1;
+  }
+
   return { duplicateCount, invalidOrRejectedCount };
+}
+
+function getBookDuplicateKeys(rows) {
+  const counts = new Map();
+  for (const row of rows) {
+    const duplicateKey = String(row?.['CODIGO DE GENERACION'] || row?.['NUMERO DE CONTROL'] || '').trim().toUpperCase();
+    if (duplicateKey) counts.set(duplicateKey, (counts.get(duplicateKey) || 0) + 1);
+  }
+  return counts;
+}
+
+function isDuplicateBookRow(row, duplicateKeys) {
+  const duplicateKey = String(row?.['CODIGO DE GENERACION'] || row?.['NUMERO DE CONTROL'] || '').trim().toUpperCase();
+  return Boolean(row?.__isDuplicate || (duplicateKey && duplicateKeys.get(duplicateKey) > 1));
+}
+
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    window.requestAnimationFrame(() => resolve());
+  });
 }
 
 export function IvaBooksView({
@@ -585,8 +707,19 @@ export function IvaBooksView({
   const [filters, setFilters] = useState({});
   const [filterSearch, setFilterSearch] = useState('');
   const [message, setMessage] = useState('');
+  const [importProgress, setImportProgress] = useState(null);
+  const [headerDraft, setHeaderDraft] = useState({
+    companyName: '',
+    businessLine: '',
+    nrc: '',
+    nit: '',
+    dui: '',
+    month: '',
+    year: ''
+  });
   const [openFilter, setOpenFilter] = useState('');
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
+  const [viewport, setViewport] = useState({ height: 520, scrollTop: 0 });
 
   useEffect(() => {
     onRowsChange?.(bookRows);
@@ -607,6 +740,16 @@ export function IvaBooksView({
     const direction = sortConfig.direction === 'desc' ? -1 : 1;
     return [...filteredBookRows].sort((a, b) => compareBookValues(a[sortConfig.column], b[sortConfig.column], column || {}) * direction);
   }, [config.columns, filteredBookRows, sortConfig]);
+  const visibleRange = useMemo(
+    () => getVisibleBookRange(viewport.scrollTop, viewport.height, visibleBookRows.length),
+    [viewport, visibleBookRows.length]
+  );
+  const renderedBookRows = useMemo(
+    () => visibleBookRows.slice(visibleRange.startIndex, visibleRange.endIndex),
+    [visibleBookRows, visibleRange]
+  );
+  const topSpacerHeight = visibleRange.startIndex * IVA_BOOK_ROW_HEIGHT;
+  const bottomSpacerHeight = Math.max(0, (visibleBookRows.length - visibleRange.endIndex) * IVA_BOOK_ROW_HEIGHT);
   const totals = useMemo(() => {
     const nextTotals = {};
     const moneyColumns = config.columns.filter((column) => column.money);
@@ -626,15 +769,33 @@ export function IvaBooksView({
   }, [bookRows, openFilter]);
   const dteTypeSummary = useMemo(() => summarizeLoadedDteTypes(bookRows), [bookRows]);
   const bookAlertSummary = useMemo(() => summarizeBookAlerts(bookRows), [bookRows]);
+  const duplicateKeys = useMemo(() => getBookDuplicateKeys(bookRows), [bookRows]);
+  const useEditableBookHeader = type === 'purchases' || type === 'ccfSales' || type === 'fcfSales';
+
+  const updateHeaderDraft = useCallback((field, value) => {
+    const nextValue = ['nrc', 'nit', 'dui'].includes(field)
+      ? String(value || '').replace(/\D/g, '')
+      : value;
+    setHeaderDraft((current) => ({ ...current, [field]: nextValue }));
+  }, []);
 
   function toggleSort(column) {
     setSortConfig((current) => ({
       column: column.header,
       direction: current.column === column.header && current.direction === 'asc' ? 'desc' : 'asc'
     }));
+    setViewport((current) => ({ ...current, scrollTop: 0 }));
   }
 
-  function importData() {
+  const handleTableScroll = useCallback((event) => {
+    const target = event.currentTarget;
+    setViewport({
+      height: target.clientHeight,
+      scrollTop: target.scrollTop
+    });
+  }, []);
+
+  async function importData() {
     const requirement = IVA_BOOK_REQUIREMENTS[type] || IVA_BOOK_REQUIREMENTS.purchases;
     if (!matchesBookRequirement(requirement, sourceTypeCode, sourceStructureName)) {
       setMessage(requirement.message);
@@ -643,15 +804,24 @@ export function IvaBooksView({
 
     const mapping = IVA_BOOK_MAPPINGS[type] || IVA_BOOK_MAPPINGS.purchases;
     const providerLookup = type === 'purchases' ? loadProviderRegisterLookup() : new Map();
-    const clientLookup = type === 'ccfSales' ? loadClientRegisterLookup() : { nit: new Map(), nrc: new Map() };
     const orderedSourceRows = orderRowsForIvaBook(sourceRows, type);
-    const nextRows = orderedSourceRows.map((sourceRow, rowIndex) => {
+    const shouldShowFcfProgress = type === 'fcfSales';
+    const totalRowsToImport = orderedSourceRows.length;
+    if (shouldShowFcfProgress) {
+      setImportProgress({ completed: 0, total: totalRowsToImport });
+      await waitForNextFrame();
+    }
+
+    const nextRows = [];
+    for (let rowIndex = 0; rowIndex < orderedSourceRows.length; rowIndex += 1) {
+      const sourceRow = orderedSourceRows[rowIndex];
       const forceZeroMoney = hasInvalidOrRejectedStatus(sourceRow);
 
       const bookRow = {
         ...Object.fromEntries(
         config.columns.map((column, columnIndex) => {
           const invalidOverride = forceZeroMoney ? getInvalidOrRejectedOverride(type, column.header) : null;
+          const clearRentColumn = forceZeroMoney && isSalesRentColumn(type, column.header);
           const value = normalizeIvaBookValue(column.header, getSourceValue(sourceRow, mapping[column.header]));
           const sourceType = String(sourceRow?.['Tipo DTE'] || sourceTypeCode || '').padStart(2, '0');
           const normalizedValue = type === 'purchases' && sourceType === '05' && column.money
@@ -663,6 +833,8 @@ export function IvaBooksView({
               ? String(rowIndex + 1)
               : invalidOverride !== null
                 ? invalidOverride
+              : clearRentColumn
+                ? ''
               : forceZeroMoney && column.money
                 ? '$0.00'
                 : column.money && !normalizedValue
@@ -676,10 +848,20 @@ export function IvaBooksView({
         __sourceTypeCode: String(sourceRow?.['Tipo DTE'] || sourceTypeCode || '').padStart(2, '0')
       };
 
-      if (type === 'purchases') return applyProviderRentDataToPurchaseRow(bookRow, providerLookup);
-      if (type === 'ccfSales') return applyClientRentDataToCcfSaleRow(bookRow, clientLookup);
-      return bookRow;
-    });
+      if (type === 'purchases') {
+        nextRows.push(applyProviderRentDataToPurchaseRow(bookRow, providerLookup));
+      } else {
+        nextRows.push(bookRow);
+      }
+
+      if (
+        shouldShowFcfProgress
+        && ((rowIndex + 1) % FCF_IMPORT_PROGRESS_BATCH_SIZE === 0 || rowIndex + 1 === totalRowsToImport)
+      ) {
+        setImportProgress({ completed: rowIndex + 1, total: totalRowsToImport });
+        await waitForNextFrame();
+      }
+    }
     if (type === 'purchases' || type === 'ccfSales' || type === 'fcfSales') {
       setBookRows((currentRows) => {
         const mergedRows = mergeTypedBookRows(currentRows, nextRows, sourceTypeCode, config.columns, type);
@@ -693,6 +875,7 @@ export function IvaBooksView({
     setFilterSearch('');
     setSortConfig({ column: '', direction: 'asc' });
     setMessage(`${nextRows.length} registro(s) importado(s).`);
+    if (shouldShowFcfProgress) setImportProgress(null);
   }
 
   const getBookRowIndex = useCallback((row) => rowIndexByRef.get(row) ?? -1, [rowIndexByRef]);
@@ -845,6 +1028,11 @@ export function IvaBooksView({
         {(message || dteTypeSummary.length || bookAlertSummary.duplicateCount || bookAlertSummary.invalidOrRejectedCount) ? (
           <span className="ivaBookMessage">
             {message ? <span>{message}</span> : null}
+            {type === 'fcfSales' && importProgress ? (
+              <span className="ivaBookImportProgress">
+                Cargando {importProgress.completed}/{importProgress.total} archivo(s)...
+              </span>
+            ) : null}
             {dteTypeSummary.length ? (
               <span className="ivaBookTypeSummary" aria-label="Contador de documentos por tipo">
                 {dteTypeSummary.map((item) => (
@@ -870,23 +1058,86 @@ export function IvaBooksView({
       </div>
 
       <div className="ivaBookSheet">
-        <div className="ivaBookHeader">
-          <div className="ivaBookHeaderLabel">NOMBRE EMPRESA:</div>
-          <div className="ivaBookHeaderValue spanWide" />
-          <div className="ivaBookHeaderTitle">{config.title}</div>
-          <div className="ivaBookHeaderLabel">NRC:</div>
-          <div className="ivaBookHeaderValue" />
-          <div className="ivaBookHeaderLabel">NIT:</div>
-          <div className="ivaBookHeaderValue spanMedium" />
-          <div className="ivaBookHeaderLabel">GIRO:</div>
-          <div className="ivaBookHeaderValue spanWide" />
-          <div className="ivaBookHeaderLabel">MES:</div>
-          <div className="ivaBookHeaderValue" />
-          <div className="ivaBookHeaderLabel">AÑO:</div>
-          <div className="ivaBookHeaderValue" />
-        </div>
+        {useEditableBookHeader ? (
+          <div className="ivaBookSalesHeader">
+            <div className="ivaBookSalesHeaderTitle">{config.title}</div>
+            <label className="ivaBookSalesHeaderField company">
+              <span>NOMBRE DE LA EMPRESA:</span>
+              <input
+                onChange={(event) => updateHeaderDraft('companyName', event.target.value)}
+                value={headerDraft.companyName}
+              />
+            </label>
+            <label className="ivaBookSalesHeaderField giro">
+              <span>GIRO:</span>
+              <input
+                onChange={(event) => updateHeaderDraft('businessLine', event.target.value)}
+                value={headerDraft.businessLine}
+              />
+            </label>
+            <div className="ivaBookSalesHeaderRow">
+              <label className="ivaBookSalesHeaderField">
+                <span>NRC:</span>
+                <input
+                  inputMode="numeric"
+                  onChange={(event) => updateHeaderDraft('nrc', event.target.value)}
+                  pattern="[0-9]*"
+                  value={headerDraft.nrc}
+                />
+              </label>
+              <label className="ivaBookSalesHeaderField compact">
+                <span>NIT:</span>
+                <input
+                  inputMode="numeric"
+                  onChange={(event) => updateHeaderDraft('nit', event.target.value)}
+                  pattern="[0-9]*"
+                  value={headerDraft.nit}
+                />
+              </label>
+              <label className="ivaBookSalesHeaderField compact">
+                <span>DUI:</span>
+                <input
+                  inputMode="numeric"
+                  onChange={(event) => updateHeaderDraft('dui', event.target.value)}
+                  pattern="[0-9]*"
+                  value={headerDraft.dui}
+                />
+              </label>
+            </div>
+            <label className="ivaBookSalesHeaderField">
+              <span>MES:</span>
+              <input
+                onChange={(event) => updateHeaderDraft('month', event.target.value)}
+                value={headerDraft.month}
+              />
+            </label>
+            <label className="ivaBookSalesHeaderField">
+              <span>AÑO:</span>
+              <input
+                onChange={(event) => updateHeaderDraft('year', event.target.value)}
+                value={headerDraft.year}
+              />
+            </label>
+          </div>
+        ) : (
+          <div className="ivaBookHeader">
+            <div className="ivaBookHeaderLabel">NOMBRE EMPRESA:</div>
+            <div className="ivaBookHeaderValue spanWide" />
+            <div className="ivaBookHeaderTitle">{config.title}</div>
+            <div className="ivaBookHeaderLabel">NRC:</div>
+            <div className="ivaBookHeaderValue" />
+            <div className="ivaBookHeaderLabel">NIT:</div>
+            <div className="ivaBookHeaderValue spanMedium" />
+            <div className="ivaBookHeaderLabel">GIRO:</div>
+            <div className="ivaBookHeaderValue spanWide" />
+            <div className="ivaBookHeaderLabel">MES:</div>
+            <div className="ivaBookHeaderValue" />
+            <div className="ivaBookHeaderLabel">AÑO:</div>
+            <div className="ivaBookHeaderValue" />
+          </div>
+        )}
 
-        <div className="ivaBookTableViewport">
+        <div className="ivaBookTableViewport" onScroll={handleTableScroll}>
           <div className="ivaBookTable" style={{ gridTemplateColumns }}>
           <div className="ivaBookTotalCell" />
           {config.columns.map((column, columnIndex) => {
@@ -939,11 +1190,17 @@ export function IvaBooksView({
             </div>
           ))}
 
-          {visibleBookRows.flatMap((row, rowIndex) => {
+          {topSpacerHeight > 0 ? (
+            <div className="ivaBookVirtualSpacer" style={{ height: topSpacerHeight }} />
+          ) : null}
+
+          {renderedBookRows.flatMap((row, renderIndex) => {
+            const rowIndex = visibleRange.startIndex + renderIndex;
             const sourceIndex = getBookRowIndex(row);
             const isEditing = sourceIndex === editingRowIndex;
+            const isDuplicateRow = isDuplicateBookRow(row, duplicateKeys);
             const actionCell = (
-              <div className={`ivaBookCell ivaBookActionsCell ${rowIndex % 2 === 0 ? 'odd' : 'even'}`} key={`${rowIndex}-actions`}>
+              <div className={`ivaBookCell ivaBookActionsCell ${rowIndex % 2 === 0 ? 'odd' : 'even'} ${isDuplicateRow ? 'duplicate' : ''}`} key={`${rowIndex}-actions`}>
                 {isEditing ? (
                   <>
                     <button className="ivaBookRowButton save" onClick={saveEditing} title="Guardar" type="button">
@@ -970,14 +1227,15 @@ export function IvaBooksView({
             );
             const rowCells = config.columns.map((column, columnIndex) => (
               <div
-                className={`ivaBookCell ${rowIndex % 2 === 0 ? 'odd' : 'even'} ${column.money ? 'money' : ''} ${columnIndex === config.columns.length - 1 ? 'ivaBookLastColumn' : ''}`}
+                className={`ivaBookCell ${rowIndex % 2 === 0 ? 'odd' : 'even'} ${column.money ? 'money' : ''} ${isDuplicateRow ? 'duplicate' : ''} ${columnIndex === config.columns.length - 1 ? 'ivaBookLastColumn' : ''}`}
                 key={`${rowIndex}-${column.header}`}
                 title={String(row[column.header] || '')}
               >
                 {isEditing && columnIndex > 0 ? (
-                  <input
+                  <IvaBookFieldControl
                     className={`ivaBookEditInput ${column.money ? 'money' : ''}`}
-                    onChange={(event) => updateEditingValue(column.header, event.target.value)}
+                    onChange={(value) => updateEditingValue(column.header, value)}
+                    options={getSalesRentColumnOptions(type, column.header, editingDraft?.[column.header])}
                     value={editingDraft?.[column.header] || ''}
                   />
                   ) : columnIndex === 0 ? (
@@ -989,10 +1247,100 @@ export function IvaBooksView({
             ));
             return [actionCell, ...rowCells];
           })}
+          {bottomSpacerHeight > 0 ? (
+            <div className="ivaBookVirtualSpacer" style={{ height: bottomSpacerHeight }} />
+          ) : null}
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function IvaBookFieldControl({
+  className = '',
+  onChange,
+  options = [],
+  value
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState({});
+  const closeTimerRef = useRef(null);
+  const comboRef = useRef(null);
+
+  function openOptions() {
+    if (!options.length) return;
+    if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
+    const rect = comboRef.current?.getBoundingClientRect();
+    if (rect) {
+      setMenuStyle({
+        left: `${rect.left}px`,
+        top: `${rect.bottom + 2}px`,
+        width: `${Math.max(rect.width, 360)}px`
+      });
+    }
+    setIsOpen(true);
+  }
+
+  function scheduleClose() {
+    closeTimerRef.current = window.setTimeout(() => {
+      setIsOpen(false);
+    }, 140);
+  }
+
+  if (options.length) {
+    return (
+      <div className={`ivaBookCombobox ${isOpen ? 'open' : ''}`} ref={comboRef}>
+        <input
+          className={className}
+          onBlur={scheduleClose}
+          onChange={(event) => onChange(event.target.value)}
+          onClick={openOptions}
+          onFocus={openOptions}
+          placeholder="SELECCIONE O PEGUE UN VALOR..."
+          value={value}
+        />
+        <button
+          className="ivaBookComboboxButton"
+          onMouseDown={(event) => {
+            event.preventDefault();
+            if (isOpen) setIsOpen(false);
+            else openOptions();
+          }}
+          tabIndex={-1}
+          type="button"
+        >
+          v
+        </button>
+        {isOpen ? createPortal(
+          <div className="ivaBookComboboxMenu" style={menuStyle}>
+            {options.map((option) => (
+              <button
+                className="ivaBookComboboxOption"
+                key={option}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  onChange(option);
+                  setIsOpen(false);
+                }}
+                type="button"
+              >
+                {option}
+              </button>
+            ))}
+          </div>,
+          document.body
+        ) : null}
+      </div>
+    );
+  }
+
+  return (
+    <input
+      className={className}
+      onChange={(event) => onChange(event.target.value)}
+      value={value}
+    />
   );
 }
 

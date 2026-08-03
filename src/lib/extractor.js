@@ -399,7 +399,11 @@ export function extractRows(documents, options = {}) {
       __sourceFile: document.sourceFile || ''
     };
 
-    for (const rule of structure) {
+    for (const baseRule of structure) {
+      const rule = baseRule.byDteType?.[actualCode]
+        ? { ...baseRule, ...baseRule.byDteType[actualCode] }
+        : baseRule;
+
       if (rule.perItem) {
         baseRow[rule.name] = items
           .map((item) => extractFromPlainObject(item, rule.fields, rule.style))

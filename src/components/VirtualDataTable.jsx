@@ -5,11 +5,13 @@ import {
   useMemo,
   useState
 } from 'react';
+import { Trash2 } from 'lucide-react';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
 const AUTO_WIDTH_SAMPLE_SIZE = 300;
 const BOTTOM_SCROLL_PADDING = 56;
+const ACTIONS_COLUMN_WIDTH = 78;
 const PUBLIC_QUERY_COLUMNS = new Set([
   'Estado del DTE',
   'Descripcion del DTE',
@@ -149,7 +151,7 @@ function calculateColumnTotals(columns, rows) {
   return totals;
 }
 
-function DataRow({ columns, gridTemplateColumns, isSelected, onRowSelect, row, rowIndex }) {
+function DataRow({ columns, gridTemplateColumns, isSelected, onRowDelete, onRowSelect, row, rowIndex }) {
   const isRejectedOrInvalid = /invalidado|rechazado/i.test(String(row['Estado del DTE'] || ''));
 
   return (
@@ -159,6 +161,19 @@ function DataRow({ columns, gridTemplateColumns, isSelected, onRowSelect, row, r
       role="row"
       style={{ gridTemplateColumns, transform: `translateY(${rowIndex * ROW_HEIGHT}px)` }}
     >
+      <div className={`virtualCell virtualActionsCell ${row.__isDuplicate ? 'duplicateCell' : ''}`} role="cell">
+        <button
+          className="virtualRowDeleteButton"
+          onClick={(event) => {
+            event.stopPropagation();
+            onRowDelete?.(row);
+          }}
+          title="Borrar linea"
+          type="button"
+        >
+          <Trash2 size={13} />
+        </button>
+      </div>
       {columns.map((column) => (
         <div
           className={`virtualCell ${row.__isDuplicate ? 'duplicateCell' : ''}`}
@@ -177,6 +192,7 @@ const MemoDataRow = memo(DataRow, (previous, next) => (
   previous.columns === next.columns
   && previous.gridTemplateColumns === next.gridTemplateColumns
   && previous.isSelected === next.isSelected
+  && previous.onRowDelete === next.onRowDelete
   && previous.onRowSelect === next.onRowSelect
   && previous.row === next.row
   && previous.rowIndex === next.rowIndex
@@ -187,6 +203,7 @@ export function VirtualDataTable({
   columns,
   filterSourceRows,
   onColumnFilterChange,
+  onRowDelete,
   onRowSelect,
   rows,
   selectedRow
@@ -223,11 +240,11 @@ export function VirtualDataTable({
     [autoColumnWidths, columns, manualColumnWidths]
   );
   const gridTemplateColumns = useMemo(
-    () => columnWidths.map((width) => `${width}px`).join(' '),
+    () => `${ACTIONS_COLUMN_WIDTH}px ${columnWidths.map((width) => `${width}px`).join(' ')}`,
     [columnWidths]
   );
   const tableWidth = useMemo(
-    () => columnWidths.reduce((total, width) => total + width, 0),
+    () => ACTIONS_COLUMN_WIDTH + columnWidths.reduce((total, width) => total + width, 0),
     [columnWidths]
   );
   useEffect(() => {
@@ -335,6 +352,7 @@ function resetColumnWidth(event, column) {
           style={{ transform: `translateX(${-scrollLeft}px)`, width: tableWidth }}
         >
           <div className="virtualTotals" role="row" style={{ gridTemplateColumns }}>
+            <div className="virtualTotalCell virtualActionsTotalCell" role="cell" />
             {columns.map((column) => (
               <div className={`virtualTotalCell ${columnTotals[column] ? 'hasTotal' : ''}`} key={column} role="cell">
                 {columnTotals[column] || ''}
@@ -342,6 +360,9 @@ function resetColumnWidth(event, column) {
             ))}
           </div>
           <div className="virtualHeader" role="row" style={{ gridTemplateColumns }}>
+            <div className="virtualHeadCell virtualActionsHeadCell" role="columnheader">
+              ACCIONES
+            </div>
             {columns.map((column, columnIndex) => (
               <div
                 className={`virtualHeadCell ${PUBLIC_QUERY_COLUMNS.has(column) ? 'publicQueryHeadCell' : ''}`}
@@ -397,6 +418,7 @@ function resetColumnWidth(event, column) {
                 gridTemplateColumns={gridTemplateColumns}
                 isSelected={row === selectedRow}
                 key={`${visibleRange.startIndex + index}`}
+                onRowDelete={onRowDelete}
                 onRowSelect={onRowSelect}
                 row={row}
                 rowIndex={visibleRange.startIndex + index}

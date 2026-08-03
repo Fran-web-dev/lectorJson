@@ -356,6 +356,10 @@ body,
     @apply bg-green-50 text-green-700;
   }
 
+  .virtualActionsTotalCell {
+    @apply sticky left-0 z-50 justify-center bg-slate-50;
+  }
+
   .virtualHeader {
     @apply sticky top-0 z-30 bg-sky-500;
     height: 42px;
@@ -365,6 +369,10 @@ body,
   .virtualHeadCell {
     @apply relative flex h-[42px] cursor-pointer items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 bg-sky-500 px-2 text-left font-bold text-white transition hover:bg-sky-600;
     font-size: 12px;
+  }
+
+  .virtualActionsHeadCell {
+    @apply sticky left-0 z-50 cursor-default justify-center bg-sky-600 text-center hover:bg-sky-600;
   }
 
   .columnResizeHandle {
@@ -476,6 +484,26 @@ body,
     font-size: 11px;
   }
 
+  .virtualActionsCell {
+    @apply sticky left-0 z-20 justify-center gap-1 bg-white;
+  }
+
+  .oddRow .virtualActionsCell {
+    background-color: #f1fdff;
+  }
+
+  .evenRow .virtualActionsCell {
+    background-color: #ffffff;
+  }
+
+  .virtualRow:hover .virtualActionsCell {
+    @apply bg-sky-100;
+  }
+
+  .virtualRowDeleteButton {
+    @apply inline-flex h-5 w-5 items-center justify-center rounded-sm border border-red-200 bg-white text-red-600 transition hover:bg-red-50;
+  }
+
   .oddRow .virtualCell {
     background-color: #f1fdff;
   }
@@ -509,10 +537,14 @@ body,
   .duplicateRow .virtualCell,
   .duplicateRow:hover .virtualCell {
     background-color: #fef08a !important;
+    color: #dc2626 !important;
+    font-weight: 700;
   }
 
   .duplicateCell {
     background-color: #fef08a !important;
+    color: #dc2626 !important;
+    font-weight: 700;
   }
 
   .registerView {
@@ -829,6 +861,57 @@ body,
     grid-column: 1 / -1;
   }
 
+  .ivaBookSalesHeader {
+    @apply mb-3 shrink-0 bg-white pb-3 text-slate-950;
+    min-width: 1280px;
+    font-family: "Arial Narrow", Arial, sans-serif;
+  }
+
+  .ivaBookSalesHeaderTitle {
+    @apply mb-3 text-left text-2xl font-black uppercase leading-tight;
+  }
+
+  .ivaBookSalesHeaderField {
+    @apply mb-1 grid items-center gap-3 text-xl uppercase;
+    grid-template-columns: 260px 240px;
+  }
+
+  .ivaBookSalesHeaderField.company {
+    grid-template-columns: 260px 1080px;
+  }
+
+  .ivaBookSalesHeaderField.giro {
+    grid-template-columns: 260px 1080px;
+  }
+
+  .ivaBookSalesHeaderField.compact {
+    @apply mb-0;
+    grid-template-columns: 70px 190px;
+  }
+
+  .ivaBookSalesHeaderField span {
+    @apply font-normal;
+  }
+
+  .ivaBookSalesHeaderField input {
+    @apply h-9 border border-slate-300 bg-white px-2 text-lg outline-none;
+    box-shadow: inset 2px 2px 0 rgba(15, 23, 42, 0.25);
+    font-family: "Arial Narrow", Arial, sans-serif;
+  }
+
+  .ivaBookSalesHeaderField input:focus {
+    @apply border-blue-500 bg-blue-50;
+  }
+
+  .ivaBookSalesHeaderRow {
+    @apply mb-1 grid items-center gap-16;
+    grid-template-columns: 500px 320px 320px;
+  }
+
+  .ivaBookSalesHeaderRow .ivaBookSalesHeaderField:first-child {
+    @apply mb-0;
+  }
+
   .ivaBookTableViewport {
     @apply min-h-0 flex-1 overflow-auto rounded-md border;
     border-color: #0f172a;
@@ -858,6 +941,11 @@ body,
     background: #ffffff;
     border-left: 1px solid #0f172a;
     border-top: 1px solid #0f172a;
+  }
+
+  .ivaBookVirtualSpacer {
+    grid-column: 1 / -1;
+    pointer-events: none;
   }
 
   .ivaBookTotalCell {
@@ -939,6 +1027,12 @@ body,
     @apply justify-end;
   }
 
+  .ivaBookCell.duplicate {
+    background-color: #fef08a !important;
+    color: #dc2626 !important;
+    font-weight: 700;
+  }
+
   .ivaBookActionsCell {
     @apply sticky left-0 z-30 justify-center gap-1;
   }
@@ -969,6 +1063,27 @@ body,
     box-shadow: inset 0 0 0 1px #2563eb;
     font-family: "Arial Narrow", Arial, sans-serif;
     font-size: 11px;
+  }
+
+  .ivaBookCombobox {
+    @apply relative flex h-full w-full min-w-0 items-center;
+  }
+
+  .ivaBookCombobox .ivaBookEditInput {
+    @apply pr-6;
+  }
+
+  .ivaBookComboboxButton {
+    @apply absolute right-0 top-0 flex h-full w-6 items-center justify-center border-l border-sky-200 bg-white text-[10px] font-bold text-slate-700 hover:bg-sky-50;
+  }
+
+  .ivaBookComboboxMenu {
+    @apply fixed z-[700] max-h-80 overflow-auto border border-slate-500 bg-white text-left shadow-xl;
+  }
+
+  .ivaBookComboboxOption {
+    @apply block w-full whitespace-normal px-2 py-1.5 text-left text-xs font-bold leading-snug text-slate-900 hover:bg-sky-50;
+    font-family: "Arial Narrow", Arial, sans-serif;
   }
 
   .anexosView {

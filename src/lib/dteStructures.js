@@ -5,6 +5,16 @@ import { DEFAULT_STRUCTURE_NAME } from './dteStructureOptions.js';
 
 export { LOCAL_GENERATION_CODE_COLUMN } from './columnConstants.js';
 
+const ITEM_TYPE_COLUMN = {
+  name: 'Tipo de Item',
+  sections: ['cuerpoDocumento'],
+  fields: ['tipoItem'],
+  perItem: true,
+  byDteType: {
+    '11': { sections: ['emisor'], fields: ['tipoItemExpor'], perItem: false }
+  }
+};
+
 export const DEFAULT_STRUCTURE = [
   { name: 'Tipo DTE', sections: ['identificacion'], fields: ['tipoDte'] },
   { name: 'Hora', sections: ['identificacion'], fields: ['horEmi'] },
@@ -34,7 +44,8 @@ export const DEFAULT_STRUCTURE = [
   { name: 'Retencion Renta', sections: ['resumen'], fields: ['reteRenta'], style: 'money' },
   { name: 'Total de Compra', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalLetras'] },
-  { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' }
+  { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN
 ];
 
 export const CCF_RECEPTOR_COMPRA_STRUCTURE = [
@@ -67,7 +78,8 @@ export const CCF_RECEPTOR_COMPRA_STRUCTURE = [
   { name: 'Retenciones', sections: ['resumen'], fields: ['ivaRete1', 'ivaRete'], style: 'money' },
   { name: 'Total de Compra', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalLetras'] },
-  { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' }
+  { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN
 ];
 
 export const CCF_EMISOR_VENTA_STRUCTURE = [
@@ -99,6 +111,7 @@ export const CCF_EMISOR_VENTA_STRUCTURE = [
   { name: 'Total a Pagar', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalLetras'] },
   { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN,
   { name: 'Observacion', sections: ['observaciones'], fields: ['*'] }
 ];
 
@@ -130,7 +143,8 @@ export const CONSUMIDOR_FINAL_EMISOR_STRUCTURE = [
   { name: 'IVA Retenido', sections: ['resumen'], fields: ['ivaRete'], style: 'money' },
   { name: 'Total a Pagar', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalLetras'] },
-  { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' }
+  { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN
 ];
 
 export const NOTA_CREDITO_EMISOR_VENTA_STRUCTURE = [
@@ -162,6 +176,7 @@ export const NOTA_CREDITO_EMISOR_VENTA_STRUCTURE = [
   { name: 'Total a Pagar', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalLetras'] },
   { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN,
   { name: 'Documento Relacionado', sections: ['numeroDocumento'], fields: ['*'] },
   { name: 'fechaEmision', sections: ['fechaEmision'], fields: ['*'], style: 'date' }
 ];
@@ -197,6 +212,7 @@ export const NOTA_CREDITO_RECEPTOR_COMPRA_STRUCTURE = [
   { name: 'Total de Compra', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Valor en Letras', sections: ['resumen'], fields: ['totalLetras'] },
   { name: 'Condicion de la operacion', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN,
   { name: 'Documento Relacionado', sections: ['numeroDocumento'], fields: ['*'] },
   { name: 'fechaEmision', sections: ['fechaEmision'], fields: ['*'], style: 'date' }
 ];
@@ -273,6 +289,7 @@ export const FEX_EMISOR_STRUCTURE = [
   { name: 'Total a Pagar', sections: ['resumen'], fields: ['totalPagar'], style: 'money' },
   { name: 'Total en Letras', sections: ['resumen'], fields: ['totalLetras'] },
   { name: 'Condición Operación', sections: ['resumen'], fields: ['condicionOperacion'], style: 'operationCondition' },
+  ITEM_TYPE_COLUMN,
   { name: 'Observaciones', sections: ['resumen'], fields: ['observaciones'] }
 ];
 
@@ -379,7 +396,8 @@ export const ALL_DTE_STRUCTURE = [
   { name: 'NRC emisor', sections: ['emisor'], fields: ['nrc'] },
   { name: 'NIT emisor', sections: ['emisor'], fields: ['nit'] },
   { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
-  { name: 'Descripcion', sections: ['cuerpoDocumento'], fields: ['descripcion'], perItem: true }
+  { name: 'Descripcion', sections: ['cuerpoDocumento'], fields: ['descripcion'], perItem: true },
+  ITEM_TYPE_COLUMN
 ];
 
 export const MONEY_COLUMN_NAMES = new Set(ALL_DTE_STRUCTURE
