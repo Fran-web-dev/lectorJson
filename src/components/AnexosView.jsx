@@ -156,19 +156,6 @@ function createEmptyAnexoRow(columns) {
   return Object.fromEntries(columns.map(([header]) => [header, '']));
 }
 
-function loadClientRegisterRows() {
-  try {
-    const rows = JSON.parse(window.localStorage.getItem('dte-registers-clients') || '[]');
-    return Array.isArray(rows) ? rows : [];
-  } catch {
-    return [];
-  }
-}
-
-function normalizeLookupKey(value) {
-  return String(value || '').replace(/[-\s]/g, '').trim().toUpperCase();
-}
-
 function parseMoney(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   const number = Number(String(value || '').replace(/[$,\s]/g, ''));
@@ -197,18 +184,22 @@ function extractDteTypeFromControl(value) {
   return match?.[1] || '';
 }
 
-function buildClientRegisterLookup() {
-  const lookup = new Map();
-  for (const row of loadClientRegisterRows()) {
-    const keys = [row.NRC, row.NIT].map(normalizeLookupKey).filter(Boolean);
-    for (const key of keys) lookup.set(key, row);
-  }
-  return lookup;
+function normalizeColumnName(value) {
+  return String(value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase();
 }
 
-function mapCcfSaleToAnexoRow(row, clientLookup) {
-  const clientKey = normalizeLookupKey(row['N.R.C / NIT']);
-  const client = clientLookup.get(clientKey) || {};
+function getRowValueByTokens(row, tokens) {
+  const entry = Object.entries(row || {}).find(([key]) => {
+    const normalizedKey = normalizeColumnName(key);
+    return tokens.every((token) => normalizedKey.includes(token));
+  });
+  return entry?.[1] || '';
+}
+
+function mapCcfSaleToAnexoRow(row) {
   const gravadas = parseMoney(row['VENTAS INTERNAS GRAVADAS VALOR NETO']);
   const ivaDebito = parseMoney(row['IVA DEBITO']);
 
@@ -230,14 +221,19 @@ function mapCcfSaleToAnexoRow(row, clientLookup) {
     'DEBITO FISCAL POR VENTA A CUENTA DE TERCEROS': '0.00',
     'TOTAL VENTAS': formatAnexoMoney(gravadas + ivaDebito),
     'DUI DEL CLIENTE': '',
-    'TIPO DE OPERACION (Renta)': client['TIPO DE OPERACION'] || '',
-    'TIPO DE INGRESO (Renta)': client['TIPO DE INGRESO'] || '',
+    'TIPO DE OPERACION (Renta)': getRowValueByTokens(row, ['TIPO', 'OPERACION', 'RENTA']),
+    'TIPO DE INGRESO (Renta)': getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']),
     'NUMERO DE ANEXO': '1'
   };
 }
 
 function hasUsefulAnexoData(row, columns) {
   return columns.some(([header]) => String(row[header] || '').trim());
+}
+
+function isInvalidOrRejectedDte(row) {
+  const status = String(row?.__dteStatus || row?.['Estado del DTE'] || '').toLowerCase();
+  return status.includes('invalidado') || status.includes('rechazado');
 }
 
 function getAnexoColumnWidth(header) {
@@ -257,7 +253,7 @@ function applyAnexoFilters(rows, filters) {
 }
 
 export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 'salesCcf' }) {
-  const config = ANEXOS[type] || ANEXOS.salesCcf;
+  const config = useMemo(() => ANEXOS[type] || ANEXOS.salesCcf, [type]);
   const defaultColumnWidths = useMemo(
     () => Object.fromEntries(config.columns.map(([header]) => [header, getAnexoColumnWidth(header)])),
     [config.columns]
@@ -305,7 +301,8 @@ export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 
   }, [openFilter, rows]);
 
   useEffect(() => {
-    setRows(savedRows?.length ? savedRows : initialRows);
+    const nextRows = savedRows?.length ? savedRows : initialRows;
+    setRows((currentRows) => (currentRows === nextRows ? currentRows : nextRows));
     setMessage('');
     setFilters({});
     setOpenFilter('');
@@ -355,22 +352,25 @@ export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 
       return;
     }
 
-    const filledRows = ccfSalesRows.filter((row) => hasUsefulAnexoData(row, [
-      ['NUMERO DE CONTROL'],
-      ['CODIGO DE GENERACION'],
-      ['NOMBRE DEL CLIENTE']
-    ]));
+    const filledRows = ccfSalesRows.filter((row) => (
+      !isInvalidOrRejectedDte(row)
+      && hasUsefulAnexoData(row, [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['NOMBRE DEL CLIENTE']
+      ])
+    ));
 
     if (!filledRows.length) {
       setRows(initialRows);
-      setMessage('No hay datos cargados en Libro de Ventas CCF.');
+      setMessage('No hay datos validos cargados en Libro de Ventas CCF.');
       return;
     }
 
-    const clientLookup = buildClientRegisterLookup();
     setRows(filledRows.map((row) => ({
       ...createEmptyAnexoRow(config.columns),
-      ...mapCcfSaleToAnexoRow(row, clientLookup)
+      ...mapCcfSaleToAnexoRow(row),
+      __dteStatus: row.__dteStatus || row['Estado del DTE'] || ''
     })));
     cancelEditing();
     setMessage(`${filledRows.length} registro(s) cargado(s) desde Libro de Ventas CCF.`);
@@ -390,7 +390,7 @@ export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 
       const columns = config.columns.map(([header]) => header);
       const exportRows = visibleRows
         .map(({ row }) => row)
-        .filter((row) => hasUsefulAnexoData(row, config.columns));
+        .filter((row) => hasUsefulAnexoData(row, config.columns) && !isInvalidOrRejectedDte(row));
 
       if (!exportRows.length) {
         setMessage('No hay registros para generar CSV.');
@@ -461,8 +461,8 @@ export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 
         </div>
         <div className="anexosTableViewport">
           <div className="anexosTable" style={{ gridTemplateColumns }}>
-            <div className="anexosTotalCell" />
-            <div className="anexosTotalCell" />
+            <div className="anexosTotalCell anexosActionsTotalCell" />
+            <div className="anexosTotalCell anexosCorrTotalCell" />
             {config.columns.map(([header]) => {
               const totalValue = isAnexoAmountColumn(header) ? `$${formatAnexoTotal(anexoTotals[header] || 0)}` : '';
 

@@ -1155,6 +1155,15 @@ body,
     line-height: 1.15;
   }
 
+  .anexosActionsTotalCell {
+    @apply left-0 z-[80] bg-white;
+  }
+
+  .anexosCorrTotalCell {
+    @apply z-[79] bg-white;
+    left: 92px;
+  }
+
   .anexosHeadCell {
     @apply sticky top-7 z-40 min-h-12 justify-center gap-1 bg-sky-100 text-center font-black uppercase leading-tight;
     position: sticky;
@@ -1165,7 +1174,7 @@ body,
   }
 
   .anexosActionsHead {
-    @apply left-0 z-50;
+    @apply left-0 z-[90] bg-sky-100;
   }
 
   .anexosColumnResizeHandle {
@@ -1181,7 +1190,7 @@ body,
   }
 
   .anexosMetaCell {
-    @apply sticky top-7 z-40 min-h-8 justify-center bg-sky-100 text-center font-black uppercase;
+    @apply sticky top-7 z-[89] min-h-8 justify-center bg-sky-100 text-center font-black uppercase;
     left: 92px;
   }
 
@@ -1208,12 +1217,12 @@ body,
   }
 
   .anexosCell.rowNumber {
-    @apply sticky z-20 justify-center font-bold;
+    @apply sticky z-[69] justify-center font-bold;
     left: 92px;
   }
 
   .anexosActionsCell {
-    @apply sticky left-0 z-30 justify-center gap-1;
+    @apply sticky left-0 z-[70] justify-center gap-1;
   }
 
   .anexosEditInput {
