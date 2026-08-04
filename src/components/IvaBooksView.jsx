@@ -59,6 +59,7 @@ const IVA_BOOKS = {
       { header: 'CODIGO DE GENERACION', width: '190px' },
       { header: 'SELLO DE RECEPCION', width: '190px' },
       { header: 'Estado del DTE', width: '135px' },
+      { header: 'Codigo pais', width: '110px' },
       { header: 'VENTAS NO SUJETAS', width: '175px', money: true },
       { header: 'VENTAS EXENTAS', width: '165px', money: true },
       { header: 'VENTAS GRAVADAS LOCALES', width: '185px', money: true },
@@ -138,6 +139,7 @@ const IVA_BOOK_MAPPINGS = {
     'CODIGO DE GENERACION': ['Codigo de generacion local', 'Numero del Documento', 'Numero Documento'],
     'SELLO DE RECEPCION': ['Serie del Documento', 'Serie Documento'],
     'Estado del DTE': 'Estado del DTE',
+    'Codigo pais': 'Codigo pais',
     'VENTAS NO SUJETAS': 'Total no Sujetas',
     'VENTAS EXENTAS': 'Total Exenta',
     'VENTAS GRAVADAS LOCALES': { exceptTypeCode: '11', source: 'Total Gravado' },
@@ -676,6 +678,37 @@ function isDuplicateBookRow(row, duplicateKeys) {
   return Boolean(row?.__isDuplicate || (duplicateKey && duplicateKeys.get(duplicateKey) > 1));
 }
 
+function getSourceDuplicateKey(row) {
+  return String(
+    row?.['Codigo de generacion local']
+    || row?.['CODIGO DE GENERACION']
+    || row?.['Codigo de Generacion']
+    || row?.['Numero del Documento']
+    || row?.['Numero Documento']
+    || row?.['Numero de Control']
+    || row?.['NUMERO DE CONTROL']
+    || ''
+  ).trim().toUpperCase();
+}
+
+function excludeDuplicateSourceRows(rows) {
+  const seenKeys = new Set();
+  const uniqueRows = [];
+
+  for (const row of rows) {
+    const key = getSourceDuplicateKey(row);
+    if (!key) {
+      uniqueRows.push({ ...row, __isDuplicate: false });
+      continue;
+    }
+    if (seenKeys.has(key)) continue;
+    seenKeys.add(key);
+    uniqueRows.push({ ...row, __isDuplicate: false });
+  }
+
+  return uniqueRows;
+}
+
 function waitForNextFrame() {
   return new Promise((resolve) => {
     window.requestAnimationFrame(() => resolve());
@@ -804,7 +837,7 @@ export function IvaBooksView({
 
     const mapping = IVA_BOOK_MAPPINGS[type] || IVA_BOOK_MAPPINGS.purchases;
     const providerLookup = type === 'purchases' ? loadProviderRegisterLookup() : new Map();
-    const orderedSourceRows = orderRowsForIvaBook(sourceRows, type);
+    const orderedSourceRows = orderRowsForIvaBook(excludeDuplicateSourceRows(sourceRows), type);
     const shouldShowFcfProgress = type === 'fcfSales';
     const totalRowsToImport = orderedSourceRows.length;
     if (shouldShowFcfProgress) {

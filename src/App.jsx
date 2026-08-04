@@ -662,6 +662,7 @@ export default function App() {
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando anexos...</div></div>}>
           <AnexosView
             ccfSalesRows={ivaBookRowsByType.ccfSales || []}
+            fcfSalesRows={ivaBookRowsByType.fcfSales || []}
             onRowsChange={handleAnexoRowsChange}
             savedRows={anexoRowsByType[activeAnexoType]}
             type={activeAnexoType}

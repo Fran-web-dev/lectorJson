@@ -227,6 +227,41 @@ function mapCcfSaleToAnexoRow(row) {
   };
 }
 
+function mapFcfSaleToAnexoRow(row) {
+  const exportAmount = parseMoney(row['VENTAS GRAVADAS EXPORTAC.']);
+  const incomeType = normalizeColumnName(getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']));
+  const countryCode = String(row['Codigo pais'] || '').trim().toUpperCase();
+  const isCentralAmerica = ['GT', 'HN', 'NI', 'CR', 'PA'].includes(countryCode);
+  const isCommercialIncome = incomeType.includes('03') && incomeType.includes('ACTIVIDADES COMERCIALES');
+  const isServiceIncome = incomeType.includes('02') && incomeType.includes('ACTIVIDADES DE SERVICIOS');
+
+  return {
+    'FECHA DE EMISION': row['FECHA EMISION'] || '',
+    'CLASE DE DOCUMENTO': '4',
+    'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
+    'NUMERO DE RESOLUCION': row['NUMERO DE CONTROL'] || '',
+    'SERIE DE DOCUMENTO': row['SELLO DE RECEPCION'] || '',
+    'NUMERO DE CONTROL INTERNO (DEL)': '0',
+    'NUMERO DE CONTROL INTERNO (AL)': '0',
+    'NUMERO DE DOCUMENTO (DEL)': row['CODIGO DE GENERACION'] || '',
+    'NUMERO DE DOCUMENTO (AL)': row['CODIGO DE GENERACION'] || '',
+    'NÂ° DE MAQUINA REGISTRADORA': '',
+    'VENTAS EXENTAS': formatAnexoMoney(row['VENTAS EXENTAS']),
+    'VENTAS INTERNAS EXENTAS NO SUJETAS A PROPORCIONALIDAD': '0.00',
+    'VENTAS NO SUJETAS': formatAnexoMoney(row['VENTAS NO SUJETAS']),
+    'VENTAS GRAVADAS LOCALES': formatAnexoMoney(row['VENTAS GRAVADAS LOCALES']),
+    'EXPORTACIONES DENTRO DEL AREA CENTROAMERICANA': formatAnexoMoney(isCommercialIncome && isCentralAmerica ? exportAmount : 0),
+    'EXPORTACIONES FUERA DEL AREA CENTROAMERICANA': formatAnexoMoney(isCommercialIncome && !isCentralAmerica ? exportAmount : 0),
+    'EXPORTACIONES DE SERVICIOS': formatAnexoMoney(isServiceIncome ? exportAmount : 0),
+    'VENTAS A ZONAS FRANCAS Y DPA (TASA CERO)': '0.00',
+    'VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS': '0.00',
+    'TOTAL VENTAS': formatAnexoMoney(row.TOTAL),
+    'TIPO DE OPERACION (Renta)': getRowValueByTokens(row, ['TIPO', 'OPERACION', 'RENTA']),
+    'TIPO DE INGRESO (Renta)': getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']),
+    'NUMERO DE ANEXO': '2'
+  };
+}
+
 function hasUsefulAnexoData(row, columns) {
   return columns.some(([header]) => String(row[header] || '').trim());
 }
@@ -252,7 +287,7 @@ function applyAnexoFilters(rows, filters) {
   return rows.filter(({ row }) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
 }
 
-export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 'salesCcf' }) {
+export function AnexosView({ ccfSalesRows = [], fcfSalesRows = [], onRowsChange, savedRows, type = 'salesCcf' }) {
   const config = useMemo(() => ANEXOS[type] || ANEXOS.salesCcf, [type]);
   const defaultColumnWidths = useMemo(
     () => Object.fromEntries(config.columns.map(([header]) => [header, getAnexoColumnWidth(header)])),
@@ -347,33 +382,41 @@ export function AnexosView({ ccfSalesRows = [], onRowsChange, savedRows, type = 
   }
 
   function loadData() {
-    if (type !== 'salesCcf') {
-      setMessage('Carga de datos disponible por ahora para ANEXO VENTA CCF.');
+    if (type !== 'salesCcf' && type !== 'salesFcf') {
+      setMessage('Carga de datos disponible por ahora para anexos de venta CCF y FCF.');
       return;
     }
 
-    const filledRows = ccfSalesRows.filter((row) => (
+    const sourceRows = type === 'salesFcf' ? fcfSalesRows : ccfSalesRows;
+    const usefulColumns = type === 'salesFcf'
+      ? [
+          ['NUMERO DE CONTROL'],
+          ['CODIGO DE GENERACION'],
+          ['TOTAL']
+        ]
+      : [
+          ['NUMERO DE CONTROL'],
+          ['CODIGO DE GENERACION'],
+          ['NOMBRE DEL CLIENTE']
+        ];
+    const filledRows = sourceRows.filter((row) => (
       !isInvalidOrRejectedDte(row)
-      && hasUsefulAnexoData(row, [
-        ['NUMERO DE CONTROL'],
-        ['CODIGO DE GENERACION'],
-        ['NOMBRE DEL CLIENTE']
-      ])
+      && hasUsefulAnexoData(row, usefulColumns)
     ));
 
     if (!filledRows.length) {
       setRows(initialRows);
-      setMessage('No hay datos validos cargados en Libro de Ventas CCF.');
+      setMessage(`No hay datos validos cargados en ${type === 'salesFcf' ? 'Libro de Ventas FCF' : 'Libro de Ventas CCF'}.`);
       return;
     }
 
     setRows(filledRows.map((row) => ({
       ...createEmptyAnexoRow(config.columns),
-      ...mapCcfSaleToAnexoRow(row),
+      ...(type === 'salesFcf' ? mapFcfSaleToAnexoRow(row) : mapCcfSaleToAnexoRow(row)),
       __dteStatus: row.__dteStatus || row['Estado del DTE'] || ''
     })));
     cancelEditing();
-    setMessage(`${filledRows.length} registro(s) cargado(s) desde Libro de Ventas CCF.`);
+    setMessage(`${filledRows.length} registro(s) cargado(s) desde ${type === 'salesFcf' ? 'Libro de Ventas FCF' : 'Libro de Ventas CCF'}.`);
   }
 
   function clearData() {
