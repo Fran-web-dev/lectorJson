@@ -663,6 +663,7 @@ export default function App() {
           <AnexosView
             ccfSalesRows={ivaBookRowsByType.ccfSales || []}
             fcfSalesRows={ivaBookRowsByType.fcfSales || []}
+            purchaseRows={ivaBookRowsByType.purchases || []}
             onRowsChange={handleAnexoRowsChange}
             savedRows={anexoRowsByType[activeAnexoType]}
             type={activeAnexoType}

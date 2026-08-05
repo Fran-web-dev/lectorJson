@@ -152,6 +152,38 @@ export const ANEXOS_LABELS = {
   perceptionVat: 'Anexo percepcion IVA 1%'
 };
 
+const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
+
+function normalizeRegisterLookupKey(value) {
+  return String(value || '').replace(/[-\s]/g, '').trim().toUpperCase();
+}
+
+function loadClientRegisterLookup() {
+  if (typeof window === 'undefined') return new Map();
+
+  try {
+    const rows = JSON.parse(window.localStorage.getItem(CLIENT_REGISTER_STORAGE_KEY) || '[]');
+    if (!Array.isArray(rows)) return new Map();
+
+    const lookup = new Map();
+    for (const row of rows) {
+      const nrcKey = normalizeRegisterLookupKey(row?.NRC);
+      if (nrcKey && !lookup.has(nrcKey)) lookup.set(nrcKey, row);
+    }
+
+    return lookup;
+  } catch {
+    return new Map();
+  }
+}
+
+function getRetentionAmount(row) {
+  return parseMoney(
+    row['RETENCION 1%']
+    || getRowValueByTokens(row, ['RETENCION', '1'])
+  );
+}
+
 function createEmptyAnexoRow(columns) {
   return Object.fromEntries(columns.map(([header]) => [header, '']));
 }
@@ -227,6 +259,77 @@ function mapCcfSaleToAnexoRow(row) {
   };
 }
 
+function countIdentifierDigits(value) {
+  return String(value || '').replace(/\D/g, '').length;
+}
+
+function getExcludedSubjectDocumentType(nrcNit) {
+  const digitCount = countIdentifierDigits(nrcNit);
+  if (digitCount === 14) return '1';
+  if (digitCount === 9) return '2';
+  return '';
+}
+
+function mapExcludedSubjectPurchaseToAnexoRow(row) {
+  const nrcNit = row['N.R.C / NIT']
+    || getRowValueByTokens(row, ['NRC', 'NIT'])
+    || '';
+
+  return {
+    'TIPO DE DOCUMENTO': getExcludedSubjectDocumentType(nrcNit),
+    'NUMERO DE NIT, DUI, U OTRO DOCUMENTO': nrcNit,
+    'NOMBRE, RAZON SOCIAL O DENOMINACION': row['NOMBRE DEL PROVEEDOR']
+      || getRowValueByTokens(row, ['NOMBRE', 'PROVEEDOR'])
+      || '',
+    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISION']
+      || getRowValueByTokens(row, ['FECHA', 'EMISION'])
+      || '',
+    'NUMERO DE SERIE DEL DOCUMENTO': row['SELLO DE RECEPCION']
+      || getRowValueByTokens(row, ['SELLO', 'RECEPCION'])
+      || '',
+    'NUMERO DE DOCUMENTO': row['CODIGO DE GENERACION']
+      || getRowValueByTokens(row, ['CODIGO', 'GENERACION'])
+      || '',
+    'MONTO DE LA OPERACION': formatAnexoMoney(
+      row['COMPRAS A SUJETOS EXCLUIDOS']
+      || getRowValueByTokens(row, ['COMPRAS', 'SUJETOS', 'EXCLUIDOS'])
+    ),
+    'MONTO DE LA RETENCION IVA 13%': '0.00',
+    'TIPO DE OPERACION': getRowValueByTokens(row, ['TIPO', 'OPERACION']),
+    'CLASIFICACION': getRowValueByTokens(row, ['CLASIFICACION']),
+    'SECTOR': getRowValueByTokens(row, ['SECTOR']),
+    'TIPO DE COSTO / GASTO': getRowValueByTokens(row, ['TIPO', 'COSTO', 'GASTO']),
+    'NUMERO DE ANEXO': '5'
+  };
+}
+
+function mapRetentionVatToAnexoRow(row, clientLookup = new Map()) {
+  const nrcNit = row['N.R.C / NIT']
+    || getRowValueByTokens(row, ['NRC', 'NIT'])
+    || '';
+  const client = clientLookup.get(normalizeRegisterLookupKey(nrcNit));
+  const retentionAmount = getRetentionAmount(row);
+  const subjectAmount = retentionAmount ? retentionAmount / 0.01 : 0;
+
+  return {
+    'NIT DEL AGENTE': client?.NIT || '',
+    'FECHA DE EMISION': row['FECHA DE EMISION']
+      || getRowValueByTokens(row, ['FECHA', 'EMISION'])
+      || '',
+    'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
+    SERIE: row['SELLO DE RECEPCION']
+      || getRowValueByTokens(row, ['SELLO', 'RECEPCION'])
+      || '',
+    'NUMERO DE DOCUMENTO': row['CODIGO DE GENERACION']
+      || getRowValueByTokens(row, ['CODIGO', 'GENERACION'])
+      || '',
+    'MONTO SUJETO': formatAnexoMoney(subjectAmount),
+    'MONTO RETENCION 1%': formatAnexoMoney(retentionAmount),
+    'DUI DEL AGENTE': '',
+    'NUMERO DE ANEXO': '7'
+  };
+}
+
 function mapFcfSaleToAnexoRow(row) {
   const exportAmount = parseMoney(row['VENTAS GRAVADAS EXPORTAC.']);
   const incomeType = normalizeColumnName(getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']));
@@ -287,7 +390,14 @@ function applyAnexoFilters(rows, filters) {
   return rows.filter(({ row }) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
 }
 
-export function AnexosView({ ccfSalesRows = [], fcfSalesRows = [], onRowsChange, savedRows, type = 'salesCcf' }) {
+export function AnexosView({
+  ccfSalesRows = [],
+  fcfSalesRows = [],
+  purchaseRows = [],
+  onRowsChange,
+  savedRows,
+  type = 'salesCcf'
+}) {
   const config = useMemo(() => ANEXOS[type] || ANEXOS.salesCcf, [type]);
   const defaultColumnWidths = useMemo(
     () => Object.fromEntries(config.columns.map(([header]) => [header, getAnexoColumnWidth(header)])),
@@ -382,41 +492,114 @@ export function AnexosView({ ccfSalesRows = [], fcfSalesRows = [], onRowsChange,
   }
 
   function loadData() {
-    if (type !== 'salesCcf' && type !== 'salesFcf') {
-      setMessage('Carga de datos disponible por ahora para anexos de venta CCF y FCF.');
-      return;
-    }
+    const clientLookup = loadClientRegisterLookup();
 
-    const sourceRows = type === 'salesFcf' ? fcfSalesRows : ccfSalesRows;
-    const usefulColumns = type === 'salesFcf'
-      ? [
-          ['NUMERO DE CONTROL'],
-          ['CODIGO DE GENERACION'],
-          ['TOTAL']
-        ]
-      : [
+    const loadConfigByType = {
+      salesCcf: {
+        sourceRows: ccfSalesRows,
+        sourceLabel: 'Libro de Ventas CCF',
+        usefulColumns: [
           ['NUMERO DE CONTROL'],
           ['CODIGO DE GENERACION'],
           ['NOMBRE DEL CLIENTE']
-        ];
-    const filledRows = sourceRows.filter((row) => (
+        ],
+        mapRow: mapCcfSaleToAnexoRow,
+        includeRow: () => true
+      },
+      salesFcf: {
+        sourceRows: fcfSalesRows,
+        sourceLabel: 'Libro de Ventas FCF',
+        usefulColumns: [
+          ['NUMERO DE CONTROL'],
+          ['CODIGO DE GENERACION'],
+          ['TOTAL']
+        ],
+        mapRow: mapFcfSaleToAnexoRow,
+        includeRow: () => true
+      },
+      excludedSubject: {
+        sourceRows: purchaseRows,
+        sourceLabel: 'Libro de Compras',
+        usefulColumns: [
+          ['CODIGO DE GENERACION'],
+          ['NOMBRE DEL PROVEEDOR'],
+          ['COMPRAS A SUJETOS EXCLUIDOS']
+        ],
+        mapRow: mapExcludedSubjectPurchaseToAnexoRow,
+        includeRow: (row) => parseMoney(
+          row['COMPRAS A SUJETOS EXCLUIDOS']
+          || getRowValueByTokens(row, ['COMPRAS', 'SUJETOS', 'EXCLUIDOS'])
+        ) > 0
+      },
+      retentionVat: {
+        sourceRows: ccfSalesRows,
+        sourceLabel: 'Libro de Ventas CCF',
+        usefulColumns: [
+          ['NUMERO DE CONTROL'],
+          ['CODIGO DE GENERACION'],
+          ['RETENCION 1%']
+        ],
+        mapRow: (row) => mapRetentionVatToAnexoRow(row, clientLookup),
+        includeRow: (row) => getRetentionAmount(row) > 0
+      }
+    };
+
+    const loadConfig = loadConfigByType[type];
+    if (!loadConfig) {
+      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compra sujeto excluido FSE y retencion IVA 1%.');
+      return;
+    }
+
+    const filledRows = loadConfig.sourceRows.filter((row) => (
       !isInvalidOrRejectedDte(row)
-      && hasUsefulAnexoData(row, usefulColumns)
+      && loadConfig.includeRow(row)
+      && hasUsefulAnexoData(row, loadConfig.usefulColumns)
     ));
 
     if (!filledRows.length) {
       setRows(initialRows);
-      setMessage(`No hay datos validos cargados en ${type === 'salesFcf' ? 'Libro de Ventas FCF' : 'Libro de Ventas CCF'}.`);
+      if (type === 'excludedSubject') {
+        const hasPurchaseBookRows = purchaseRows.some((row) => hasUsefulAnexoData(row, [
+          ['CODIGO DE GENERACION'],
+          ['NOMBRE DEL PROVEEDOR'],
+          ['NUMERO DE CONTROL']
+        ]));
+        if (!hasPurchaseBookRows) {
+          setMessage('No hay datos en Libro de Compras. Vaya a LIBROS DE IVA > Libro de compras y pulse CARGAR DATOS.');
+        } else {
+          setMessage(
+            'El Libro de Compras no tiene filas con monto en COMPRAS A SUJETOS EXCLUIDOS. '
+            + 'En INICIO seleccione Tipo de Documento 14 con estructura FSE EMISOR, '
+            + 'importe esos registros al Libro de Compras y vuelva a cargar este anexo.'
+          );
+        }
+      } else if (type === 'retentionVat') {
+        const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
+          ['CODIGO DE GENERACION'],
+          ['NUMERO DE CONTROL'],
+          ['NOMBRE DEL CLIENTE']
+        ]));
+        if (!hasCcfSalesRows) {
+          setMessage('No hay datos en Libro de Ventas CCF. Vaya a LIBROS DE IVA > Libro de ventas CCF y pulse CARGAR DATOS.');
+        } else {
+          setMessage(
+            'El Libro de Ventas CCF no tiene filas con monto en RETENCION 1%. '
+            + 'Importe documentos con retencion al libro de ventas CCF y vuelva a cargar este anexo.'
+          );
+        }
+      } else {
+        setMessage(`No hay datos validos cargados en ${loadConfig.sourceLabel}.`);
+      }
       return;
     }
 
     setRows(filledRows.map((row) => ({
       ...createEmptyAnexoRow(config.columns),
-      ...(type === 'salesFcf' ? mapFcfSaleToAnexoRow(row) : mapCcfSaleToAnexoRow(row)),
+      ...loadConfig.mapRow(row),
       __dteStatus: row.__dteStatus || row['Estado del DTE'] || ''
     })));
     cancelEditing();
-    setMessage(`${filledRows.length} registro(s) cargado(s) desde ${type === 'salesFcf' ? 'Libro de Ventas FCF' : 'Libro de Ventas CCF'}.`);
+    setMessage(`${filledRows.length} registro(s) cargado(s) desde ${loadConfig.sourceLabel}.`);
   }
 
   function clearData() {
