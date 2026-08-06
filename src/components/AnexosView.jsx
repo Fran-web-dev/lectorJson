@@ -139,6 +139,21 @@ const ANEXOS = {
       ['DUI AGENTE', '9'],
       ['NUMERO DE ANEXO', '1']
     ]
+  },
+  invalidDocuments: {
+    title: 'ANEXO DOCUMENTOS INVALIDADOS',
+    columns: [
+      ['NUMERO DE RESOLUCIÓN', '100'],
+      ['CLASE DE DOCUMENTO', '1'],
+      ['DESDE (PREIMPRESO)', '100'],
+      ['HASTA (PREIMPRESO)', '100'],
+      ['TIPO DE DOCUMENTO', '2'],
+      ['TIPO DE DETALLE', '1'],
+      ['SERIE', '100'],
+      ['DESDE', '100'],
+      ['HASTA', '100'],
+      ['CÓDIGO DE GENERACIÓN', '100']
+    ]
   }
 };
 
@@ -149,10 +164,12 @@ export const ANEXOS_LABELS = {
   excludedSubject: 'Anexo compra sujeto excluido FSE',
   advanceVat: 'Anexo anticipo IVA 2%',
   retentionVat: 'Anexo retencion IVA 1%',
-  perceptionVat: 'Anexo percepcion IVA 1%'
+  perceptionVat: 'Anexo percepcion IVA 1%',
+  invalidDocuments: 'Anexo documentos invalidados'
 };
 
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
+const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
 
 function normalizeRegisterLookupKey(value) {
   return String(value || '').replace(/[-\s]/g, '').trim().toUpperCase();
@@ -177,11 +194,56 @@ function loadClientRegisterLookup() {
   }
 }
 
+function loadProviderRegisterLookup() {
+  if (typeof window === 'undefined') return new Map();
+
+  try {
+    const rows = JSON.parse(window.localStorage.getItem(PROVIDER_REGISTER_STORAGE_KEY) || '[]');
+    if (!Array.isArray(rows)) return new Map();
+
+    const lookup = new Map();
+    for (const row of rows) {
+      for (const keyColumn of ['NRC', 'NIT', 'DUI']) {
+        const key = normalizeRegisterLookupKey(row?.[keyColumn]);
+        if (key && !lookup.has(key)) lookup.set(key, row);
+      }
+    }
+
+    return lookup;
+  } catch {
+    return new Map();
+  }
+}
+
 function getRetentionAmount(row) {
   return parseMoney(
     row['RETENCION 1%']
     || getRowValueByTokens(row, ['RETENCION', '1'])
   );
+}
+
+function getAdvanceVatAmount(row) {
+  return parseMoney(
+    row['PERCEPCION 2%']
+    || getRowValueByTokens(row, ['PERCEPCION', '2'])
+  );
+}
+
+function isInvalidDocumentCustomer(row) {
+  return normalizeColumnName(row?.['NOMBRE DEL CLIENTE'])
+    === 'DOCUMENTO INVALIDADO O RECHAZADO';
+}
+
+function isInvalidDocumentStatus(row) {
+  return normalizeColumnName(row?.['Estado del DTE']) === 'INVALIDADO';
+}
+
+function shouldIncludeInvalidDocumentRow(row) {
+  if (Object.prototype.hasOwnProperty.call(row || {}, 'Estado del DTE')) {
+    return isInvalidDocumentStatus(row);
+  }
+
+  return isInvalidDocumentCustomer(row);
 }
 
 function createEmptyAnexoRow(columns) {
@@ -327,6 +389,47 @@ function mapRetentionVatToAnexoRow(row, clientLookup = new Map()) {
     'MONTO RETENCION 1%': formatAnexoMoney(retentionAmount),
     'DUI DEL AGENTE': '',
     'NUMERO DE ANEXO': '7'
+  };
+}
+
+function mapAdvanceVatToAnexoRow(row, providerLookup = new Map()) {
+  const nrcNit = row['N.R.C / NIT']
+    || getRowValueByTokens(row, ['NRC', 'NIT'])
+    || '';
+  const provider = providerLookup.get(normalizeRegisterLookupKey(nrcNit));
+  const advanceAmount = getAdvanceVatAmount(row);
+  const subjectAmount = advanceAmount ? advanceAmount / 0.02 : 0;
+
+  return {
+    'NIT AGENTE': provider?.NIT || '',
+    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISION']
+      || getRowValueByTokens(row, ['FECHA', 'EMISION'])
+      || '',
+    'SERIE DE DOCUMENTO': row['CODIGO DE GENERACION']
+      || getRowValueByTokens(row, ['CODIGO', 'GENERACION'])
+      || '',
+    'NUMERO DE DOCUMENTO': row['SELLO DE RECEPCION']
+      || getRowValueByTokens(row, ['SELLO', 'RECEPCION'])
+      || '',
+    'MONTO SUJETO': formatAnexoMoney(subjectAmount),
+    'MONTO DEL ANTICIPO A CUENTA 2% DE IVA': formatAnexoMoney(advanceAmount),
+    'DUI AGENTE': '',
+    'NUMERO DE ANEXO': '6'
+  };
+}
+
+function mapInvalidDocumentToAnexoRow(row) {
+  return {
+    'NUMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
+    'CLASE DE DOCUMENTO': '4',
+    'DESDE (PREIMPRESO)': '0',
+    'HASTA (PREIMPRESO)': '0',
+    'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
+    'TIPO DE DETALLE': 'D',
+    SERIE: row['SELLO DE RECEPCION'] || '',
+    DESDE: '0',
+    HASTA: '0',
+    'CÓDIGO DE GENERACIÓN': row['CODIGO DE GENERACION'] || ''
   };
 }
 
@@ -493,6 +596,7 @@ export function AnexosView({
 
   function loadData() {
     const clientLookup = loadClientRegisterLookup();
+    const providerLookup = loadProviderRegisterLookup();
 
     const loadConfigByType = {
       salesCcf: {
@@ -541,17 +645,42 @@ export function AnexosView({
         ],
         mapRow: (row) => mapRetentionVatToAnexoRow(row, clientLookup),
         includeRow: (row) => getRetentionAmount(row) > 0
+      },
+      advanceVat: {
+        sourceRows: ccfSalesRows,
+        sourceLabel: 'Libro de Ventas CCF',
+        usefulColumns: [
+          ['NUMERO DE CONTROL'],
+          ['CODIGO DE GENERACION'],
+          ['PERCEPCION', '2']
+        ],
+        mapRow: (row) => mapAdvanceVatToAnexoRow(row, providerLookup),
+        includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '09'
+          && getAdvanceVatAmount(row) > 0
+      },
+      invalidDocuments: {
+        sourceRows: [...ccfSalesRows, ...fcfSalesRows],
+        sourceLabel: 'Libro de Ventas CCF y Libro de Ventas FCF',
+        usefulColumns: [
+          ['NUMERO DE CONTROL'],
+          ['CODIGO DE GENERACION'],
+          ['NOMBRE DEL CLIENTE'],
+          ['Estado', 'DTE']
+        ],
+        mapRow: mapInvalidDocumentToAnexoRow,
+        includeRow: shouldIncludeInvalidDocumentRow,
+        includeInvalidOrRejected: true
       }
     };
 
     const loadConfig = loadConfigByType[type];
     if (!loadConfig) {
-      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compra sujeto excluido FSE y retencion IVA 1%.');
+      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compra sujeto excluido FSE, anticipo IVA 2% y retencion IVA 1%.');
       return;
     }
 
     const filledRows = loadConfig.sourceRows.filter((row) => (
-      !isInvalidOrRejectedDte(row)
+      (loadConfig.includeInvalidOrRejected || !isInvalidOrRejectedDte(row))
       && loadConfig.includeRow(row)
       && hasUsefulAnexoData(row, loadConfig.usefulColumns)
     ));
@@ -586,6 +715,36 @@ export function AnexosView({
             'El Libro de Ventas CCF no tiene filas con monto en RETENCION 1%. '
             + 'Importe documentos con retencion al libro de ventas CCF y vuelva a cargar este anexo.'
           );
+        }
+      } else if (type === 'advanceVat') {
+        const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
+          ['CODIGO DE GENERACION'],
+          ['NUMERO DE CONTROL'],
+          ['NOMBRE DEL CLIENTE']
+        ]));
+        if (!hasCcfSalesRows) {
+          setMessage('No hay datos en Libro de Ventas CCF. Vaya a LIBROS DE IVA > Libro de ventas CCF y pulse CARGAR DATOS.');
+        } else {
+          setMessage(
+            'El Libro de Ventas CCF no tiene filas DTE09 con monto en PERCEPCION 2%. '
+            + 'Importe documentos DTE09 DCL RECEPTOR al Libro de Ventas CCF y vuelva a cargar este anexo.'
+          );
+        }
+      } else if (type === 'invalidDocuments') {
+        const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
+          ['CODIGO DE GENERACION'],
+          ['NUMERO DE CONTROL'],
+          ['NOMBRE DEL CLIENTE']
+        ]));
+        const hasFcfSalesRows = fcfSalesRows.some((row) => hasUsefulAnexoData(row, [
+          ['CODIGO DE GENERACION'],
+          ['NUMERO DE CONTROL'],
+          ['Estado', 'DTE']
+        ]));
+        if (!hasCcfSalesRows && !hasFcfSalesRows) {
+          setMessage('No hay datos en Libro de Ventas CCF ni Libro de Ventas FCF. Cargue datos en esos libros y vuelva a intentar.');
+        } else {
+          setMessage('No se encontraron documentos invalidados: en CCF se requiere NOMBRE DEL CLIENTE igual a DOCUMENTO INVALIDADO O RECHAZADO, y en FCF Estado del DTE igual a Invalidado.');
         }
       } else {
         setMessage(`No hay datos validos cargados en ${loadConfig.sourceLabel}.`);

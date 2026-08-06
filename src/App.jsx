@@ -44,7 +44,8 @@ const ANEXOS_VIEW_TYPES = {
   'anexos-excluded-subject': 'excludedSubject',
   'anexos-advance-vat': 'advanceVat',
   'anexos-retention-vat': 'retentionVat',
-  'anexos-perception-vat': 'perceptionVat'
+  'anexos-perception-vat': 'perceptionVat',
+  'anexos-invalid-documents': 'invalidDocuments'
 };
 
 function normalizeGenerationKey(value) {

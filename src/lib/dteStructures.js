@@ -264,6 +264,36 @@ export const RETENTION_RECEPTOR_STRUCTURE = [
   { name: 'Observaciones', sections: ['observaciones'], fields: ['*'] }
 ];
 
+export const DCL_RECEPTOR_STRUCTURE = [
+  { name: 'Tipo DTE', sections: ['identificacion'], fields: ['tipoDte'] },
+  { name: 'Hora', sections: ['identificacion'], fields: ['horEmi'] },
+  { name: 'Fecha', sections: ['identificacion'], fields: ['fecEmi'], style: 'date' },
+  { name: 'Numero de control', sections: ['identificacion'], fields: ['numeroControl'], style: 'stripHyphen' },
+  { name: 'Numero de documento', sections: ['identificacion'], fields: ['codigoGeneracion'], style: 'stripHyphen' },
+  { name: 'Serie de Documento', sections: ['selloRecibido', 'selloRecepcion', 'sello'], fields: ['*'] },
+  { name: 'NRC Emisor', sections: ['emisor'], fields: ['nrc'] },
+  { name: 'NIT Emisor', sections: ['emisor'], fields: ['nit'] },
+  { name: 'Nombre emisor', sections: ['emisor'], fields: ['nombre'] },
+  { name: 'NRC Receptor', sections: ['receptor'], fields: ['nrc'] },
+  { name: 'NIT Receptor', sections: ['receptor'], fields: ['nit'] },
+  { name: 'Nombre receptor', sections: ['receptor'], fields: ['nombre'] },
+  { name: 'Periodo Liq Inicio', sections: ['cuerpoDocumento'], fields: ['periodoLiquidacionFechaInicio'], perItem: true, style: 'date' },
+  { name: 'Periodo Liq Fin', sections: ['cuerpoDocumento'], fields: ['periodoLiquidacionFechaFin'], perItem: true, style: 'date' },
+  { name: 'Valor operaciones', sections: ['cuerpoDocumento'], fields: ['valorOperaciones'], perItem: true, style: 'money' },
+  { name: 'Sub total', sections: ['cuerpoDocumento'], fields: ['subTotal'], perItem: true, style: 'money' },
+  { name: 'IVA', sections: ['cuerpoDocumento'], fields: ['iva'], perItem: true, style: 'money' },
+  { name: 'Monto Sujeto Percepcion', sections: ['cuerpoDocumento'], fields: ['montoSujetoPercepcion'], perItem: true, style: 'money' },
+  { name: 'IVA percibido 2%', sections: ['cuerpoDocumento'], fields: ['ivaPercibido'], perItem: true, style: 'money' },
+  { name: 'Comision', sections: ['cuerpoDocumento'], fields: ['comision'], perItem: true, style: 'money' },
+  { name: '% comision', sections: ['cuerpoDocumento'], fields: ['porcentComision'], perItem: true },
+  { name: 'IVA Comision', sections: ['cuerpoDocumento'], fields: ['ivaComision'], perItem: true, style: 'money' },
+  { name: 'Liq. A Pagar', sections: ['cuerpoDocumento'], fields: ['liquidoApagar'], perItem: true, style: 'money' },
+  { name: 'Cantidad en letras', sections: ['cuerpoDocumento'], fields: ['totalLetras'], perItem: true },
+  { name: 'Codigo liquidacion', sections: ['cuerpoDocumento'], fields: ['codLiquidacion'], perItem: true },
+  { name: 'Cantidad Documentos', sections: ['cuerpoDocumento'], fields: ['cantidadDoc'], perItem: true },
+  { name: 'Observaciones', sections: ['cuerpoDocumento'], fields: ['observaciones'], perItem: true }
+];
+
 export const FEX_EMISOR_STRUCTURE = [
   { name: 'Tipo DTE', sections: ['identificacion'], fields: ['tipoDte'] },
   { name: 'Hora', sections: ['identificacion'], fields: ['horEmi'] },
@@ -351,6 +381,7 @@ export const STRUCTURES_BY_DTE = {
     { name: 'Documento Relacionado', sections: ['documentoRelacionado'], fields: ['numeroDocumento', 'codigoGeneracion'] }
   ],
   '07': RETENTION_RECEPTOR_STRUCTURE,
+  '09': DCL_RECEPTOR_STRUCTURE,
   '11': FEX_EMISOR_STRUCTURE,
   '14': FSE_EMISOR_STRUCTURE,
   '15': [
@@ -374,6 +405,9 @@ export const NAMED_STRUCTURES_BY_DTE = {
   },
   '07': {
     'COMPROBANTE DE RETENCION RECEPTOR': RETENTION_RECEPTOR_STRUCTURE
+  },
+  '09': {
+    'DCL RECEPTOR': DCL_RECEPTOR_STRUCTURE
   },
   '11': {
     'FEX EMISOR': FEX_EMISOR_STRUCTURE
@@ -400,9 +434,9 @@ export const ALL_DTE_STRUCTURE = [
   ITEM_TYPE_COLUMN
 ];
 
-export const MONEY_COLUMN_NAMES = new Set(ALL_DTE_STRUCTURE
-  .filter((rule) => rule?.style === 'money')
-  .map((rule) => rule.name));
+export const MONEY_COLUMN_NAMES = new Set(Object.values(NAMED_STRUCTURES_BY_DTE)
+  .flatMap((structuresByName) => Object.values(structuresByName))
+  .flatMap((structure) => structure.filter((rule) => rule?.style === 'money').map((rule) => rule.name)));
 
 export function getStructureForType(typeCode, structureName = DEFAULT_STRUCTURE_NAME) {
   if (structureName === 'TODOS') return [...ALL_DTE_STRUCTURE, ...PUBLIC_QUERY_COLUMNS];

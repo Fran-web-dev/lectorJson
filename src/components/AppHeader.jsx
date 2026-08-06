@@ -96,6 +96,10 @@ export function AppHeader({ activeView, onNavigate }) {
               <TableProperties size={15} />
               Anexo percepcion IVA 1%
             </button>
+            <button onClick={() => onNavigate('anexos-invalid-documents')} type="button">
+              <TableProperties size={15} />
+              Anexo documentos invalidados
+            </button>
           </div>
         </div>
       </nav>

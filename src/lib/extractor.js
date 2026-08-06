@@ -39,6 +39,12 @@ function flattenVisible(value) {
   return value ?? '';
 }
 
+function normalizeItems(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return [value];
+  return [];
+}
+
 function formatValue(value, style) {
   if (style === 'adjustedDocument') return formatAdjustedDocuments(value);
   if (style === 'money' && (value === null || value === undefined || value === '')) {
@@ -394,7 +400,7 @@ export function extractRows(documents, options = {}) {
       structure = getStructureForType(dte.code, structureName);
       structureCache.set(structureKey, structure);
     }
-    const items = Array.isArray(document.payload?.cuerpoDocumento) ? document.payload.cuerpoDocumento : [];
+    const items = normalizeItems(document.payload?.cuerpoDocumento);
     const baseRow = {
       __sourceFile: document.sourceFile || ''
     };

@@ -67,7 +67,7 @@ function getAutoColumnWidth(column, rows) {
 }
 
 function isMoneyColumn(column) {
-  return /total|monto|credito|debito|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|sub-total|pagar/i.test(column)
+  return /total|monto|valor|iva|credito|debito|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|sub-?total|pagar|comision|liq\./i.test(column)
     && !/letras/i.test(column);
 }
 

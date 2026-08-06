@@ -46,6 +46,7 @@ const IVA_BOOKS = {
       { header: 'IVA DEBITO', width: '130px', money: true },
       { header: 'VENTA TOTAL', width: '130px', money: true },
       { header: 'RETENCION 1%', width: '120px', money: true },
+      { header: 'PERCEPCION 2%', width: '120px', money: true },
       { header: 'TIPO DE OPERACION (RENTA)', width: '155px', redHeader: true },
       { header: 'TIPO DE INGRESO (Renta)', width: '165px', redHeader: true }
     ]
@@ -150,18 +151,30 @@ const IVA_BOOK_MAPPINGS = {
   },
   ccfSales: {
     'FECHA DE EMISION': 'Fecha',
-    'NUMERO DE CONTROL': 'Numero de Control',
-    'CODIGO DE GENERACION': ['Codigo de generacion local', 'Numero del Documento', 'Numero Documento'],
-    'SELLO DE RECEPCION': ['Serie del Documento', 'Serie Documento'],
+    'NUMERO DE CONTROL': ['Numero de Control', 'Numero de control'],
+    'CODIGO DE GENERACION': {
+      byTypeCode: {
+        '09': 'Numero de documento',
+        default: ['Codigo de generacion local', 'Numero del Documento', 'Numero Documento']
+      }
+    },
+    'SELLO DE RECEPCION': {
+      byTypeCode: {
+        '09': 'Serie de Documento',
+        default: ['Serie del Documento', 'Serie Documento']
+      }
+    },
     'N.R.C / NIT': {
       byTypeCode: {
         '07': ['NRC emisor', 'NIT emisor'],
+        '09': 'NRC Emisor',
         default: ['NRC receptor', 'NIT receptor']
       }
     },
     'NOMBRE DEL CLIENTE': {
       byTypeCode: {
         '07': 'Nombre emisor',
+        '09': 'Nombre emisor',
         default: 'Nombre receptor'
       }
     },
@@ -169,6 +182,7 @@ const IVA_BOOK_MAPPINGS = {
       byTypeCode: {
         '05': { calculate: [{ add: 'Total no Sujetas' }, { subtract: 'Desc. no Sujeta' }] },
         '07': { fixed: '$0.00' },
+        '09': { fixed: '$0.00' },
         default: 'Total no Sujetas'
       }
     },
@@ -176,6 +190,7 @@ const IVA_BOOK_MAPPINGS = {
       byTypeCode: {
         '05': { calculate: [{ add: 'Total Exenta' }, { subtract: 'Desc. Exenta' }] },
         '07': { fixed: '$0.00' },
+        '09': { fixed: '$0.00' },
         default: 'Total Exenta'
       }
     },
@@ -183,29 +198,52 @@ const IVA_BOOK_MAPPINGS = {
       byTypeCode: {
         '05': { calculate: [{ add: 'Total Gravado' }, { subtract: 'Desc. Gravado' }] },
         '07': { fixed: '$0.00' },
+        '09': { fixed: '$0.00' },
         default: 'Total Gravado'
       }
     },
     'IVA DEBITO': {
       byTypeCode: {
         '07': { fixed: '$0.00' },
+        '09': { fixed: '$0.00' },
         default: ['Debito Fiscal', 'Credito Fiscal']
       }
     },
     'VENTA TOTAL': {
       byTypeCode: {
         '07': { fixed: '$0.00' },
+        '09': { fixed: '$0.00' },
         default: 'Monto Total de la Operacion'
       }
     },
     'RETENCION 1%': {
       byTypeCode: {
         '07': ['Retencion IVA', 'IVA retenido', 'IVA Retenido'],
+        '09': { fixed: '$0.00' },
         default: 'IVA Retenido'
       }
     },
-    'TIPO DE OPERACION (RENTA)': { fixed: '01 Gravada' },
-    'TIPO DE INGRESO (Renta)': { fromItemType: true }
+    'PERCEPCION 2%': {
+      byTypeCode: {
+        '07': { fixed: '$0.00' },
+        '09': 'IVA percibido 2%',
+        default: ['Percepciones', 'IVA Percibido']
+      }
+    },
+    'TIPO DE OPERACION (RENTA)': {
+      byTypeCode: {
+        '07': { fixed: '' },
+        '09': { fixed: '' },
+        default: { fixed: '01 Gravada' }
+      }
+    },
+    'TIPO DE INGRESO (Renta)': {
+      byTypeCode: {
+        '07': { fixed: '' },
+        '09': { fixed: '' },
+        default: { fromItemType: true }
+      }
+    }
   },
   purchases: {
     'FECHA DE EMISION': 'Fecha',
@@ -257,9 +295,10 @@ const IVA_BOOK_REQUIREMENTS = {
       { typeCode: '05', structureName: 'NOTA DE CREDITO EMISOR VENTA' },
       { typeCode: '05', structureName: 'NOTA DE CREDITO EMISOR VENTAS' },
       { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPTOR' },
-      { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPCION' }
+      { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPCION' },
+      { typeCode: '09', structureName: 'DCL RECEPTOR' }
     ],
-    message: 'Para importar datos en Libro de Ventas CCF seleccione en INICIO: Tipo de Documento 03 con estructura CCF EMISOR VENTA, Tipo de Documento 05 con estructura NOTA DE CREDITO EMISOR VENTA, o Tipo de Documento 07 con estructura COMPROBANTE DE RETENCION RECEPTOR.'
+    message: 'Para importar datos en Libro de Ventas CCF seleccione en INICIO: Tipo de Documento 03 con estructura CCF EMISOR VENTA, Tipo de Documento 05 con estructura NOTA DE CREDITO EMISOR VENTA, Tipo de Documento 07 con estructura COMPROBANTE DE RETENCION RECEPTOR, o Tipo de Documento 09 con estructura DCL RECEPTOR.'
   },
   purchases: {
     accepted: [
@@ -602,7 +641,8 @@ function orderRowsForIvaBook(rows, type) {
     ccfSales: new Map([
       ['03', 0],
       ['05', 1],
-      ['07', 2]
+      ['07', 2],
+      ['09', 3]
     ]),
     purchases: new Map([
       ['03', 0],

@@ -41,13 +41,14 @@ const IMPORTABLE_STRUCTURES = {
   ]),
   providers: new Set([
     '03|CCF RECEPTOR COMPRA',
+    '09|DCL RECEPTOR',
     '14|FSE EMISOR'
   ])
 };
 
 const IMPORTABLE_STRUCTURE_MESSAGES = {
   clients: 'Importe disponible solo para 01 FCF EMISOR y 03 CCF EMISOR VENTA.',
-  providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA y 14 FSE EMISOR.'
+  providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA, 09 DCL RECEPTOR y 14 FSE EMISOR.'
 };
 
 const CLIENT_TYPE_OPERATION_OPTIONS = [
@@ -239,6 +240,21 @@ function mapSourceRowToRegister(row, type, sourceTypeCode) {
         NIT: document.nit,
         DUI: document.dui,
         'NOMBRE DEL PROVEEDOR': row['Nombre sujetoExcluido'] || '',
+        'TIPO DE OPERACION (Renta)': '',
+        'CLASIFICACION (Renta)': '',
+        'SECTOR (Renta)': '',
+        'TIPO DE COSTO/GASTO (Renta)': ''
+      };
+    }
+
+    if (sourceTypeCode === '09') {
+      const document = splitProviderDocument(row['NIT Emisor'] || row['NIT emisor']);
+
+      return {
+        NRC: row['NRC Emisor'] || row['NRC emisor'] || '',
+        NIT: document.nit,
+        DUI: document.dui,
+        'NOMBRE DEL PROVEEDOR': row['Nombre emisor'] || '',
         'TIPO DE OPERACION (Renta)': '',
         'CLASIFICACION (Renta)': '',
         'SECTOR (Renta)': '',
