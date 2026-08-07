@@ -3,6 +3,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState
 } from 'react';
 import { createPortal } from 'react-dom';
@@ -218,6 +219,8 @@ export function VirtualDataTable({
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
   const [manualColumnWidths, setManualColumnWidths] = useState({});
   const [columnTotals, setColumnTotals] = useState({});
+  const scrollFrameRef = useRef(0);
+  const pendingViewportRef = useRef(viewport);
   
   const sortedRows = useMemo(() => {
     if (!sortConfig.column) return rows;
@@ -265,6 +268,11 @@ export function VirtualDataTable({
       cancelIdle(idleId);
     };
   }, [columns, sortedRows]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
+
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(filterSourceRows.map((row) => String(row[openFilter] ?? '')))).sort((a, b) =>
@@ -273,13 +281,18 @@ export function VirtualDataTable({
   }, [filterSourceRows, openFilter]);
 
   const handleScroll = useCallback((event) => {
-  const target = event.currentTarget;
+    const target = event.currentTarget;
+    pendingViewportRef.current = {
+      height: target.clientHeight,
+      scrollTop: target.scrollTop
+    };
 
-  setViewport({
-    height: target.clientHeight,
-    scrollTop: target.scrollTop
-  });
-}, []);
+    if (scrollFrameRef.current) return;
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = 0;
+      setViewport(pendingViewportRef.current);
+    });
+  }, []);
 
 const handleHorizontalScroll = useCallback((event) => {
   setScrollLeft(event.currentTarget.scrollLeft);

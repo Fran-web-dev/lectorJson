@@ -451,3 +451,32 @@ export function extractRows(documents, options = {}) {
 
   return rows;
 }
+
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
+
+export async function extractRowsInBatches(documents, options = {}) {
+  const {
+    batchSize = 500,
+    onProgress,
+    shouldCancel
+  } = options;
+  const rows = [];
+  const total = documents.length;
+
+  for (let start = 0; start < total; start += batchSize) {
+    if (shouldCancel?.()) return rows;
+
+    const batch = documents.slice(start, start + batchSize);
+    rows.push(...extractRows(batch, options));
+
+    const completed = Math.min(start + batch.length, total);
+    onProgress?.({ completed, total, rows: rows.length });
+    await waitForNextFrame();
+  }
+
+  return rows;
+}

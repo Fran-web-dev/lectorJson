@@ -128,16 +128,16 @@ export default function App() {
   const [rowPendingDelete, setRowPendingDelete] = useState(null);
 
   useEffect(() => {
-    const timer = window.setTimeout(() => setShowSplash(false), 650);
+    const timer = window.setTimeout(() => setShowSplash(false), 120);
     return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
-    const warmup = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 250));
+    const warmup = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 2500));
     const cancelWarmup = window.cancelIdleCallback || window.clearTimeout;
     const warmupId = warmup(() => {
       import('./lib/extractor.js');
-    });
+    }, { timeout: 3000 });
     return () => cancelWarmup(warmupId);
   }, []);
 
@@ -173,12 +173,24 @@ export default function App() {
       };
     }
 
-    import('./lib/extractor.js').then(({ extractRows }) => {
+    import('./lib/extractor.js').then(async ({ extractRowsInBatches }) => {
       if (!cancelled) {
-        const nextRows = markDuplicateRows(extractRows(documents, { typeCode, structureName, fromDate, toDate }));
+        setStatus(`Preparando tabla: 0/${documents.length} documento(s)...`);
+        const nextRows = markDuplicateRows(await extractRowsInBatches(documents, {
+          typeCode,
+          structureName,
+          fromDate,
+          toDate,
+          onProgress: ({ completed, total, rows: extractedRows }) => {
+            if (!cancelled) setStatus(`Preparando tabla: ${completed}/${total} documento(s). ${extractedRows} fila(s) encontrada(s).`);
+          },
+          shouldCancel: () => cancelled
+        }));
+        if (cancelled) return;
         startTransition(() => {
           setRows(nextRows);
         });
+        setStatus(`${nextRows.length} registro(s) cargado(s) desde ${folder || 'archivos seleccionados'}.`);
       }
     });
 
@@ -196,14 +208,16 @@ export default function App() {
       };
     }
 
-    import('./lib/extractor.js').then(({ extractRows }) => {
+    import('./lib/extractor.js').then(async ({ extractRowsInBatches }) => {
       if (cancelled) return;
-      const fcfRows = extractRows(documents, {
+      const fcfRows = await extractRowsInBatches(documents, {
         typeCode,
         structureName,
         fromDate,
-        toDate
+        toDate,
+        shouldCancel: () => cancelled
       });
+      if (cancelled) return;
       startTransition(() => {
         setFcfIvaBookRows(fcfRows);
       });
@@ -665,6 +679,7 @@ export default function App() {
       ) : activeView.startsWith('anexos') ? (
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando anexos...</div></div>}>
           <AnexosView
+            key={activeAnexoType}
             ccfSalesRows={ivaBookRowsByType.ccfSales || []}
             fcfSalesRows={ivaBookRowsByType.fcfSales || []}
             purchaseRows={ivaBookRowsByType.purchases || []}

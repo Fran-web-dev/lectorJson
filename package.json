@@ -11,7 +11,9 @@
     "perf:10k": "node scripts/perf-10k.mjs",
     "start": "electron .",
     "preview": "vite preview",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "dist:fast": "npm run build && electron-builder --win dir",
+    "dist:portable": "npm run build && electron-builder --win portable"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

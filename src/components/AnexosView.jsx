@@ -1,5 +1,5 @@
 import { Check, Pencil, Trash2, X } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const ANEXOS = {
   salesCcf: {
@@ -169,21 +169,40 @@ export const ANEXOS_LABELS = {
 };
 
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
+const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
+const ANEXO_LOAD_BATCH_SIZE = 1000;
+const ANEXO_ROW_HEIGHT = 28;
+const ANEXO_OVERSCAN_ROWS = 12;
+const ANEXO_STICKY_ROWS_HEIGHT = 76;
+
+function waitForNextFrame() {
+  return new Promise((resolve) => {
+    requestAnimationFrame(() => resolve());
+  });
+}
 
 function normalizeRegisterLookupKey(value) {
   return String(value || '').replace(/[-\s]/g, '').trim().toUpperCase();
 }
 
 function loadClientRegisterLookup() {
+  return loadRegisterLookup(CLIENT_REGISTER_STORAGE_KEY);
+}
+
+function loadProviderRegisterLookup() {
+  return loadRegisterLookup(PROVIDER_REGISTER_STORAGE_KEY);
+}
+
+function loadRegisterLookup(storageKey) {
   if (typeof window === 'undefined') return new Map();
 
   try {
-    const rows = JSON.parse(window.localStorage.getItem(CLIENT_REGISTER_STORAGE_KEY) || '[]');
+    const rows = JSON.parse(window.localStorage.getItem(storageKey) || '[]');
     if (!Array.isArray(rows)) return new Map();
 
     const lookup = new Map();
     for (const row of rows) {
-      for (const keyColumn of ['NRC', 'NIT']) {
+      for (const keyColumn of ['NRC', 'NIT', 'DUI']) {
         const key = normalizeRegisterLookupKey(row?.[keyColumn]);
         if (key && !lookup.has(key)) lookup.set(key, row);
       }
@@ -206,6 +225,14 @@ function getAdvanceVatAmount(row) {
   return parseMoney(
     row['PERCEPCION 2%']
     || getRowValueByTokens(row, ['PERCEPCION', '2'])
+  );
+}
+
+function getPurchasePerceptionVatAmount(row) {
+  return parseMoney(
+    row['PERCEPCION 1% IVA']
+    || row['PERCEPCION 2% / 1% IVA']
+    || getRowValueByTokens(row, ['PERCEPCION', '1'])
   );
 }
 
@@ -321,15 +348,19 @@ function prepareAnexoRowForCsv(row, type) {
 function mapCcfSaleToAnexoRow(row) {
   const gravadas = parseMoney(row['VENTAS INTERNAS GRAVADAS VALOR NETO']);
   const ivaDebito = parseMoney(row['IVA DEBITO']);
+  const fechaEmision = row['FECHA DE EMISION']
+    || row['FECHA DE EMISIÓN']
+    || getRowValueByTokens(row, ['FECHA', 'EMISION'])
+    || '';
 
   return {
-    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISIÓN'] || '',
+    'FECHA DE EMISION DEL DOCUMENTO': fechaEmision,
     'CLASE DE DOCUMENTO': '4',
     'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
     'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
     'NÚMERO DE SERIE DE DOCUMENTO': row['SELLO DE RECEPCION'] || '',
     'NÚMERO DE DOCUMENTO': row['CODIGO DE GENERACION'] || '',
-    'NÚMERO DE CONTROL INTERNO': '',
+    'NÚMERO DE CONTROL INTERNO': row['NUMERO DE CONTROL'] || '',
     'NIT O NRC DEL CLIENTE': row['N.R.C / NIT'] || '',
     'NOMBRE, RAZON SOCIAL O DENOMINACION': row['NOMBRE DEL CLIENTE'] || '',
     'VENTAS EXENTAS': formatAnexoMoney(row.EXENTAS),
@@ -490,6 +521,34 @@ function mapAdvanceVatToAnexoRow(row, clientLookup = new Map()) {
   };
 }
 
+function mapPerceptionVatToAnexoRow(row, providerLookup = new Map()) {
+  const nrcNit = row['N.R.C / NIT']
+    || getRowValueByTokens(row, ['NRC', 'NIT'])
+    || '';
+  const provider = providerLookup.get(normalizeRegisterLookupKey(nrcNit));
+  const perceptionAmount = getPurchasePerceptionVatAmount(row);
+  const subjectAmount = perceptionAmount ? perceptionAmount / 0.01 : 0;
+
+  return {
+    'NIT AGENTE': provider?.NIT || '',
+    'FECHA DE EMISIÓN': row['FECHA DE EMISION']
+      || row['FECHA DE EMISIÓN']
+      || getRowValueByTokens(row, ['FECHA', 'EMISION'])
+      || '',
+    'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
+    'SERIE DE DOCUMENTO': row['SELLO DE RECEPCION']
+      || getRowValueByTokens(row, ['SELLO', 'RECEPCION'])
+      || '',
+    'NUMERO DE DOCUMENTO': row['CODIGO DE GENERACION']
+      || getRowValueByTokens(row, ['CODIGO', 'GENERACION'])
+      || '',
+    'MONTO SUJETO': formatAnexoMoney(subjectAmount),
+    'MONTO DE LA PERCEPCION': formatAnexoMoney(perceptionAmount),
+    'DUI AGENTE': '',
+    'NÚMERO DE ANEXO': '8'
+  };
+}
+
 function mapInvalidDocumentToAnexoRow(row) {
   return {
     'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
@@ -541,7 +600,14 @@ function mapFcfSaleToAnexoRow(row) {
 }
 
 function hasUsefulAnexoData(row, columns) {
-  return columns.some(([header]) => String(row[header] || '').trim());
+  return columns.some((columnParts) => {
+    const [header] = columnParts;
+    const value = columnParts.length > 1
+      ? getRowValueByTokens(row, columnParts)
+      : row[header];
+
+    return String(value || '').trim();
+  });
 }
 
 function isInvalidOrRejectedDte(row) {
@@ -563,6 +629,206 @@ function applyAnexoFilters(rows, filters) {
   const filterSets = activeFilters.map(([column, values]) => [column, new Set(values)]);
 
   return rows.filter(({ row }) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
+}
+
+function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, fcfSalesRows, providerLookup, purchaseRows }) {
+  const loadConfigByType = {
+    salesCcf: {
+      sourceRows: ccfSalesRows,
+      sourceLabel: 'Libro de Ventas CCF',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['NOMBRE DEL CLIENTE']
+      ],
+      mapRow: mapCcfSaleToAnexoRow,
+      includeRow: () => true
+    },
+    salesFcf: {
+      sourceRows: fcfSalesRows,
+      sourceLabel: 'Libro de Ventas FCF',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['TOTAL']
+      ],
+      mapRow: mapFcfSaleToAnexoRow,
+      includeRow: () => true
+    },
+    purchases: {
+      sourceRows: purchaseRows,
+      sourceLabel: 'Libro de Compras',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['NOMBRE', 'PROVEEDOR'],
+        ['TOTAL', 'COMPRAS']
+      ],
+      mapRow: mapPurchaseToAnexoRow,
+      includeRow: () => true
+    },
+    excludedSubject: {
+      sourceRows: purchaseRows,
+      sourceLabel: 'Libro de Compras',
+      usefulColumns: [
+        ['CODIGO DE GENERACION'],
+        ['NOMBRE DEL PROVEEDOR'],
+        ['COMPRAS A SUJETOS EXCLUIDOS']
+      ],
+      mapRow: mapExcludedSubjectPurchaseToAnexoRow,
+      includeRow: (row) => parseMoney(
+        row['COMPRAS A SUJETOS EXCLUIDOS']
+        || getRowValueByTokens(row, ['COMPRAS', 'SUJETOS', 'EXCLUIDOS'])
+      ) > 0
+    },
+    retentionVat: {
+      sourceRows: ccfSalesRows,
+      sourceLabel: 'Libro de Ventas CCF',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['RETENCION 1%']
+      ],
+      mapRow: (row) => mapRetentionVatToAnexoRow(row, clientLookup),
+      includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '07'
+        && getRetentionAmount(row) > 0
+    },
+    advanceVat: {
+      sourceRows: ccfSalesRows,
+      sourceLabel: 'Libro de Ventas CCF',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['PERCEPCION', '2']
+      ],
+      mapRow: (row) => mapAdvanceVatToAnexoRow(row, clientLookup),
+      includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '09'
+        && getAdvanceVatAmount(row) > 0
+    },
+    perceptionVat: {
+      sourceRows: purchaseRows,
+      sourceLabel: 'Libro de Compras',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['NOMBRE', 'PROVEEDOR']
+      ],
+      mapRow: (row) => mapPerceptionVatToAnexoRow(row, providerLookup),
+      includeRow: () => true
+    },
+    invalidDocuments: {
+      sourceRows: [...ccfSalesRows, ...fcfSalesRows],
+      sourceLabel: 'Libro de Ventas CCF y Libro de Ventas FCF',
+      usefulColumns: [
+        ['NUMERO DE CONTROL'],
+        ['CODIGO DE GENERACION'],
+        ['NOMBRE DEL CLIENTE'],
+        ['Estado', 'DTE']
+      ],
+      mapRow: mapInvalidDocumentToAnexoRow,
+      includeRow: shouldIncludeInvalidDocumentRow,
+      includeInvalidOrRejected: true
+    }
+  };
+
+  return loadConfigByType[type];
+}
+
+async function buildAnexoRows({ columns, loadConfig, onProgress }) {
+  const sourceRowsToLoad = loadConfig.sourceRows;
+  const totalRowsToCheck = sourceRowsToLoad.length;
+  const emptyRowTemplate = createEmptyAnexoRow(columns);
+  const nextRows = [];
+
+  onProgress({ completed: 0, matched: 0, total: totalRowsToCheck });
+  await waitForNextFrame();
+
+  for (let index = 0; index < totalRowsToCheck; index += 1) {
+    const row = sourceRowsToLoad[index];
+
+    if (
+      (loadConfig.includeInvalidOrRejected || !isInvalidOrRejectedDte(row))
+      && loadConfig.includeRow(row)
+      && hasUsefulAnexoData(row, loadConfig.usefulColumns)
+    ) {
+      nextRows.push({
+        ...emptyRowTemplate,
+        ...loadConfig.mapRow(row),
+        __dteStatus: row.__dteStatus || row['Estado del DTE'] || ''
+      });
+    }
+
+    const completed = index + 1;
+    if (completed % ANEXO_LOAD_BATCH_SIZE === 0 || completed === totalRowsToCheck) {
+      onProgress({ completed, matched: nextRows.length, total: totalRowsToCheck });
+      await waitForNextFrame();
+    }
+  }
+
+  return nextRows;
+}
+
+function getNoAnexoRowsMessage(type, { ccfSalesRows, fcfSalesRows, loadConfig, purchaseRows }) {
+  if (type === 'excludedSubject') {
+    const hasPurchaseBookRows = purchaseRows.some((row) => hasUsefulAnexoData(row, [
+      ['CODIGO DE GENERACION'],
+      ['NOMBRE DEL PROVEEDOR'],
+      ['NUMERO DE CONTROL']
+    ]));
+    return hasPurchaseBookRows
+      ? 'El Libro de Compras no tiene filas con monto en COMPRAS A SUJETOS EXCLUIDOS. En INICIO seleccione Tipo de Documento 14 con estructura FSE EMISOR, importe esos registros al Libro de Compras y vuelva a cargar este anexo.'
+      : 'No hay datos en Libro de Compras. Vaya a LIBROS DE IVA > Libro de compras y pulse CARGAR DATOS.';
+  }
+
+  if (type === 'retentionVat') {
+    const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
+      ['CODIGO DE GENERACION'],
+      ['NUMERO DE CONTROL'],
+      ['NOMBRE DEL CLIENTE']
+    ]));
+    return hasCcfSalesRows
+      ? 'El Libro de Ventas CCF no tiene filas con monto en RETENCION 1%. Importe documentos con retencion al libro de ventas CCF y vuelva a cargar este anexo.'
+      : 'No hay datos en Libro de Ventas CCF. Vaya a LIBROS DE IVA > Libro de ventas CCF y pulse CARGAR DATOS.';
+  }
+
+  if (type === 'advanceVat') {
+    const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
+      ['CODIGO DE GENERACION'],
+      ['NUMERO DE CONTROL'],
+      ['NOMBRE DEL CLIENTE']
+    ]));
+    return hasCcfSalesRows
+      ? 'El Libro de Ventas CCF no tiene filas DTE09 con monto en PERCEPCION 2%. Importe documentos DTE09 DCL RECEPTOR al Libro de Ventas CCF y vuelva a cargar este anexo.'
+      : 'No hay datos en Libro de Ventas CCF. Vaya a LIBROS DE IVA > Libro de ventas CCF y pulse CARGAR DATOS.';
+  }
+
+  if (type === 'perceptionVat') {
+    const hasPurchaseRows = purchaseRows.some((row) => hasUsefulAnexoData(row, [
+      ['CODIGO DE GENERACION'],
+      ['NUMERO DE CONTROL'],
+      ['NOMBRE DEL PROVEEDOR']
+    ]));
+    return hasPurchaseRows
+      ? 'El Libro de Compras no tiene filas validas para cargar este anexo.'
+      : 'No hay datos en Libro de Compras. Vaya a LIBROS DE IVA > Libro de compras y pulse CARGAR DATOS.';
+  }
+
+  if (type === 'invalidDocuments') {
+    const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
+      ['CODIGO DE GENERACION'],
+      ['NUMERO DE CONTROL'],
+      ['NOMBRE DEL CLIENTE']
+    ]));
+    const hasFcfSalesRows = fcfSalesRows.some((row) => hasUsefulAnexoData(row, [
+      ['CODIGO DE GENERACION'],
+      ['NUMERO DE CONTROL'],
+      ['Estado', 'DTE']
+    ]));
+    return hasCcfSalesRows || hasFcfSalesRows
+      ? 'No se encontraron documentos invalidados: en CCF se requiere NOMBRE DEL CLIENTE igual a DOCUMENTO INVALIDADO O RECHAZADO, y en FCF Estado del DTE igual a Invalidado.'
+      : 'No hay datos en Libro de Ventas CCF ni Libro de Ventas FCF. Cargue datos en esos libros y vuelva a intentar.';
+  }
+
+  return `No hay datos validos cargados en ${loadConfig.sourceLabel}.`;
 }
 
 export function AnexosView({
@@ -592,15 +858,34 @@ export function AnexosView({
   const [editingRowIndex, setEditingRowIndex] = useState(null);
   const [editingDraft, setEditingDraft] = useState(null);
   const [message, setMessage] = useState('');
+  const [loadProgress, setLoadProgress] = useState(null);
   const [filters, setFilters] = useState({});
   const [filterSearch, setFilterSearch] = useState('');
   const [openFilter, setOpenFilter] = useState('');
+  const [viewport, setViewport] = useState({ height: 600, scrollTop: 0 });
+  const scrollFrameRef = useRef(0);
+  const pendingViewportRef = useRef(viewport);
 
   const indexedRows = useMemo(() => rows.map((row, index) => ({ index, row })), [rows]);
   const visibleRows = useMemo(
     () => applyAnexoFilters(indexedRows, filters),
     [filters, indexedRows]
   );
+  const loadedItemCount = useMemo(
+    () => rows.filter((row) => hasUsefulAnexoData(row, config.columns)).length,
+    [config.columns, rows]
+  );
+  const virtualRows = useMemo(() => {
+    const bodyScrollTop = Math.max(0, viewport.scrollTop - ANEXO_STICKY_ROWS_HEIGHT);
+    const start = Math.max(0, Math.floor(bodyScrollTop / ANEXO_ROW_HEIGHT) - ANEXO_OVERSCAN_ROWS);
+    const visibleCount = Math.ceil(viewport.height / ANEXO_ROW_HEIGHT) + ANEXO_OVERSCAN_ROWS * 2;
+    const end = Math.min(visibleRows.length, start + visibleCount);
+
+    return {
+      rows: visibleRows.slice(start, end),
+      totalHeight: visibleRows.length * ANEXO_ROW_HEIGHT
+    };
+  }, [viewport.height, viewport.scrollTop, visibleRows]);
   const anexoTotals = useMemo(() => {
     const amountColumns = config.columns
       .map(([header]) => header)
@@ -628,12 +913,18 @@ export function AnexosView({
     setOpenFilter('');
     setFilterSearch('');
     setManualColumnWidths({});
+    setViewport({ height: 600, scrollTop: 0 });
+    setLoadProgress(null);
     cancelEditing();
   }, [initialRows, savedRows]);
 
   useEffect(() => {
     onRowsChange?.(rows);
   }, [onRowsChange, rows]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+  }, []);
 
   function startEditing(rowIndex) {
     setEditingRowIndex(rowIndex);
@@ -666,182 +957,47 @@ export function AnexosView({
     if (editingRowIndex === rowIndex) cancelEditing();
   }
 
-  function loadData() {
+  async function loadData() {
     const clientLookup = loadClientRegisterLookup();
+    const providerLookup = loadProviderRegisterLookup();
+    const loadConfig = getAnexoLoadConfig(type, {
+      ccfSalesRows,
+      clientLookup,
+      fcfSalesRows,
+      providerLookup,
+      purchaseRows
+    });
 
-    const loadConfigByType = {
-      salesCcf: {
-        sourceRows: ccfSalesRows,
-        sourceLabel: 'Libro de Ventas CCF',
-        usefulColumns: [
-          ['NUMERO DE CONTROL'],
-          ['CODIGO DE GENERACION'],
-          ['NOMBRE DEL CLIENTE']
-        ],
-        mapRow: mapCcfSaleToAnexoRow,
-        includeRow: () => true
-      },
-      salesFcf: {
-        sourceRows: fcfSalesRows,
-        sourceLabel: 'Libro de Ventas FCF',
-        usefulColumns: [
-          ['NUMERO DE CONTROL'],
-          ['CODIGO DE GENERACION'],
-          ['TOTAL']
-        ],
-        mapRow: mapFcfSaleToAnexoRow,
-        includeRow: () => true
-      },
-      purchases: {
-        sourceRows: purchaseRows,
-        sourceLabel: 'Libro de Compras',
-        usefulColumns: [
-          ['NUMERO DE CONTROL'],
-          ['NOMBRE', 'PROVEEDOR'],
-          ['TOTAL', 'COMPRAS']
-        ],
-        mapRow: mapPurchaseToAnexoRow,
-        includeRow: () => true
-      },
-      excludedSubject: {
-        sourceRows: purchaseRows,
-        sourceLabel: 'Libro de Compras',
-        usefulColumns: [
-          ['CODIGO DE GENERACION'],
-          ['NOMBRE DEL PROVEEDOR'],
-          ['COMPRAS A SUJETOS EXCLUIDOS']
-        ],
-        mapRow: mapExcludedSubjectPurchaseToAnexoRow,
-        includeRow: (row) => parseMoney(
-          row['COMPRAS A SUJETOS EXCLUIDOS']
-          || getRowValueByTokens(row, ['COMPRAS', 'SUJETOS', 'EXCLUIDOS'])
-        ) > 0
-      },
-      retentionVat: {
-        sourceRows: ccfSalesRows,
-        sourceLabel: 'Libro de Ventas CCF',
-        usefulColumns: [
-          ['NUMERO DE CONTROL'],
-          ['CODIGO DE GENERACION'],
-          ['RETENCION 1%']
-        ],
-        mapRow: (row) => mapRetentionVatToAnexoRow(row, clientLookup),
-        includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '07'
-          && getRetentionAmount(row) > 0
-      },
-      advanceVat: {
-        sourceRows: ccfSalesRows,
-        sourceLabel: 'Libro de Ventas CCF',
-        usefulColumns: [
-          ['NUMERO DE CONTROL'],
-          ['CODIGO DE GENERACION'],
-          ['PERCEPCION', '2']
-        ],
-        mapRow: (row) => mapAdvanceVatToAnexoRow(row, clientLookup),
-        includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '09'
-          && getAdvanceVatAmount(row) > 0
-      },
-      invalidDocuments: {
-        sourceRows: [...ccfSalesRows, ...fcfSalesRows],
-        sourceLabel: 'Libro de Ventas CCF y Libro de Ventas FCF',
-        usefulColumns: [
-          ['NUMERO DE CONTROL'],
-          ['CODIGO DE GENERACION'],
-          ['NOMBRE DEL CLIENTE'],
-          ['Estado', 'DTE']
-        ],
-        mapRow: mapInvalidDocumentToAnexoRow,
-        includeRow: shouldIncludeInvalidDocumentRow,
-        includeInvalidOrRejected: true
-      }
-    };
-
-    const loadConfig = loadConfigByType[type];
     if (!loadConfig) {
-      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compras, compra sujeto excluido FSE, anticipo IVA 2%, retencion IVA 1% y documentos invalidados.');
+      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compras, compra sujeto excluido FSE, anticipo IVA 2%, retencion IVA 1%, percepcion IVA 1% y documentos invalidados.');
       return;
     }
 
-    const filledRows = loadConfig.sourceRows.filter((row) => (
-      (loadConfig.includeInvalidOrRejected || !isInvalidOrRejectedDte(row))
-      && loadConfig.includeRow(row)
-      && hasUsefulAnexoData(row, loadConfig.usefulColumns)
-    ));
-
-    if (!filledRows.length) {
-      setRows(initialRows);
-      if (type === 'excludedSubject') {
-        const hasPurchaseBookRows = purchaseRows.some((row) => hasUsefulAnexoData(row, [
-          ['CODIGO DE GENERACION'],
-          ['NOMBRE DEL PROVEEDOR'],
-          ['NUMERO DE CONTROL']
-        ]));
-        if (!hasPurchaseBookRows) {
-          setMessage('No hay datos en Libro de Compras. Vaya a LIBROS DE IVA > Libro de compras y pulse CARGAR DATOS.');
-        } else {
-          setMessage(
-            'El Libro de Compras no tiene filas con monto en COMPRAS A SUJETOS EXCLUIDOS. '
-            + 'En INICIO seleccione Tipo de Documento 14 con estructura FSE EMISOR, '
-            + 'importe esos registros al Libro de Compras y vuelva a cargar este anexo.'
-          );
-        }
-      } else if (type === 'retentionVat') {
-        const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
-          ['CODIGO DE GENERACION'],
-          ['NUMERO DE CONTROL'],
-          ['NOMBRE DEL CLIENTE']
-        ]));
-        if (!hasCcfSalesRows) {
-          setMessage('No hay datos en Libro de Ventas CCF. Vaya a LIBROS DE IVA > Libro de ventas CCF y pulse CARGAR DATOS.');
-        } else {
-          setMessage(
-            'El Libro de Ventas CCF no tiene filas con monto en RETENCION 1%. '
-            + 'Importe documentos con retencion al libro de ventas CCF y vuelva a cargar este anexo.'
-          );
-        }
-      } else if (type === 'advanceVat') {
-        const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
-          ['CODIGO DE GENERACION'],
-          ['NUMERO DE CONTROL'],
-          ['NOMBRE DEL CLIENTE']
-        ]));
-        if (!hasCcfSalesRows) {
-          setMessage('No hay datos en Libro de Ventas CCF. Vaya a LIBROS DE IVA > Libro de ventas CCF y pulse CARGAR DATOS.');
-        } else {
-          setMessage(
-            'El Libro de Ventas CCF no tiene filas DTE09 con monto en PERCEPCION 2%. '
-            + 'Importe documentos DTE09 DCL RECEPTOR al Libro de Ventas CCF y vuelva a cargar este anexo.'
-          );
-        }
-      } else if (type === 'invalidDocuments') {
-        const hasCcfSalesRows = ccfSalesRows.some((row) => hasUsefulAnexoData(row, [
-          ['CODIGO DE GENERACION'],
-          ['NUMERO DE CONTROL'],
-          ['NOMBRE DEL CLIENTE']
-        ]));
-        const hasFcfSalesRows = fcfSalesRows.some((row) => hasUsefulAnexoData(row, [
-          ['CODIGO DE GENERACION'],
-          ['NUMERO DE CONTROL'],
-          ['Estado', 'DTE']
-        ]));
-        if (!hasCcfSalesRows && !hasFcfSalesRows) {
-          setMessage('No hay datos en Libro de Ventas CCF ni Libro de Ventas FCF. Cargue datos en esos libros y vuelva a intentar.');
-        } else {
-          setMessage('No se encontraron documentos invalidados: en CCF se requiere NOMBRE DEL CLIENTE igual a DOCUMENTO INVALIDADO O RECHAZADO, y en FCF Estado del DTE igual a Invalidado.');
-        }
-      } else {
-        setMessage(`No hay datos validos cargados en ${loadConfig.sourceLabel}.`);
+    const nextRows = await buildAnexoRows({
+      columns: config.columns,
+      loadConfig,
+      onProgress: ({ completed, matched, total }) => {
+        setLoadProgress({ completed, total, matched });
+        setMessage(`Cargando datos: ${completed}/${total} archivo(s) revisado(s). ${matched} registro(s) encontrado(s).`);
       }
+    });
+
+    if (!nextRows.length) {
+      setRows(initialRows);
+      setLoadProgress(null);
+      setMessage(getNoAnexoRowsMessage(type, {
+        ccfSalesRows,
+        fcfSalesRows,
+        loadConfig,
+        purchaseRows
+      }));
       return;
     }
 
-    setRows(filledRows.map((row) => ({
-      ...createEmptyAnexoRow(config.columns),
-      ...loadConfig.mapRow(row),
-      __dteStatus: row.__dteStatus || row['Estado del DTE'] || ''
-    })));
+    setRows(nextRows);
+    setLoadProgress(null);
     cancelEditing();
-    setMessage(`${filledRows.length} registro(s) cargado(s) desde ${loadConfig.sourceLabel}.`);
+    setMessage(`${nextRows.length} registro(s) cargado(s) desde ${loadConfig.sourceLabel}.`);
   }
 
   function clearData() {
@@ -919,19 +1075,42 @@ export function AnexosView({
     });
   }, []);
 
+  const handleTableScroll = useCallback((event) => {
+    const target = event.currentTarget;
+    pendingViewportRef.current = {
+      height: target.clientHeight,
+      scrollTop: target.scrollTop
+    };
+
+    if (scrollFrameRef.current) return;
+    scrollFrameRef.current = requestAnimationFrame(() => {
+      scrollFrameRef.current = 0;
+      setViewport(pendingViewportRef.current);
+    });
+  }, []);
+
+  const isLoadingData = Boolean(loadProgress);
+  const progressMessage = loadProgress
+    ? `Cargando ${loadProgress.completed}/${loadProgress.total} archivo(s). ${loadProgress.matched} registro(s) encontrado(s).`
+    : '';
+  const statusMessage = progressMessage || message || (
+    loadedItemCount > 0 ? `${loadedItemCount} item(s) cargado(s)` : ''
+  );
+
   return (
     <section className="anexosView">
       <div className="anexosSheet">
         <div className="anexosToolbar">
-          {message ? <span className="anexosMessage">{message}</span> : null}
-          <button className="actionButton" onClick={loadData} type="button">CARGAR DATOS</button>
-          <button className="actionButton" onClick={exportCsv} type="button">GENERAR CSV</button>
-          <button className="actionButton dangerActionButton" onClick={clearData} type="button">BORRAR DATOS</button>
+          {statusMessage ? <span className="anexosMessage">{statusMessage}</span> : null}
+          <span className="anexosCounter">{loadedItemCount} item(s) cargado(s)</span>
+          <button className="actionButton" disabled={isLoadingData} onClick={loadData} type="button">CARGAR DATOS</button>
+          <button className="actionButton" disabled={isLoadingData} onClick={exportCsv} type="button">GENERAR CSV</button>
+          <button className="actionButton dangerActionButton" disabled={isLoadingData} onClick={clearData} type="button">BORRAR DATOS</button>
         </div>
         <div className="anexosHeader">
           <h1 className="anexosTitle">{config.title}</h1>
         </div>
-        <div className="anexosTableViewport">
+        <div className="anexosTableViewport" onScroll={handleTableScroll}>
           <div className="anexosTable" style={{ gridTemplateColumns }}>
             <div className="anexosTotalCell anexosActionsTotalCell" />
             <div className="anexosTotalCell anexosCorrTotalCell" />
@@ -982,54 +1161,88 @@ export function AnexosView({
               </div>
             ))}
 
-            {visibleRows.flatMap(({ row, index }) => {
-              const rowNumber = index + 1;
-              const isEditing = index === editingRowIndex;
-
-              return [
-              <div className={`anexosCell anexosActionsCell ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-actions`}>
-                {isEditing ? (
-                  <>
-                    <button className="ivaBookRowButton save" onClick={saveEditing} title="Guardar" type="button">
-                      <Check size={13} />
-                    </button>
-                    <button className="ivaBookRowButton cancel" onClick={cancelEditing} title="Cancelar" type="button">
-                      <X size={13} />
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <button className="ivaBookRowButton edit" onClick={() => startEditing(index)} title="Editar linea" type="button">
-                      <Pencil size={13} />
-                    </button>
-                    <button className="ivaBookRowButton delete" onClick={() => clearRow(index)} title="Borrar linea" type="button">
-                      <Trash2 size={13} />
-                    </button>
-                  </>
-                )}
-              </div>,
-              <div className={`anexosCell rowNumber ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-number`}>
-                {rowNumber}
-              </div>,
-              ...config.columns.map(([header]) => (
-                <div className={`anexosCell ${rowNumber % 2 ? 'odd' : 'even'}`} key={`${rowNumber}-${header}`} title={String(row[header] || '')}>
-                  {isEditing ? (
-                    <input
-                      className="anexosEditInput"
-                      onChange={(event) => updateEditingValue(header, event.target.value)}
-                      value={editingDraft?.[header] || ''}
-                    />
-                  ) : (
-                    row[header]
-                  )}
-                </div>
-              ))
-            ];
-            })}
+            <div className="anexosVirtualBody" style={{ height: virtualRows.totalHeight }}>
+              {virtualRows.rows.map(({ row, index }) => (
+                <AnexoVirtualRow
+                  columns={config.columns}
+                  editingDraft={editingDraft}
+                  gridTemplateColumns={gridTemplateColumns}
+                  isEditing={index === editingRowIndex}
+                  key={`anexo-row-${index}`}
+                  onCancelEditing={cancelEditing}
+                  onClearRow={clearRow}
+                  onSaveEditing={saveEditing}
+                  onStartEditing={startEditing}
+                  onUpdateEditingValue={updateEditingValue}
+                  row={row}
+                  rowIndex={index}
+                />
+              ))}
+            </div>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function AnexoVirtualRow({
+  columns,
+  editingDraft,
+  gridTemplateColumns,
+  isEditing,
+  onCancelEditing,
+  onClearRow,
+  onSaveEditing,
+  onStartEditing,
+  onUpdateEditingValue,
+  row,
+  rowIndex
+}) {
+  const rowNumber = rowIndex + 1;
+  const rowTone = rowNumber % 2 ? 'odd' : 'even';
+
+  return (
+    <div
+      className="anexosVirtualRow"
+      style={{ gridTemplateColumns, transform: `translateY(${rowIndex * ANEXO_ROW_HEIGHT}px)` }}
+    >
+      <div className={`anexosCell anexosActionsCell ${rowTone}`}>
+        {isEditing ? (
+          <>
+            <button className="ivaBookRowButton save" onClick={onSaveEditing} title="Guardar" type="button">
+              <Check size={13} />
+            </button>
+            <button className="ivaBookRowButton cancel" onClick={onCancelEditing} title="Cancelar" type="button">
+              <X size={13} />
+            </button>
+          </>
+        ) : (
+          <>
+            <button className="ivaBookRowButton edit" onClick={() => onStartEditing(rowIndex)} title="Editar linea" type="button">
+              <Pencil size={13} />
+            </button>
+            <button className="ivaBookRowButton delete" onClick={() => onClearRow(rowIndex)} title="Borrar linea" type="button">
+              <Trash2 size={13} />
+            </button>
+          </>
+        )}
+      </div>
+      <div className={`anexosCell rowNumber ${rowTone}`}>{rowNumber}</div>
+      {columns.map(([header]) => (
+        <div className={`anexosCell ${rowTone}`} key={header} title={String(row[header] || '')}>
+          {isEditing ? (
+            <input
+              className="anexosEditInput"
+              onChange={(event) => onUpdateEditingValue(header, event.target.value)}
+              value={editingDraft?.[header] || ''}
+            />
+          ) : (
+            row[header]
+          )}
+        </div>
+      ))}
+    </div>
   );
 }
 

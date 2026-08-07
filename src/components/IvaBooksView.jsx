@@ -22,7 +22,7 @@ const IVA_BOOKS = {
       { header: 'IVA', width: '110px', money: true },
       { header: 'TOTAL COMPRAS', width: '130px', money: true },
       { header: 'COMPRAS A SUJETOS EXCLUIDOS', width: '160px', money: true },
-      { header: 'PERCEPCION 2% / 1% IVA', width: '150px', money: true },
+      { header: 'PERCEPCION 1% IVA', width: '150px', money: true },
       { header: 'RETENCION 1% IVA', width: '130px', money: true },
       { header: 'TIPO DE OPERACIÓN', width: '130px', redHeader: true },
       { header: 'CLASIFICACIÓN', width: '185px', redHeader: true },
@@ -279,7 +279,7 @@ const IVA_BOOK_MAPPINGS = {
         default: 'Total Compra'
       }
     },
-    'PERCEPCION 2% / 1% IVA': { byTypeCode: { '05': { source: 'Percepciones', negative: true }, default: 'Percepciones' } },
+    'PERCEPCION 1% IVA': { byTypeCode: { '05': { source: 'Percepciones', negative: true }, default: 'Percepciones' } },
     'RETENCION 1% IVA': { byTypeCode: { '05': { source: 'IVA Retenido', negative: true }, default: 'IVA Retenido' } }
   }
 };

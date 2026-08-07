@@ -1,4 +1,4 @@
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
@@ -85,6 +85,7 @@ function getPublicQueryHttp() {
 }
 
 function createWindow() {
+  const startupTime = Date.now();
   writeStartupLog(`Starting app. packaged=${app.isPackaged} dirname=${__dirname}`);
   const win = new BrowserWindow({
     width: 1280,
@@ -93,6 +94,7 @@ function createWindow() {
     minHeight: 620,
     title: 'Lector DTE Hacienda',
     icon: APP_ICON_PATH,
+    autoHideMenuBar: true,
     backgroundColor: '#f8fafc',
     webPreferences: {
       preload: path.join(__dirname, 'preload.cjs'),
@@ -101,6 +103,7 @@ function createWindow() {
       sandbox: false
     }
   });
+  win.setMenuBarVisibility(false);
 
   if (isDev) {
     win.loadURL('http://127.0.0.1:5173');
@@ -114,6 +117,10 @@ function createWindow() {
     const message = `No se pudo cargar la interfaz (${errorCode}): ${errorDescription}. ${validatedURL}`;
     writeStartupLog(message);
     dialog.showErrorBox('Error al cargar Lector DTE Hacienda', message);
+  });
+
+  win.webContents.on('did-finish-load', () => {
+    writeStartupLog(`Renderer finished loading in ${Date.now() - startupTime}ms`);
   });
 
   win.webContents.on('render-process-gone', (_event, details) => {
@@ -1084,7 +1091,10 @@ ipcMain.handle('external:open', async (_event, url) => {
   return true;
 });
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  Menu.setApplicationMenu(null);
+  createWindow();
+});
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });

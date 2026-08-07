@@ -1113,6 +1113,10 @@ body,
     @apply mr-auto min-w-0 truncate text-xs font-bold text-sky-800;
   }
 
+  .anexosCounter {
+    @apply inline-flex h-8 shrink-0 items-center rounded border border-blue-200 bg-blue-50 px-3 text-xs font-black text-blue-700;
+  }
+
   .anexosTitle {
     @apply inline-flex h-9 shrink-0 items-center border border-slate-900 bg-yellow-100 px-4 text-base font-black uppercase text-slate-950;
   }
@@ -1141,6 +1145,22 @@ body,
   .anexosTable {
     @apply grid border-l border-t border-slate-900 bg-white;
     width: max-content;
+  }
+
+  .anexosVirtualBody {
+    grid-column: 1 / -1;
+    position: relative;
+    width: 100%;
+  }
+
+  .anexosVirtualRow {
+    display: grid;
+    height: 28px;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+    will-change: transform;
   }
 
   .anexosHeadCell,
