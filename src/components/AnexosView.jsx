@@ -8,60 +8,60 @@ const ANEXOS = {
       ['FECHA DE EMISION DEL DOCUMENTO', '10'],
       ['CLASE DE DOCUMENTO', '1'],
       ['TIPO DE DOCUMENTO', '2'],
-      ['NUMERO DE RESOLUCION', '100'],
-      ['NUMERO DE SERIE DE DOCUMENTO', '100'],
-      ['NUMERO DE DOCUMENTO', '100'],
-      ['NUMERO DE CONTROL INTERNO', '100'],
+      ['NÚMERO DE RESOLUCIÓN', '100'],
+      ['NÚMERO DE SERIE DE DOCUMENTO', '100'],
+      ['NÚMERO DE DOCUMENTO', '100'],
+      ['NÚMERO DE CONTROL INTERNO', '100'],
       ['NIT O NRC DEL CLIENTE', '14'],
       ['NOMBRE, RAZON SOCIAL O DENOMINACION', 'SIN LIMITE'],
       ['VENTAS EXENTAS', '10'],
       ['VENTAS NO SUJETAS', '10'],
       ['VENTAS GRAVADAS LOCALES', '10'],
-      ['DEBITO FISCAL', '10'],
+      ['DÉBITO FISCAL', '10'],
       ['VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS', '10'],
-      ['DEBITO FISCAL POR VENTA A CUENTA DE TERCEROS', '10'],
+      ['DÉBITO FISCAL POR VENTA A CUENTA DE TERCEROS', '10'],
       ['TOTAL VENTAS', '10'],
       ['DUI DEL CLIENTE', '9'],
       ['TIPO DE OPERACION (Renta)', '10'],
       ['TIPO DE INGRESO (Renta)', '10'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   salesFcf: {
     title: 'ANEXO VENTA FCF',
     columns: [
-      ['FECHA DE EMISION', '10'],
+      ['FECHA DE EMISIÓN', '10'],
       ['CLASE DE DOCUMENTO', '1'],
       ['TIPO DE DOCUMENTO', '2'],
-      ['NUMERO DE RESOLUCION', '100'],
+      ['NÚMERO DE RESOLUCIÓN', '100'],
       ['SERIE DE DOCUMENTO', '100'],
-      ['NUMERO DE CONTROL INTERNO (DEL)', '100'],
-      ['NUMERO DE CONTROL INTERNO (AL)', '100'],
-      ['NUMERO DE DOCUMENTO (DEL)', '100'],
-      ['NUMERO DE DOCUMENTO (AL)', '100'],
+      ['NÚMERO DE CONTROL INTERNO (DEL)', '100'],
+      ['NÚMERO DE CONTROL INTERNO (AL)', '100'],
+      ['NÚMERO DE DOCUMENTO (DEL)', '100'],
+      ['NÚMERO DE DOCUMENTO (AL)', '100'],
       ['N° DE MAQUINA REGISTRADORA', '14'],
       ['VENTAS EXENTAS', '10'],
       ['VENTAS INTERNAS EXENTAS NO SUJETAS A PROPORCIONALIDAD', '10'],
       ['VENTAS NO SUJETAS', '10'],
       ['VENTAS GRAVADAS LOCALES', '10'],
-      ['EXPORTACIONES DENTRO DEL AREA CENTROAMERICANA', '10'],
-      ['EXPORTACIONES FUERA DEL AREA CENTROAMERICANA', '10'],
+      ['EXPORTACIONES DENTRO DEL ÁREA CENTROAMERICANA', '10'],
+      ['EXPORTACIONES FUERA DEL ÁREA CENTROAMERICANA', '10'],
       ['EXPORTACIONES DE SERVICIOS', '10'],
       ['VENTAS A ZONAS FRANCAS Y DPA (TASA CERO)', '10'],
       ['VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS', '10'],
       ['TOTAL VENTAS', '10'],
       ['TIPO DE OPERACION (Renta)', '10'],
       ['TIPO DE INGRESO (Renta)', '10'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   purchases: {
     title: 'ANEXO COMPRAS',
     columns: [
-      ['FECHA DE EMISION', '10'],
+      ['FECHA DE EMISIÓN', '10'],
       ['CLASE DE DOCUMENTO', '1'],
       ['TIPO DE DOCUMENTO', '2'],
-      ['NUMERO DE DOCUMENTO', '100'],
+      ['NÚMERO DE DOCUMENTO', '100'],
       ['NIT O NRC DEL PROVEEDOR', '14'],
       ['NOMBRE DEL PROVEEDOR', 'SIN LIMITE'],
       ['COMPRAS INTERNAS EXENTAS Y/O NO SUJETAS', '10'],
@@ -71,84 +71,84 @@ const ANEXOS = {
       ['INTERNACIONES GRAVADAS DE BIENES', '10'],
       ['IMPORTACIONES GRAVADAS DE BIENES', '10'],
       ['IMPORTACIONES GRAVADAS DE SERVICIOS', '10'],
-      ['CREDITO FISCAL', '10'],
+      ['CRÉDITO FISCAL', '10'],
       ['TOTAL DE COMPRAS', '10'],
       ['DUI DEL PROVEEDOR', '9'],
-      ['TIPO DE OPERACION', '1'],
-      ['CLASIFICACION', '1'],
+      ['TIPO DE OPERACIÓN', '1'],
+      ['CLASIFICACIÓN', '1'],
       ['SECTOR', '1'],
       ['TIPO DE COSTO / GASTO', '1'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   excludedSubject: {
     title: 'ANEXO COMPRA SUJETO EXCLUIDO FSE (66)',
     columns: [
       ['TIPO DE DOCUMENTO', '1'],
-      ['NUMERO DE NIT, DUI, U OTRO DOCUMENTO', '14'],
-      ['NOMBRE, RAZON SOCIAL O DENOMINACION', 'SIN LIMITE'],
-      ['FECHA DE EMISION DEL DOCUMENTO', '10'],
-      ['NUMERO DE SERIE DEL DOCUMENTO', '100'],
-      ['NUMERO DE DOCUMENTO', '100'],
-      ['MONTO DE LA OPERACION', '10'],
-      ['MONTO DE LA RETENCION IVA 13%', '10'],
-      ['TIPO DE OPERACION', '1'],
-      ['CLASIFICACION', '1'],
+      ['NÚMERO DE NIT, DUI, U OTRO DOCUMENTO', '14'],
+      ['NOMBRE, RAZÓN SOCIAL O DENOMINACIÓN', 'SIN LIMITE'],
+      ['FECHA DE EMISIÓN DEL DOCUMENTO', '10'],
+      ['NÚMERO DE SERIE DEL DOCUMENTO', '100'],
+      ['NÚMERO DE DOCUMENTO', '100'],
+      ['MONTO DE LA OPERACIÓN', '10'],
+      ['MONTO DE LA RETENCIÓN IVA 13%', '10'],
+      ['TIPO DE OPERACIÓN', '1'],
+      ['CLASIFICACIÓN', '1'],
       ['SECTOR', '1'],
       ['TIPO DE COSTO / GASTO', '1'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   advanceVat: {
     title: 'ANEXO ANTICIPO A CUENTA IVA 2% (161)',
     columns: [
       ['NIT AGENTE', '14'],
-      ['FECHA DE EMISION DEL DOCUMENTO', '10'],
+      ['FECHA DE EMISIÓN DEL DOCUMENTO', '10'],
       ['SERIE DE DOCUMENTO', '100'],
-      ['NUMERO DE DOCUMENTO', '100'],
+      ['NÚMERO DE DOCUMENTO', '100'],
       ['MONTO SUJETO', '10'],
       ['MONTO DEL ANTICIPO A CUENTA 2% DE IVA', '10'],
       ['DUI AGENTE', '9'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   retentionVat: {
     title: 'ANEXO RETENCION IVA 1% (162)',
     columns: [
       ['NIT DEL AGENTE', '14'],
-      ['FECHA DE EMISION', '10'],
+      ['FECHA DE EMISIÓN', '10'],
       ['TIPO DE DOCUMENTO', '2'],
       ['SERIE', '100'],
       ['NUMERO DE DOCUMENTO', '100'],
       ['MONTO SUJETO', '10'],
       ['MONTO RETENCION 1%', '10'],
       ['DUI DEL AGENTE', '9'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   perceptionVat: {
     title: 'ANEXO PERCEPCION IVA 1% (163)',
     columns: [
       ['NIT AGENTE', '14'],
-      ['FECHA DE EMISION', '10'],
+      ['FECHA DE EMISIÓN', '10'],
       ['TIPO DE DOCUMENTO', '2'],
       ['SERIE DE DOCUMENTO', '100'],
       ['NUMERO DE DOCUMENTO', '100'],
       ['MONTO SUJETO', '10'],
       ['MONTO DE LA PERCEPCION', '10'],
       ['DUI AGENTE', '9'],
-      ['NUMERO DE ANEXO', '1']
+      ['NÚMERO DE ANEXO', '1']
     ]
   },
   invalidDocuments: {
     title: 'ANEXO DOCUMENTOS INVALIDADOS',
     columns: [
-      ['NUMERO DE RESOLUCIÓN', '100'],
+      ['NÚMERO DE RESOLUCIÓN', '100'],
       ['CLASE DE DOCUMENTO', '1'],
       ['DESDE (PREIMPRESO)', '100'],
       ['HASTA (PREIMPRESO)', '100'],
       ['TIPO DE DOCUMENTO', '2'],
-      ['TIPO DE DETALLE', '1'],
+      ['TIPO DE DETALLE', '3'],
       ['SERIE', '100'],
       ['DESDE', '100'],
       ['HASTA', '100'],
@@ -169,7 +169,6 @@ export const ANEXOS_LABELS = {
 };
 
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
-const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
 
 function normalizeRegisterLookupKey(value) {
   return String(value || '').replace(/[-\s]/g, '').trim().toUpperCase();
@@ -184,26 +183,7 @@ function loadClientRegisterLookup() {
 
     const lookup = new Map();
     for (const row of rows) {
-      const nrcKey = normalizeRegisterLookupKey(row?.NRC);
-      if (nrcKey && !lookup.has(nrcKey)) lookup.set(nrcKey, row);
-    }
-
-    return lookup;
-  } catch {
-    return new Map();
-  }
-}
-
-function loadProviderRegisterLookup() {
-  if (typeof window === 'undefined') return new Map();
-
-  try {
-    const rows = JSON.parse(window.localStorage.getItem(PROVIDER_REGISTER_STORAGE_KEY) || '[]');
-    if (!Array.isArray(rows)) return new Map();
-
-    const lookup = new Map();
-    for (const row of rows) {
-      for (const keyColumn of ['NRC', 'NIT', 'DUI']) {
+      for (const keyColumn of ['NRC', 'NIT']) {
         const key = normalizeRegisterLookupKey(row?.[keyColumn]);
         if (key && !lookup.has(key)) lookup.set(key, row);
       }
@@ -238,7 +218,14 @@ function isInvalidDocumentStatus(row) {
   return normalizeColumnName(row?.['Estado del DTE']) === 'INVALIDADO';
 }
 
+function hasInvalidDocumentRequiredValues(row) {
+  return ['NUMERO DE CONTROL', 'CODIGO DE GENERACION', 'SELLO DE RECEPCION']
+    .every((column) => String(row?.[column] || '').trim());
+}
+
 function shouldIncludeInvalidDocumentRow(row) {
+  if (!hasInvalidDocumentRequiredValues(row)) return false;
+
   if (Object.prototype.hasOwnProperty.call(row || {}, 'Estado del DTE')) {
     return isInvalidDocumentStatus(row);
   }
@@ -293,31 +280,69 @@ function getRowValueByTokens(row, tokens) {
   return entry?.[1] || '';
 }
 
+function getLeadingTwoDigits(value) {
+  return String(value || '').trim().match(/\d{1,2}/)?.[0]?.padStart(2, '0') || '';
+}
+
+function getLeadingDigit(value) {
+  return String(value || '').trim().match(/\d/)?.[0] || '';
+}
+
+function prepareAnexoRowForCsv(row, type) {
+  if (type === 'purchases') {
+    return {
+      ...row,
+      'TIPO DE OPERACIÓN': getLeadingDigit(row['TIPO DE OPERACIÓN']),
+      'CLASIFICACIÓN': getLeadingDigit(row['CLASIFICACIÓN']),
+      SECTOR: getLeadingDigit(row.SECTOR),
+      'TIPO DE COSTO / GASTO': getLeadingDigit(row['TIPO DE COSTO / GASTO'])
+    };
+  }
+
+  if (type === 'excludedSubject') {
+    return {
+      ...row,
+      'TIPO DE OPERACIÓN': getLeadingDigit(row['TIPO DE OPERACIÓN']),
+      CLASIFICACIÓN: getLeadingDigit(row.CLASIFICACIÓN),
+      SECTOR: getLeadingDigit(row.SECTOR),
+      'TIPO DE COSTO / GASTO': getLeadingDigit(row['TIPO DE COSTO / GASTO'])
+    };
+  }
+
+  if (type !== 'salesCcf' && type !== 'salesFcf') return row;
+
+  return {
+    ...row,
+    'TIPO DE OPERACION (Renta)': getLeadingTwoDigits(row['TIPO DE OPERACION (Renta)']),
+    'TIPO DE INGRESO (Renta)': getLeadingTwoDigits(row['TIPO DE INGRESO (Renta)'])
+  };
+}
+
 function mapCcfSaleToAnexoRow(row) {
   const gravadas = parseMoney(row['VENTAS INTERNAS GRAVADAS VALOR NETO']);
   const ivaDebito = parseMoney(row['IVA DEBITO']);
 
   return {
-    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISION'] || '',
+    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISIÓN'] || '',
     'CLASE DE DOCUMENTO': '4',
     'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
-    'NUMERO DE RESOLUCION': row['NUMERO DE CONTROL'] || '',
-    'NUMERO DE SERIE DE DOCUMENTO': row['SELLO DE RECEPCION'] || '',
-    'NUMERO DE DOCUMENTO': row['CODIGO DE GENERACION'] || '',
-    'NUMERO DE CONTROL INTERNO': '',
+    'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
+    'NÚMERO DE SERIE DE DOCUMENTO': row['SELLO DE RECEPCION'] || '',
+    'NÚMERO DE DOCUMENTO': row['CODIGO DE GENERACION'] || '',
+    'NÚMERO DE CONTROL INTERNO': '',
     'NIT O NRC DEL CLIENTE': row['N.R.C / NIT'] || '',
     'NOMBRE, RAZON SOCIAL O DENOMINACION': row['NOMBRE DEL CLIENTE'] || '',
     'VENTAS EXENTAS': formatAnexoMoney(row.EXENTAS),
     'VENTAS NO SUJETAS': formatAnexoMoney(row['NO SUJETAS']),
     'VENTAS GRAVADAS LOCALES': formatAnexoMoney(gravadas),
-    'DEBITO FISCAL': formatAnexoMoney(ivaDebito),
+    'DÉBITO FISCAL': formatAnexoMoney(ivaDebito),
     'VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS': '0.00',
-    'DEBITO FISCAL POR VENTA A CUENTA DE TERCEROS': '0.00',
+    'DÉBITO FISCAL POR VENTA A CUENTA DE TERCEROS': '0.00',
     'TOTAL VENTAS': formatAnexoMoney(gravadas + ivaDebito),
     'DUI DEL CLIENTE': '',
     'TIPO DE OPERACION (Renta)': getRowValueByTokens(row, ['TIPO', 'OPERACION', 'RENTA']),
     'TIPO DE INGRESO (Renta)': getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']),
-    'NUMERO DE ANEXO': '1'
+    'NÚMERO DE ANEXO': '1'
   };
 }
 
@@ -339,29 +364,76 @@ function mapExcludedSubjectPurchaseToAnexoRow(row) {
 
   return {
     'TIPO DE DOCUMENTO': getExcludedSubjectDocumentType(nrcNit),
-    'NUMERO DE NIT, DUI, U OTRO DOCUMENTO': nrcNit,
-    'NOMBRE, RAZON SOCIAL O DENOMINACION': row['NOMBRE DEL PROVEEDOR']
+    'NÚMERO DE NIT, DUI, U OTRO DOCUMENTO': nrcNit,
+    'NOMBRE, RAZÓN SOCIAL O DENOMINACIÓN': row['NOMBRE DEL PROVEEDOR']
       || getRowValueByTokens(row, ['NOMBRE', 'PROVEEDOR'])
       || '',
-    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISION']
+    'FECHA DE EMISIÓN DEL DOCUMENTO': row['FECHA DE EMISIÓN']
       || getRowValueByTokens(row, ['FECHA', 'EMISION'])
       || '',
-    'NUMERO DE SERIE DEL DOCUMENTO': row['SELLO DE RECEPCION']
+    'NÚMERO DE SERIE DEL DOCUMENTO': row['SELLO DE RECEPCION']
       || getRowValueByTokens(row, ['SELLO', 'RECEPCION'])
       || '',
-    'NUMERO DE DOCUMENTO': row['CODIGO DE GENERACION']
+    'NÚMERO DE DOCUMENTO': row['CODIGO DE GENERACION']
       || getRowValueByTokens(row, ['CODIGO', 'GENERACION'])
       || '',
-    'MONTO DE LA OPERACION': formatAnexoMoney(
+    'MONTO DE LA OPERACIÓN': formatAnexoMoney(
       row['COMPRAS A SUJETOS EXCLUIDOS']
       || getRowValueByTokens(row, ['COMPRAS', 'SUJETOS', 'EXCLUIDOS'])
     ),
-    'MONTO DE LA RETENCION IVA 13%': '0.00',
-    'TIPO DE OPERACION': getRowValueByTokens(row, ['TIPO', 'OPERACION']),
-    'CLASIFICACION': getRowValueByTokens(row, ['CLASIFICACION']),
+    'MONTO DE LA RETENCIÓN IVA 13%': '0.00',
+    'TIPO DE OPERACIÓN': getRowValueByTokens(row, ['TIPO', 'OPERACION']),
+    'CLASIFICACIÓN': getRowValueByTokens(row, ['CLASIFICACION']),
     'SECTOR': getRowValueByTokens(row, ['SECTOR']),
     'TIPO DE COSTO / GASTO': getRowValueByTokens(row, ['TIPO', 'COSTO', 'GASTO']),
-    'NUMERO DE ANEXO': '5'
+    'NÚMERO DE ANEXO': '5'
+  };
+}
+
+function getProviderDui(row) {
+  const nrcNit = row['N.R.C / NIT']
+    || getRowValueByTokens(row, ['NRC', 'NIT'])
+    || '';
+  return countIdentifierDigits(nrcNit) === 9 ? nrcNit : '';
+}
+
+function mapPurchaseToAnexoRow(row) {
+  const internalExempt = parseMoney(row['COMPRAS EXENTAS INTERNAS']);
+  const importExempt = parseMoney(row['COMPRAS EXENTAS IMPORTACIONES']);
+  const internationalExempt = parseMoney(row['COMPRAS EXENTAS INTERNACIONES']);
+  const internalTaxed = parseMoney(row['COMPRAS GRAVADAS INTERNAS']);
+  const importTaxed = parseMoney(row['COMPRAS GRAVADAS IMPORTACIONES']);
+  const internationalTaxed = parseMoney(row['COMPRAS GRAVADAS INTERNACIONES']);
+
+  return {
+    'FECHA DE EMISIÓN': row['FECHA DE EMISIÓN']
+      || row['FECHA DE EMISION']
+      || getRowValueByTokens(row, ['FECHA', 'EMISION'])
+      || '',
+    'CLASE DE DOCUMENTO': '4',
+    'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
+    'NÚMERO DE DOCUMENTO': row['NUMERO DE CONTROL'] || '',
+    'NIT O NRC DEL PROVEEDOR': row['N.R.C / NIT']
+      || getRowValueByTokens(row, ['NRC', 'NIT'])
+      || '',
+    'NOMBRE DEL PROVEEDOR': row['NOMBRE DEL PROVEEDOR']
+      || getRowValueByTokens(row, ['NOMBRE', 'PROVEEDOR'])
+      || '',
+    'COMPRAS INTERNAS EXENTAS Y/O NO SUJETAS': formatAnexoMoney(internalExempt),
+    'INTERNACIONES EXENTAS Y/O NO SUJETAS': formatAnexoMoney(internationalExempt),
+    'IMPORTACIONES EXENTAS Y/O NO SUJETAS': formatAnexoMoney(importExempt),
+    'COMPRAS INTERNAS GRAVADAS': formatAnexoMoney(internalTaxed),
+    'INTERNACIONES GRAVADAS DE BIENES': formatAnexoMoney(internationalTaxed),
+    'IMPORTACIONES GRAVADAS DE BIENES': formatAnexoMoney(importTaxed),
+    'IMPORTACIONES GRAVADAS DE SERVICIOS': '0.00',
+    'CRÉDITO FISCAL': formatAnexoMoney(row.IVA || row['CREDITO FISCAL']),
+    'TOTAL DE COMPRAS': formatAnexoMoney(row['TOTAL COMPRAS'] || row['Total de Compra']),
+    'DUI DEL PROVEEDOR': getProviderDui(row),
+    'TIPO DE OPERACIÓN': getRowValueByTokens(row, ['TIPO', 'OPERACION']),
+    'CLASIFICACIÓN': getRowValueByTokens(row, ['CLASIFICACION']),
+    'SECTOR': getRowValueByTokens(row, ['SECTOR']),
+    'TIPO DE COSTO / GASTO': getRowValueByTokens(row, ['TIPO', 'COSTO', 'GASTO']),
+    'NÚMERO DE ANEXO': '3'
   };
 }
 
@@ -375,7 +447,7 @@ function mapRetentionVatToAnexoRow(row, clientLookup = new Map()) {
 
   return {
     'NIT DEL AGENTE': client?.NIT || '',
-    'FECHA DE EMISION': row['FECHA DE EMISION']
+    'FECHA DE EMISIÓN': row['FECHA DE EMISIÓN']
       || getRowValueByTokens(row, ['FECHA', 'EMISION'])
       || '',
     'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
@@ -388,39 +460,39 @@ function mapRetentionVatToAnexoRow(row, clientLookup = new Map()) {
     'MONTO SUJETO': formatAnexoMoney(subjectAmount),
     'MONTO RETENCION 1%': formatAnexoMoney(retentionAmount),
     'DUI DEL AGENTE': '',
-    'NUMERO DE ANEXO': '7'
+    'NÚMERO DE ANEXO': '7'
   };
 }
 
-function mapAdvanceVatToAnexoRow(row, providerLookup = new Map()) {
+function mapAdvanceVatToAnexoRow(row, clientLookup = new Map()) {
   const nrcNit = row['N.R.C / NIT']
     || getRowValueByTokens(row, ['NRC', 'NIT'])
     || '';
-  const provider = providerLookup.get(normalizeRegisterLookupKey(nrcNit));
+  const client = clientLookup.get(normalizeRegisterLookupKey(nrcNit));
   const advanceAmount = getAdvanceVatAmount(row);
   const subjectAmount = advanceAmount ? advanceAmount / 0.02 : 0;
 
   return {
-    'NIT AGENTE': provider?.NIT || '',
-    'FECHA DE EMISION DEL DOCUMENTO': row['FECHA DE EMISION']
+    'NIT AGENTE': client?.NIT || '',
+    'FECHA DE EMISIÓN DEL DOCUMENTO': row['FECHA DE EMISIÓN']
       || getRowValueByTokens(row, ['FECHA', 'EMISION'])
       || '',
     'SERIE DE DOCUMENTO': row['CODIGO DE GENERACION']
       || getRowValueByTokens(row, ['CODIGO', 'GENERACION'])
       || '',
-    'NUMERO DE DOCUMENTO': row['SELLO DE RECEPCION']
+    'NÚMERO DE DOCUMENTO': row['SELLO DE RECEPCION']
       || getRowValueByTokens(row, ['SELLO', 'RECEPCION'])
       || '',
     'MONTO SUJETO': formatAnexoMoney(subjectAmount),
     'MONTO DEL ANTICIPO A CUENTA 2% DE IVA': formatAnexoMoney(advanceAmount),
     'DUI AGENTE': '',
-    'NUMERO DE ANEXO': '6'
+    'NÚMERO DE ANEXO': '6'
   };
 }
 
 function mapInvalidDocumentToAnexoRow(row) {
   return {
-    'NUMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
+    'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
     'CLASE DE DOCUMENTO': '4',
     'DESDE (PREIMPRESO)': '0',
     'HASTA (PREIMPRESO)': '0',
@@ -442,29 +514,29 @@ function mapFcfSaleToAnexoRow(row) {
   const isServiceIncome = incomeType.includes('02') && incomeType.includes('ACTIVIDADES DE SERVICIOS');
 
   return {
-    'FECHA DE EMISION': row['FECHA EMISION'] || '',
+    'FECHA DE EMISIÓN': row['FECHA EMISION'] || '',
     'CLASE DE DOCUMENTO': '4',
     'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
-    'NUMERO DE RESOLUCION': row['NUMERO DE CONTROL'] || '',
+    'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
     'SERIE DE DOCUMENTO': row['SELLO DE RECEPCION'] || '',
-    'NUMERO DE CONTROL INTERNO (DEL)': '0',
-    'NUMERO DE CONTROL INTERNO (AL)': '0',
-    'NUMERO DE DOCUMENTO (DEL)': row['CODIGO DE GENERACION'] || '',
-    'NUMERO DE DOCUMENTO (AL)': row['CODIGO DE GENERACION'] || '',
-    'NÂ° DE MAQUINA REGISTRADORA': '',
+    'NÚMERO DE CONTROL INTERNO (DEL)': '0',
+    'NÚMERO DE CONTROL INTERNO (AL)': '0',
+    'NÚMERO DE DOCUMENTO (DEL)': row['CODIGO DE GENERACION'] || '',
+    'NÚMERO DE DOCUMENTO (AL)': row['CODIGO DE GENERACION'] || '',
+    'N° DE MAQUINA REGISTRADORA': '',
     'VENTAS EXENTAS': formatAnexoMoney(row['VENTAS EXENTAS']),
     'VENTAS INTERNAS EXENTAS NO SUJETAS A PROPORCIONALIDAD': '0.00',
     'VENTAS NO SUJETAS': formatAnexoMoney(row['VENTAS NO SUJETAS']),
     'VENTAS GRAVADAS LOCALES': formatAnexoMoney(row['VENTAS GRAVADAS LOCALES']),
-    'EXPORTACIONES DENTRO DEL AREA CENTROAMERICANA': formatAnexoMoney(isCommercialIncome && isCentralAmerica ? exportAmount : 0),
-    'EXPORTACIONES FUERA DEL AREA CENTROAMERICANA': formatAnexoMoney(isCommercialIncome && !isCentralAmerica ? exportAmount : 0),
+    'EXPORTACIONES DENTRO DEL ÁREA CENTROAMERICANA': formatAnexoMoney(isCommercialIncome && isCentralAmerica ? exportAmount : 0),
+    'EXPORTACIONES FUERA DEL ÁREA CENTROAMERICANA': formatAnexoMoney(isCommercialIncome && !isCentralAmerica ? exportAmount : 0),
     'EXPORTACIONES DE SERVICIOS': formatAnexoMoney(isServiceIncome ? exportAmount : 0),
     'VENTAS A ZONAS FRANCAS Y DPA (TASA CERO)': '0.00',
     'VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS': '0.00',
     'TOTAL VENTAS': formatAnexoMoney(row.TOTAL),
     'TIPO DE OPERACION (Renta)': getRowValueByTokens(row, ['TIPO', 'OPERACION', 'RENTA']),
     'TIPO DE INGRESO (Renta)': getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']),
-    'NUMERO DE ANEXO': '2'
+    'NÚMERO DE ANEXO': '2'
   };
 }
 
@@ -596,7 +668,6 @@ export function AnexosView({
 
   function loadData() {
     const clientLookup = loadClientRegisterLookup();
-    const providerLookup = loadProviderRegisterLookup();
 
     const loadConfigByType = {
       salesCcf: {
@@ -619,6 +690,17 @@ export function AnexosView({
           ['TOTAL']
         ],
         mapRow: mapFcfSaleToAnexoRow,
+        includeRow: () => true
+      },
+      purchases: {
+        sourceRows: purchaseRows,
+        sourceLabel: 'Libro de Compras',
+        usefulColumns: [
+          ['NUMERO DE CONTROL'],
+          ['NOMBRE', 'PROVEEDOR'],
+          ['TOTAL', 'COMPRAS']
+        ],
+        mapRow: mapPurchaseToAnexoRow,
         includeRow: () => true
       },
       excludedSubject: {
@@ -644,7 +726,8 @@ export function AnexosView({
           ['RETENCION 1%']
         ],
         mapRow: (row) => mapRetentionVatToAnexoRow(row, clientLookup),
-        includeRow: (row) => getRetentionAmount(row) > 0
+        includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '07'
+          && getRetentionAmount(row) > 0
       },
       advanceVat: {
         sourceRows: ccfSalesRows,
@@ -654,7 +737,7 @@ export function AnexosView({
           ['CODIGO DE GENERACION'],
           ['PERCEPCION', '2']
         ],
-        mapRow: (row) => mapAdvanceVatToAnexoRow(row, providerLookup),
+        mapRow: (row) => mapAdvanceVatToAnexoRow(row, clientLookup),
         includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '09'
           && getAdvanceVatAmount(row) > 0
       },
@@ -675,7 +758,7 @@ export function AnexosView({
 
     const loadConfig = loadConfigByType[type];
     if (!loadConfig) {
-      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compra sujeto excluido FSE, anticipo IVA 2% y retencion IVA 1%.');
+      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compras, compra sujeto excluido FSE, anticipo IVA 2%, retencion IVA 1% y documentos invalidados.');
       return;
     }
 
@@ -775,7 +858,11 @@ export function AnexosView({
       const columns = config.columns.map(([header]) => header);
       const exportRows = visibleRows
         .map(({ row }) => row)
-        .filter((row) => hasUsefulAnexoData(row, config.columns) && !isInvalidOrRejectedDte(row));
+        .filter((row) => (
+          hasUsefulAnexoData(row, config.columns)
+          && (type === 'invalidDocuments' || !isInvalidOrRejectedDte(row))
+        ))
+        .map((row) => prepareAnexoRowForCsv(row, type));
 
       if (!exportRows.length) {
         setMessage('No hay registros para generar CSV.');

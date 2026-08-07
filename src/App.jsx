@@ -90,15 +90,17 @@ function getTableColumns(rows, typeCode) {
 
 function getInicioAlertCounts(rows) {
   let duplicateCount = 0;
-  let invalidOrRejectedCount = 0;
+  let invalidCount = 0;
+  let rejectedCount = 0;
 
   for (const row of rows) {
     if (row?.__isDuplicate) duplicateCount += 1;
     const status = String(row?.['Estado del DTE'] || '').toLowerCase();
-    if (status.includes('invalidado') || status.includes('rechazado')) invalidOrRejectedCount += 1;
+    if (status.includes('invalidado')) invalidCount += 1;
+    if (status.includes('rechazado')) rejectedCount += 1;
   }
 
-  return { duplicateCount, invalidOrRejectedCount };
+  return { duplicateCount, invalidCount, rejectedCount };
 }
 
 export default function App() {
@@ -533,7 +535,8 @@ export default function App() {
             <DteSummaryBar
               duplicateCount={inicioAlertCounts.duplicateCount}
               dteSummary={dteSummary}
-              invalidOrRejectedCount={inicioAlertCounts.invalidOrRejectedCount}
+              invalidCount={inicioAlertCounts.invalidCount}
+              rejectedCount={inicioAlertCounts.rejectedCount}
             />
             {documents.length ? (
               <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>

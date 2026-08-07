@@ -526,15 +526,12 @@ ipcMain.handle('register:excel-import', async (_event, request) => {
 
 function escapeCsvValue(value) {
   const text = String(value ?? '');
-  return `"${text.replace(/"/g, '""')}"`;
+  return text.replace(/"/g, '');
 }
 
 function buildDelimitedCsv(rows, columns) {
-  const lines = [
-    columns.map(escapeCsvValue).join(';'),
-    ...rows.map((row) => columns.map((column) => escapeCsvValue(row[column])).join(';'))
-  ];
-  return `\uFEFF${lines.join('\r\n')}`;
+  const lines = rows.map((row) => columns.map((column) => escapeCsvValue(row[column])).join(';'));
+  return lines.join('\r\n');
 }
 
 function formatExportTimestamp(date) {

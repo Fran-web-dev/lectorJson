@@ -37,7 +37,9 @@ const REGISTER_CONFIG = {
 const IMPORTABLE_STRUCTURES = {
   clients: new Set([
     '01|FCF EMISOR',
-    '03|CCF EMISOR VENTA'
+    '03|CCF EMISOR VENTA',
+    '07|COMPROBANTE DE RETENCION RECEPTOR',
+    '09|DCL RECEPTOR'
   ]),
   providers: new Set([
     '03|CCF RECEPTOR COMPRA',
@@ -47,7 +49,7 @@ const IMPORTABLE_STRUCTURES = {
 };
 
 const IMPORTABLE_STRUCTURE_MESSAGES = {
-  clients: 'Importe disponible solo para 01 FCF EMISOR y 03 CCF EMISOR VENTA.',
+  clients: 'Importe disponible solo para 01 FCF EMISOR, 03 CCF EMISOR VENTA, 07 COMPROBANTE DE RETENCION RECEPTOR y 09 DCL RECEPTOR.',
   providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA, 09 DCL RECEPTOR y 14 FSE EMISOR.'
 };
 
@@ -276,10 +278,20 @@ function mapSourceRowToRegister(row, type, sourceTypeCode) {
     };
   }
 
+  if (sourceTypeCode === '07' || sourceTypeCode === '09') {
+    return {
+      NRC: row['NRC Emisor'] || row['NRC emisor'] || '',
+      NIT: row['NIT Emisor'] || row['NIT emisor'] || '',
+      'NOMBRE DEL CLIENTE': row['Nombre emisor'] || row['Nombre Emisor'] || '',
+      'TIPO DE OPERACION': '',
+      'TIPO DE INGRESO': ''
+    };
+  }
+
   return {
-    NRC: row['NRC receptor'] || '',
-    NIT: row['NIT receptor'] || '',
-    'NOMBRE DEL CLIENTE': row['Nombre receptor'] || '',
+    NRC: row['NRC receptor'] || row['NRC Receptor'] || '',
+    NIT: row['NIT receptor'] || row['NIT Receptor'] || '',
+    'NOMBRE DEL CLIENTE': row['Nombre receptor'] || row['Nombre Receptor'] || '',
     'TIPO DE OPERACION': '',
     'TIPO DE INGRESO': ''
   };

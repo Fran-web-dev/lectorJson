@@ -68,8 +68,8 @@ export function StatusBar({
   );
 }
 
-export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidOrRejectedCount = 0 }) {
-  if (!dteSummary?.length && !duplicateCount && !invalidOrRejectedCount) return null;
+export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidCount = 0, rejectedCount = 0 }) {
+  if (!dteSummary?.length && !duplicateCount && !invalidCount && !rejectedCount) return null;
 
   return (
     <div className="mb-3">
@@ -88,7 +88,10 @@ export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidOrRejecte
           DTE duplicados: {duplicateCount}
         </span>
         <span className="rounded-sm border border-violet-200 bg-violet-50 px-2 py-1 font-bold text-violet-700">
-          DTE invalidados o rechazados: {invalidOrRejectedCount}
+          DTE invalidados: {invalidCount}
+        </span>
+        <span className="rounded-sm border border-orange-200 bg-orange-50 px-2 py-1 font-bold text-orange-700">
+          DTE rechazados: {rejectedCount}
         </span>
       </div>
     </div>

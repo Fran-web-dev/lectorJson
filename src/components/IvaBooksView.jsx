@@ -218,6 +218,8 @@ const IVA_BOOK_MAPPINGS = {
     },
     'RETENCION 1%': {
       byTypeCode: {
+        '03': { fixed: '$0.00' },
+        '05': { fixed: '$0.00' },
         '07': ['Retencion IVA', 'IVA retenido', 'IVA Retenido'],
         '09': { fixed: '$0.00' },
         default: 'IVA Retenido'
@@ -679,7 +681,8 @@ function summarizeLoadedDteTypes(rows) {
 }
 
 function summarizeBookAlerts(rows) {
-  let invalidOrRejectedCount = 0;
+  let invalidCount = 0;
+  let rejectedCount = 0;
   const duplicateKeys = new Map();
 
   for (const row of rows) {
@@ -692,7 +695,8 @@ function summarizeBookAlerts(rows) {
     if (duplicateKey) duplicateKeys.set(duplicateKey, (duplicateKeys.get(duplicateKey) || 0) + 1);
 
     const status = String(row?.__dteStatus || row?.['Estado del DTE'] || '').toLowerCase();
-    if (status.includes('invalidado') || status.includes('rechazado')) invalidOrRejectedCount += 1;
+    if (status.includes('invalidado')) invalidCount += 1;
+    if (status.includes('rechazado')) rejectedCount += 1;
   }
 
   let duplicateCount = 0;
@@ -701,7 +705,7 @@ function summarizeBookAlerts(rows) {
     if (row?.__isDuplicate || (duplicateKey && duplicateKeys.get(duplicateKey) > 1)) duplicateCount += 1;
   }
 
-  return { duplicateCount, invalidOrRejectedCount };
+  return { duplicateCount, invalidCount, rejectedCount };
 }
 
 function getBookDuplicateKeys(rows) {
@@ -889,12 +893,16 @@ export function IvaBooksView({
     for (let rowIndex = 0; rowIndex < orderedSourceRows.length; rowIndex += 1) {
       const sourceRow = orderedSourceRows[rowIndex];
       const forceZeroMoney = hasInvalidOrRejectedStatus(sourceRow);
+      const isRejectedDte = String(sourceRow?.['Estado del DTE'] || '').toLowerCase().includes('rechazado');
 
       const bookRow = {
         ...Object.fromEntries(
         config.columns.map((column, columnIndex) => {
           const invalidOverride = forceZeroMoney ? getInvalidOrRejectedOverride(type, column.header) : null;
           const clearRentColumn = forceZeroMoney && isSalesRentColumn(type, column.header);
+          const clearRejectedCcfSeal = type === 'ccfSales'
+            && column.header === 'SELLO DE RECEPCION'
+            && isRejectedDte;
           const value = normalizeIvaBookValue(column.header, getSourceValue(sourceRow, mapping[column.header]));
           const sourceType = String(sourceRow?.['Tipo DTE'] || sourceTypeCode || '').padStart(2, '0');
           const normalizedValue = type === 'purchases' && sourceType === '05' && column.money
@@ -906,6 +914,8 @@ export function IvaBooksView({
               ? String(rowIndex + 1)
               : invalidOverride !== null
                 ? invalidOverride
+              : clearRejectedCcfSeal
+                ? ''
               : clearRentColumn
                 ? ''
               : forceZeroMoney && column.money
@@ -1098,7 +1108,7 @@ export function IvaBooksView({
   return (
     <section className="ivaBookView">
       <div className="ivaBookToolbar">
-        {(message || dteTypeSummary.length || bookAlertSummary.duplicateCount || bookAlertSummary.invalidOrRejectedCount) ? (
+        {(message || dteTypeSummary.length || bookAlertSummary.duplicateCount || bookAlertSummary.invalidCount || bookAlertSummary.rejectedCount) ? (
           <span className="ivaBookMessage">
             {message ? <span>{message}</span> : null}
             {type === 'fcfSales' && importProgress ? (
@@ -1120,7 +1130,10 @@ export function IvaBooksView({
                 DTE duplicados: {bookAlertSummary.duplicateCount}
               </strong>
               <strong className="ivaBookAlertChip invalid">
-                DTE invalidados o rechazados: {bookAlertSummary.invalidOrRejectedCount}
+                DTE invalidados: {bookAlertSummary.invalidCount}
+              </strong>
+              <strong className="ivaBookAlertChip rejected">
+                DTE rechazados: {bookAlertSummary.rejectedCount}
               </strong>
             </span>
           </span>

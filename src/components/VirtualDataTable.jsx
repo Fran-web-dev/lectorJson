@@ -5,6 +5,7 @@ import {
   useMemo,
   useState
 } from 'react';
+import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 
 const ROW_HEIGHT = 22;
@@ -211,6 +212,7 @@ export function VirtualDataTable({
   const [viewport, setViewport] = useState({ height: 480, scrollTop: 0 });
   const [scrollLeft, setScrollLeft] = useState(0);
   const [openFilter, setOpenFilter] = useState(null);
+  const [filterPosition, setFilterPosition] = useState({ left: 0, top: 0 });
   const [filterSearch, setFilterSearch] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
   const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
@@ -379,6 +381,11 @@ function resetColumnWidth(event, column) {
                   className={`excelFilterButton ${columnFilters[column]?.length ? 'active' : ''}`}
                   onClick={(event) => {
                     event.stopPropagation();
+                    const rect = event.currentTarget.getBoundingClientRect();
+                    setFilterPosition({
+                      left: Math.max(8, Math.min(rect.right - 288, window.innerWidth - 304)),
+                      top: Math.max(8, Math.min(rect.bottom + 6, window.innerHeight - 360))
+                    });
                     setOpenFilter(openFilter === column ? null : column);
                     setFilterSearch('');
                     setDateRangeFilter({ from: '', to: '' });
@@ -388,7 +395,7 @@ function resetColumnWidth(event, column) {
                 >
                   v
                 </button>
-                {openFilter === column ? (
+                {openFilter === column ? createPortal(
                   <FilterMenu
                     column={openFilter}
                     filterSearch={filterSearch}
@@ -398,9 +405,11 @@ function resetColumnWidth(event, column) {
                     onDateRangeChange={setDateRangeFilter}
                     selectedValues={columnFilters[openFilter] || []}
                     dateRange={dateRangeFilter}
+                    position={filterPosition}
                     isDateFilter={isDateColumn(openFilter)}
                     values={openFilterValues}
-                  />
+                  />,
+                  document.body
                 ) : null}
                 <span
                   className="columnResizeHandle"
@@ -442,6 +451,7 @@ function FilterMenu({
   onDateRangeChange,
   onFilterSearchChange,
   dateRange,
+  position,
   isDateFilter,
   selectedValues,
   values
@@ -490,7 +500,7 @@ function FilterMenu({
   }
 
   return (
-    <div className="excelFilterMenu">
+    <div className="excelFilterMenu" style={{ left: position.left, top: position.top }}>
       <div className="excelFilterTitle">{column}</div>
       <input
         className="excelFilterSearch"
