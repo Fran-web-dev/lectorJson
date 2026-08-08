@@ -1,4 +1,4 @@
-import { FileJson, FolderOpen, Trash2 } from 'lucide-react';
+import { FileJson, FileSpreadsheet, FolderOpen, Trash2 } from 'lucide-react';
 import { getStructureOptions } from '../lib/dteStructureOptions.js';
 import { DTE_TYPES } from '../lib/dteTypes.js';
 
@@ -10,6 +10,7 @@ export function FilterPanel({
   onClearDates,
   onClearTable,
   onExportExcel,
+  onExportLoadErrorsExcel,
   onFromDateChange,
   onFolderChange,
   onReloadFolder,
@@ -18,6 +19,7 @@ export function FilterPanel({
   onStructureNameChange,
   onToDateChange,
   onTypeCodeChange,
+  notLoadedCount = 0,
   structureName,
   toDate,
   typeCode
@@ -78,6 +80,15 @@ export function FilterPanel({
           </button>
           <button className="actionButton" data-tour="load-json-button" disabled={loading || !folder.trim()} onClick={onReloadFolder}>
             <FileJson size={16} /> Cargar JSON
+          </button>
+          <button
+            className="actionButton"
+            disabled={loading || !notLoadedCount}
+            onClick={onExportLoadErrorsExcel}
+            title={notLoadedCount ? 'Generar reporte Excel de archivos no cargados' : 'No hay archivos no cargados para reportar'}
+            type="button"
+          >
+            <FileSpreadsheet size={16} /> Reporte no cargados
           </button>
           <button className="actionButton dangerActionButton" data-tour="clear-home-button" disabled={loading} onClick={onClearTable}>
             <Trash2 size={16} /> Limpiar

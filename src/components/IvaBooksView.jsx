@@ -262,8 +262,9 @@ const IVA_BOOK_MAPPINGS = {
     },
     'COMPRAS GRAVADAS INTERNAS': {
       byTypeCode: {
-        '05': { calculate: [{ add: 'Total Gravado' }, { subtract: 'Desc. Gravado' }], negative: true },
-        default: 'Total Gravado'
+        '05': { source: ['Sub-total', 'Subtotal'], negative: true },
+        '14': { fixed: '$0.00' },
+        default: ['Sub-total', 'Subtotal']
       }
     },
     IVA: 'Credito Fiscal',

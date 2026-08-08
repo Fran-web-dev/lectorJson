@@ -293,6 +293,23 @@ export default function App() {
 
   const selectedQueryUrl = useMemo(() => buildHaciendaQueryUrl(selectedRow), [selectedRow]);
 
+  async function exportLoadErrorsExcel() {
+    if (!errors.length) {
+      setStatus('No hay archivos no cargados para generar reporte.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      const filePath = await window.dteApp.exportLoadErrorExcel(errors);
+      if (filePath) setStatus(`Reporte de archivos no cargados exportado: ${filePath}`);
+    } catch (error) {
+      setStatus(`No se pudo generar el reporte de no cargados: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function querySelectedInHacienda() {
     if (!selectedRow) {
       setStatus('Seleccione una fila antes de consultar Hacienda.');
@@ -535,6 +552,7 @@ export default function App() {
             )}
             onExportExcel={exportExcel}
             onClearTable={openClearTableModal}
+            onExportLoadErrorsExcel={exportLoadErrorsExcel}
             onReloadFolder={reloadFolder}
             onSelectFiles={selectFiles}
             onFromDateChange={setFromDate}
@@ -547,6 +565,7 @@ export default function App() {
             onStructureNameChange={setStructureName}
             onToDateChange={setToDate}
             onTypeCodeChange={setTypeCode}
+            notLoadedCount={errors.length}
             structureName={structureName}
             toDate={toDate}
             typeCode={typeCode}
@@ -577,7 +596,7 @@ export default function App() {
                 <div className="empty">Sin datos cargados</div>
               </div>
             )}
-            <ErrorSummary errors={errors} />
+            <ErrorSummary errors={errors} onExportExcel={exportLoadErrorsExcel} />
           </section>
           {showClearTableModal ? (
             <div className="registerModalBackdrop">

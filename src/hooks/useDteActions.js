@@ -36,7 +36,8 @@ export function useDteActions({
     setDocuments(result.documents);
     setErrors(result.errors);
     setTotalFileCount(result.totalFiles || result.documents.length);
-    setStatus(`${result.documents.length} registro(s) cargado(s) desde ${result.sourcePath}.`);
+    const reportText = result.errorReportPath ? ` Reporte de no cargados: ${result.errorReportPath}` : '';
+    setStatus(`${result.documents.length} registro(s) cargado(s) desde ${result.sourcePath}.${reportText}`);
   }, [setDocuments, setErrors, setFolder, setStatus, setTotalFileCount]);
 
   const selectFolder = useCallback(async () => {

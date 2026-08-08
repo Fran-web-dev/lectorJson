@@ -196,11 +196,12 @@ async function readDataFile(filePath) {
 }
 
 function parseJsonWithRepair(raw) {
+  const normalizedRaw = String(raw || '').replace(/^\uFEFF/, '');
   try {
-    return JSON.parse(raw);
+    return JSON.parse(normalizedRaw);
   } catch (error) {
-    const repaired = raw.replace(/:\s*"([^"\r\n]*)\r?\n(\s*")/g, ': "$1",\n$2');
-    if (repaired !== raw) {
+    const repaired = normalizedRaw.replace(/:\s*"([^"\r\n]*)\r?\n(\s*")/g, ': "$1",\n$2');
+    if (repaired !== normalizedRaw) {
       return JSON.parse(repaired);
     }
     throw error;
@@ -284,7 +285,34 @@ async function loadFiles(filePaths, sourcePath, progressWebContents) {
 
   const documents = documentsByFile.flat();
   const enrichedDocuments = ENRICH_PUBLIC_QUERY_ON_LOAD ? await enrichDocumentsWithPublicQuery(documents) : documents;
-  return { documents: enrichedDocuments, errors, sourcePath, totalFiles: filePaths.length };
+  const errorReportPath = errors.length ? await writeLoadErrorReport(errors, sourcePath) : '';
+  return { documents: enrichedDocuments, errors, errorReportPath, sourcePath, totalFiles: filePaths.length };
+}
+
+async function writeLoadErrorReport(errors, sourcePath) {
+  const timestamp = formatExportTimestamp(new Date());
+  const filePath = path.join(app.getPath('downloads'), `REPORTE-JSON-NO-CARGADOS-${timestamp}.txt`);
+  const lines = [
+    'REPORTE DE JSON NO CARGADOS',
+    `Fecha de generacion: ${new Date().toLocaleString('es-SV')}`,
+    `Origen: ${sourcePath || ''}`,
+    `Total no cargado(s): ${errors.length}`,
+    '',
+    'Detalle:',
+    ''
+  ];
+
+  errors.forEach((error, index) => {
+    const documentPath = String(error?.filePath || '');
+    lines.push(`${index + 1}. Ruta del documento: ${path.dirname(documentPath)}`);
+    lines.push(`   Nombre del documento: ${path.basename(documentPath)}`);
+    lines.push(`   Ruta completa: ${documentPath}`);
+    lines.push(`   Motivo: ${error?.message || 'No especificado'}`);
+    lines.push('');
+  });
+
+  await fs.writeFile(filePath, lines.join('\n'), 'utf8');
+  return filePath;
 }
 
 function findValue(source, fieldName) {
@@ -472,6 +500,21 @@ ipcMain.handle('register:table-export', async (_event, request) => {
 
   if (result.canceled || !result.filePath) return null;
   await writeRegisterTableExcel(result.filePath, rows, columns, request?.title || 'REGISTROS', request?.tone || 'client');
+  return result.filePath;
+});
+
+ipcMain.handle('load-errors:excel-export', async (_event, errors) => {
+  const rows = Array.isArray(errors) ? errors : [];
+  if (!rows.length) throw new Error('No hay archivos no cargados para reportar.');
+
+  const result = await dialog.showSaveDialog({
+    title: 'Generar reporte de archivos no cargados',
+    defaultPath: `REPORTE-JSON-NO-CARGADOS-${formatExportTimestamp(new Date())}.xlsx`,
+    filters: [{ name: 'Excel', extensions: ['xlsx'] }]
+  });
+
+  if (result.canceled || !result.filePath) return null;
+  await writeLoadErrorExcel(result.filePath, rows);
   return result.filePath;
 });
 
@@ -709,6 +752,61 @@ async function writeRegisterTableExcel(filePath, rows, columns, title, tone) {
   };
   worksheet.views = [{ state: 'frozen', ySplit: 2 }];
 
+  await workbook.xlsx.writeFile(filePath);
+}
+
+async function writeLoadErrorExcel(filePath, errors) {
+  const ExcelJS = getExcelJs();
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('No cargados');
+  const headers = ['ITEM', 'RUTA DEL ARCHIVO', 'NOMBRE DEL ARCHIVO'];
+  const minimumRows = 10;
+
+  worksheet.columns = [
+    { header: headers[0], key: 'item', width: 10 },
+    { header: headers[1], key: 'filePath', width: 72 },
+    { header: headers[2], key: 'fileName', width: 36 }
+  ];
+
+  errors.forEach((error, index) => {
+    const fullPath = String(error?.filePath || '');
+    worksheet.addRow({
+      item: index + 1,
+      filePath: fullPath,
+      fileName: path.basename(fullPath)
+    });
+  });
+
+  while (worksheet.rowCount < minimumRows + 1) {
+    worksheet.addRow({ item: '', filePath: '', fileName: '' });
+  }
+
+  for (let rowNumber = 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+    const row = worksheet.getRow(rowNumber);
+    row.height = rowNumber === 1 ? 22 : 20;
+    for (let columnNumber = 1; columnNumber <= headers.length; columnNumber += 1) {
+      const cell = row.getCell(columnNumber);
+      cell.font = {
+        bold: rowNumber === 1,
+        color: { argb: 'FF000000' },
+        name: EXCEL_FONT,
+        size: EXCEL_FONT_SIZE
+      };
+      cell.alignment = {
+        horizontal: columnNumber === 1 || rowNumber === 1 ? 'center' : 'left',
+        vertical: 'middle',
+        wrapText: false
+      };
+      cell.border = {
+        top: { style: 'thin', color: { argb: 'FF000000' } },
+        left: { style: 'thin', color: { argb: 'FF000000' } },
+        bottom: { style: 'thin', color: { argb: 'FF000000' } },
+        right: { style: 'thin', color: { argb: 'FF000000' } }
+      };
+    }
+  }
+
+  worksheet.views = [{ state: 'frozen', ySplit: 1 }];
   await workbook.xlsx.writeFile(filePath);
 }
 
