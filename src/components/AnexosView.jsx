@@ -129,7 +129,7 @@ const ANEXOS = {
   perceptionVat: {
     title: 'ANEXO PERCEPCION IVA 1% (163)',
     columns: [
-      ['NIT AGENTE', '14'],
+      ['NIT DEL AGENTE', '14'],
       ['FECHA DE EMISIÓN', '10'],
       ['TIPO DE DOCUMENTO', '2'],
       ['SERIE DE DOCUMENTO', '100'],
@@ -530,7 +530,7 @@ function mapPerceptionVatToAnexoRow(row, providerLookup = new Map()) {
   const subjectAmount = perceptionAmount ? perceptionAmount / 0.01 : 0;
 
   return {
-    'NIT AGENTE': provider?.NIT || '',
+    'NIT DEL AGENTE': provider?.NIT || '',
     'FECHA DE EMISIÓN': row['FECHA DE EMISION']
       || row['FECHA DE EMISIÓN']
       || getRowValueByTokens(row, ['FECHA', 'EMISION'])
@@ -602,7 +602,9 @@ function mapFcfSaleToAnexoRow(row) {
 function hasUsefulAnexoData(row, columns) {
   return columns.some((columnParts) => {
     const [header] = columnParts;
-    const value = columnParts.length > 1
+    const isColumnDefinition = columnParts.length === 2
+      && (/^\d+$/.test(String(columnParts[1])) || String(columnParts[1]).toUpperCase() === 'SIN LIMITE');
+    const value = columnParts.length > 1 && !isColumnDefinition
       ? getRowValueByTokens(row, columnParts)
       : row[header];
 
@@ -710,10 +712,10 @@ function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, fcfSalesRows, pr
       usefulColumns: [
         ['NUMERO DE CONTROL'],
         ['CODIGO DE GENERACION'],
-        ['NOMBRE', 'PROVEEDOR']
+        ['PERCEPCION', '1']
       ],
       mapRow: (row) => mapPerceptionVatToAnexoRow(row, providerLookup),
-      includeRow: () => true
+      includeRow: (row) => getPurchasePerceptionVatAmount(row) > 0
     },
     invalidDocuments: {
       sourceRows: [...ccfSalesRows, ...fcfSalesRows],
@@ -808,7 +810,7 @@ function getNoAnexoRowsMessage(type, { ccfSalesRows, fcfSalesRows, loadConfig, p
       ['NOMBRE DEL PROVEEDOR']
     ]));
     return hasPurchaseRows
-      ? 'El Libro de Compras no tiene filas validas para cargar este anexo.'
+      ? 'El Libro de Compras no tiene filas con monto mayor a cero en PERCEPCION 1% IVA. Importe documentos con percepcion al Libro de Compras y vuelva a cargar este anexo.'
       : 'No hay datos en Libro de Compras. Vaya a LIBROS DE IVA > Libro de compras y pulse CARGAR DATOS.';
   }
 

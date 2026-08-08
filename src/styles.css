@@ -778,7 +778,7 @@ body,
   }
 
   .registerFilterMenu {
-    @apply right-1 top-9 text-left normal-case;
+    @apply absolute right-1 top-full mt-1 text-left normal-case;
   }
 
   .ivaBookView {
@@ -1006,7 +1006,7 @@ body,
   }
 
   .ivaBookFilterMenu {
-    @apply right-1 top-10 z-[80] text-left normal-case;
+    @apply absolute right-1 top-full z-[90] mt-1 text-left normal-case;
   }
 
   .ivaBookFilterMenu.alignStart {
@@ -1210,7 +1210,7 @@ body,
   }
 
   .anexosFilterMenu {
-    @apply right-1 top-10 z-[90] text-left normal-case;
+    @apply absolute right-1 top-full z-[100] mt-1 text-left normal-case;
   }
 
   .anexosMetaCell {

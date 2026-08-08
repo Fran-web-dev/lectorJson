@@ -760,6 +760,7 @@ function waitForNextFrame() {
 }
 
 export function IvaBooksView({
+  onNavigateRegister,
   onRowsChange,
   savedRows,
   sourceRows = [],
@@ -768,6 +769,9 @@ export function IvaBooksView({
   type
 }) {
   const config = IVA_BOOKS[type] || IVA_BOOKS.purchases;
+  const registerShortcut = type === 'purchases'
+    ? { label: 'REGISTROS PROVEEDORES', view: 'registers-providers' }
+    : { label: 'REGISTROS CLIENTES', view: 'registers-clients' };
   const defaultColumnWidths = useMemo(() => Object.fromEntries(
     config.columns.map((column) => [column.header, Number.parseInt(column.width, 10) || 120])
   ), [config.columns]);
@@ -1138,6 +1142,13 @@ export function IvaBooksView({
             </span>
           </span>
         ) : null}
+        <button
+          className="actionButton"
+          onClick={() => onNavigateRegister?.(registerShortcut.view)}
+          type="button"
+        >
+          {registerShortcut.label}
+        </button>
         <button className="actionButton" onClick={importData} type="button">CARGAR DATOS</button>
         <button className="actionButton" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
         <button className="actionButton dangerActionButton" onClick={clearTable} type="button">LIMPIAR TABLA</button>

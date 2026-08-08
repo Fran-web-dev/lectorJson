@@ -662,6 +662,7 @@ export default function App() {
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando libro...</div></div>}>
           <IvaBooksView
             key={activeView}
+            onNavigateRegister={setActiveView}
             savedRows={ivaBookRowsByType[activeIvaBookType]}
             onRowsChange={handleIvaBookRowsChange}
             sourceRows={activeView === 'iva-books-fcf-sales' ? fcfIvaBookRows : filteredRows}
