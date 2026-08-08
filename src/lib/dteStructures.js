@@ -353,7 +353,7 @@ export const PUBLIC_QUERY_COLUMNS = [
   { name: 'Fecha y hora de generacion', source: 'publicQuery', sections: ['fechaProcesado'], fields: ['*'] },
   { name: 'Codigo de Generacion', source: 'publicQuery', sections: ['codGen'], fields: ['*'] },
   { name: 'Sello de Recepcion', source: 'publicQuery', sections: ['selloVal'], fields: ['*'] },
-  { name: 'Numero de Control Consulta', source: 'publicQuery', sections: ['documento'], fields: ['numeroControl'] },
+  { name: 'Numero de Control Consulta', source: 'publicQuery', sections: ['identificacion'], fields: ['numeroControl'] },
   {
     name: 'Documento ajustado',
     source: 'publicQuery',
@@ -365,11 +365,18 @@ export const PUBLIC_QUERY_COLUMNS = [
   {
     name: 'Documento con Evento aplicado',
     source: 'publicQuery',
-    sections: ['evento', 'eventos', 'eventoAplicado', 'documentoEvento'],
+    sections: ['otroEvento', 'evento', 'eventos', 'eventoAplicado', 'documentoEvento'],
     fields: ['*'],
+    style: 'eventApplied',
     searchKeys: ['eventoAplicado', 'documentoEvento', 'eventos', 'evento']
   },
-  { name: 'Documentos Relacionados', source: 'publicQuery', sections: ['ajustes'], fields: ['*'] }
+  {
+    name: 'Documentos Relacionados',
+    source: 'publicQuery',
+    sections: ['documentoRelacionado'],
+    fields: ['*'],
+    searchKeys: ['documentoRelacionado', 'documentosRelacionados', 'relacionados']
+  }
 ];
 
 export const STRUCTURES_BY_DTE = {

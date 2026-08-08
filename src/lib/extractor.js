@@ -47,6 +47,7 @@ function normalizeItems(value) {
 
 function formatValue(value, style) {
   if (style === 'adjustedDocument') return formatAdjustedDocuments(value);
+  if (style === 'eventApplied') return formatEventApplied(value);
   if (style === 'money' && (value === null || value === undefined || value === '')) {
     return moneyFormatter.format(0);
   }
@@ -64,8 +65,9 @@ function formatValue(value, style) {
 }
 
 function formatAdjustedDocuments(value) {
-  if (!value) return '';
+  if (!value) return 'El documento no ha sido ajustado';
   const items = Array.isArray(value) ? value : [value];
+  if (!items.length) return 'El documento no ha sido ajustado';
 
   return items
     .map((item, index) => {
@@ -87,6 +89,14 @@ function formatAdjustedDocuments(value) {
     })
     .filter(Boolean)
     .join('\n');
+}
+
+function formatEventApplied(value) {
+  if (!value) return 'NO';
+  const items = Array.isArray(value) ? value : [value];
+  if (!items.length) return 'NO';
+  const text = items.map(flattenVisible).filter(Boolean).join(' | ');
+  return text || 'NO';
 }
 
 function formatPublicGenerationDate(value) {
