@@ -1,6 +1,7 @@
 import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { Info, X } from 'lucide-react';
 import { AppHeader } from './components/AppHeader.jsx';
+import { AppTour } from './components/AppTour.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
@@ -122,6 +123,7 @@ export default function App() {
   const [ivaBookRowsByType, setIvaBookRowsByType] = useState({});
   const [anexoRowsByType, setAnexoRowsByType] = useState({});
   const [activeView, setActiveView] = useState('dte');
+  const [tourRunId, setTourRunId] = useState(0);
   const [showClearTableModal, setShowClearTableModal] = useState(false);
   const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
   const [clearTablePassword, setClearTablePassword] = useState('');
@@ -504,7 +506,12 @@ export default function App() {
   return (
     <main className="min-h-screen bg-slate-50 text-slate-950">
       {showSplash ? <SplashScreen /> : null}
-      <AppHeader activeView={activeView} onNavigate={setActiveView} />
+      <AppHeader
+        activeView={activeView}
+        onNavigate={setActiveView}
+        onStartTour={() => setTourRunId((current) => current + 1)}
+      />
+      <AppTour onNavigate={setActiveView} runId={tourRunId} />
       {activeView === 'dte' ? (
         <>
           <FilterPanel

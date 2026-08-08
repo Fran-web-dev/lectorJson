@@ -1110,8 +1110,8 @@ export function IvaBooksView({
   }
 
   return (
-    <section className="ivaBookView">
-      <div className="ivaBookToolbar">
+    <section className="ivaBookView" data-tour="iva-book-view">
+      <div className="ivaBookToolbar" data-tour="iva-book-toolbar">
         {(message || dteTypeSummary.length || bookAlertSummary.duplicateCount || bookAlertSummary.invalidCount || bookAlertSummary.rejectedCount) ? (
           <span className="ivaBookMessage">
             {message ? <span>{message}</span> : null}
@@ -1144,14 +1144,15 @@ export function IvaBooksView({
         ) : null}
         <button
           className="actionButton"
+          data-tour="iva-register-shortcut-button"
           onClick={() => onNavigateRegister?.(registerShortcut.view)}
           type="button"
         >
           {registerShortcut.label}
         </button>
-        <button className="actionButton" onClick={importData} type="button">CARGAR DATOS</button>
-        <button className="actionButton" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
-        <button className="actionButton dangerActionButton" onClick={clearTable} type="button">LIMPIAR TABLA</button>
+        <button className="actionButton" data-tour="iva-load-button" onClick={importData} type="button">CARGAR DATOS</button>
+        <button className="actionButton" data-tour="iva-export-button" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
+        <button className="actionButton dangerActionButton" data-tour="iva-clear-button" onClick={clearTable} type="button">LIMPIAR TABLA</button>
       </div>
 
       <div className="ivaBookSheet">

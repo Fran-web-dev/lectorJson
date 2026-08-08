@@ -1,13 +1,14 @@
-import { BookOpen, Building2, ChevronDown, FileText, TableProperties, Users } from 'lucide-react';
+import { BookOpen, Building2, ChevronDown, FileText, HelpCircle, TableProperties, Users } from 'lucide-react';
 import logoFevv from '../assets/logo-fevv-technologies-startup.jpg';
 
-export function AppHeader({ activeView, onNavigate }) {
+export function AppHeader({ activeView, onNavigate, onStartTour }) {
   return (
     <header className="brandHeader">
       <img alt="FEVV Technologies" className="brandLogo" src={logoFevv} />
       <nav className="mainNav" aria-label="Menu principal">
         <button
           className={`navButton ${activeView === 'dte' ? 'active' : ''}`}
+          data-tour="nav-inicio"
           onClick={() => onNavigate('dte')}
           type="button"
         >
@@ -17,6 +18,8 @@ export function AppHeader({ activeView, onNavigate }) {
         <div className="navDropdown navDropdownRegisters">
           <button
             className={`navButton ${activeView.startsWith('registers') ? 'active' : ''}`}
+            data-tour="nav-registros"
+            onClick={() => onNavigate('registers-clients')}
             type="button"
           >
             <Users size={16} />
@@ -37,6 +40,8 @@ export function AppHeader({ activeView, onNavigate }) {
         <div className="navDropdown">
           <button
             className={`navButton ${activeView.startsWith('iva-books') ? 'active' : ''}`}
+            data-tour="nav-libros-iva"
+            onClick={() => onNavigate('iva-books-purchases')}
             type="button"
           >
             <BookOpen size={16} />
@@ -61,6 +66,8 @@ export function AppHeader({ activeView, onNavigate }) {
         <div className="navDropdown">
           <button
             className={`navButton ${activeView.startsWith('anexos') ? 'active' : ''}`}
+            data-tour="nav-anexos"
+            onClick={() => onNavigate('anexos-sales-ccf')}
             type="button"
           >
             <TableProperties size={16} />
@@ -103,6 +110,10 @@ export function AppHeader({ activeView, onNavigate }) {
           </div>
         </div>
       </nav>
+      <button className="tourStartButton" data-tour="start-guide" onClick={onStartTour} type="button">
+        <HelpCircle size={16} />
+        GUÍA
+      </button>
     </header>
   );
 }

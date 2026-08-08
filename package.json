@@ -1,6 +1,6 @@
 {
   "name": "lector-dte-hacienda",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "type": "module",
   "description": "Lector de archivos JSON/CSV DTE con exportacion Excel y conexion Hacienda El Salvador",
@@ -23,6 +23,7 @@
     "papaparse": "^5.4.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "shepherd.js": "^15.2.2",
     "vite": "^6.0.3"
   },
   "devDependencies": {
@@ -38,7 +39,8 @@
     "appId": "sv.hacienda.lector.dte",
     "productName": "Lector DTE Hacienda",
     "directories": {
-      "output": "release"
+      "output": "release",
+      "asar":true
     },
     "files": [
       "dist/**/*",

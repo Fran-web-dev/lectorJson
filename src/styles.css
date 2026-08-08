@@ -92,13 +92,21 @@ body,
   }
 
   .navButton {
-    @apply inline-flex h-9 items-center gap-2 border border-transparent bg-white px-3.5 text-sm font-bold text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800;
+    @apply inline-flex h-9 items-center gap-2 border border-transparent bg-white px-3.5 text-sm font-bold text-slate-700 transition hover:border-slate-900 hover:bg-white hover:text-sky-800;
     letter-spacing: 0;
+    box-shadow: 0 0 0 #0f172a;
+    transform: translate(0, 0);
+  }
+
+  .navButton:hover,
+  .navDropdown:focus-within .navButton {
+    box-shadow: -6px 7px 0 #0f172a;
+    transform: translate(3px, -3px);
   }
 
   .navButton.active {
-    @apply border-sky-300 bg-sky-50 text-sky-800;
-    box-shadow: inset 0 -2px 0 #0284c7;
+    @apply border-sky-700 bg-sky-50 text-sky-800;
+    box-shadow: -5px 6px 0 #075985;
   }
 
   .navChevron {
@@ -129,13 +137,62 @@ body,
     @apply flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-800;
   }
 
+  .tourStartButton {
+    @apply ml-auto inline-flex h-9 items-center gap-2 border border-slate-900 bg-white px-3.5 text-sm font-black text-slate-800 transition hover:bg-white hover:text-sky-800;
+    box-shadow: 0 0 0 #0f172a;
+    transform: translate(0, 0);
+  }
+
+  .tourStartButton:hover {
+    box-shadow: -6px 7px 0 #0f172a;
+    transform: translate(3px, -3px);
+  }
+
+  .dteShepherdStep {
+    @apply max-w-sm rounded-none border-2 border-slate-900 bg-white text-slate-900 shadow-none;
+    box-shadow: -9px 10px 0 #0f172a !important;
+    font-family: "Arial Narrow", Arial, sans-serif;
+  }
+
+  .dteShepherdStep .shepherd-header {
+    @apply border-b border-slate-200 bg-sky-50 px-4 py-3;
+  }
+
+  .dteShepherdStep .shepherd-title {
+    @apply text-base font-black uppercase tracking-normal text-slate-950;
+  }
+
+  .dteShepherdStep .shepherd-text {
+    @apply px-4 py-4 text-sm font-semibold leading-6 text-slate-700;
+  }
+
+  .dteShepherdStep .shepherd-footer {
+    @apply gap-2 border-t border-slate-200 bg-slate-50 px-4 py-3;
+  }
+
+  .dteShepherdStep .shepherd-button {
+    @apply m-0 rounded-none border border-slate-900 px-3 py-2 text-xs font-black uppercase transition;
+  }
+
+  .dteShepherdStep .shepherdButtonPrimary {
+    @apply bg-slate-900 text-white hover:bg-sky-700;
+  }
+
+  .dteShepherdStep .shepherdButtonSecondary {
+    @apply bg-white text-slate-800 hover:bg-sky-50;
+  }
+
+  .dteShepherdStep .shepherd-cancel-icon {
+    @apply text-slate-700 hover:text-red-700;
+  }
+
   .navDropdownRegisters .navButton {
-    @apply hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800;
+    @apply hover:border-slate-900 hover:bg-white hover:text-teal-800;
   }
 
   .navDropdownRegisters .navButton.active {
-    @apply border-teal-300 bg-teal-50 text-teal-800;
-    box-shadow: inset 0 -2px 0 #0f766e;
+    @apply border-teal-700 bg-teal-50 text-teal-800;
+    box-shadow: -5px 6px 0 #0f766e;
   }
 
   .navDropdownRegisters .navButton svg,

@@ -1100,14 +1100,14 @@ export function AnexosView({
   );
 
   return (
-    <section className="anexosView">
+    <section className="anexosView" data-tour="anexos-view">
       <div className="anexosSheet">
-        <div className="anexosToolbar">
+        <div className="anexosToolbar" data-tour="anexos-toolbar">
           {statusMessage ? <span className="anexosMessage">{statusMessage}</span> : null}
           <span className="anexosCounter">{loadedItemCount} item(s) cargado(s)</span>
-          <button className="actionButton" disabled={isLoadingData} onClick={loadData} type="button">CARGAR DATOS</button>
-          <button className="actionButton" disabled={isLoadingData} onClick={exportCsv} type="button">GENERAR CSV</button>
-          <button className="actionButton dangerActionButton" disabled={isLoadingData} onClick={clearData} type="button">BORRAR DATOS</button>
+          <button className="actionButton" data-tour="anexo-load-button" disabled={isLoadingData} onClick={loadData} type="button">CARGAR DATOS</button>
+          <button className="actionButton" data-tour="anexo-csv-button" disabled={isLoadingData} onClick={exportCsv} type="button">GENERAR CSV</button>
+          <button className="actionButton dangerActionButton" data-tour="anexo-clear-button" disabled={isLoadingData} onClick={clearData} type="button">BORRAR DATOS</button>
         </div>
         <div className="anexosHeader">
           <h1 className="anexosTitle">{config.title}</h1>

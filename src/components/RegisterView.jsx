@@ -571,32 +571,32 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   }
 
   return (
-    <section className="registerView">
+    <section className="registerView" data-tour="register-view">
       <div className="registerSheet">
-        <div className="registerToolbar">
+        <div className="registerToolbar" data-tour="register-toolbar">
           <h1 className="registerTitle">{config.title}</h1>
           <div className="registerActions">
             {message ? <span className="registerMessage">{message}</span> : null}
-            <button className="actionButton" onClick={openAddModal} type="button">
+            <button className="actionButton" data-tour="register-add-button" onClick={openAddModal} type="button">
               <Plus size={16} /> AGREGAR
             </button>
-            <button className="actionButton" onClick={toggleEditMode} type="button">
+            <button className="actionButton" data-tour="register-edit-button" onClick={toggleEditMode} type="button">
               {isEditing ? <Check size={16} /> : <Pencil size={16} />}
               {isEditing ? 'GUARDAR' : 'EDITAR'}
             </button>
-            <button className="actionButton dangerActionButton" onClick={openClearConfirm} type="button">
+            <button className="actionButton dangerActionButton" data-tour="register-clear-button" onClick={openClearConfirm} type="button">
               <Trash2 size={16} /> LIMPIAR TODO
             </button>
-            <button className="actionButton" onClick={exportExcelTemplate} type="button">
+            <button className="actionButton" data-tour="register-template-button" onClick={exportExcelTemplate} type="button">
               <FileSpreadsheet size={16} /> PLANTILLA EXCEL
             </button>
-            <button className="actionButton" onClick={exportRegisterTable} type="button">
+            <button className="actionButton" data-tour="register-export-button" onClick={exportRegisterTable} type="button">
               <FileSpreadsheet size={16} /> EXPORTAR TABLA EXCEL
             </button>
-            <button className="actionButton" onClick={importExcelTemplate} type="button">
+            <button className="actionButton" data-tour="register-import-button" onClick={importExcelTemplate} type="button">
               <FileSpreadsheet size={16} /> IMPORTAR EXCEL
             </button>
-            <button className="actionButton" onClick={importRows} type="button">
+            <button className="actionButton" data-tour="register-load-button" onClick={importRows} type="button">
               <Download size={16} /> CARGAR
             </button>
           </div>

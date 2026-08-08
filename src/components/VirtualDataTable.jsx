@@ -352,7 +352,7 @@ function resetColumnWidth(event, column) {
 
   if (!sortedRows.length) {
     return (
-      <div className="tableFrame">
+      <div className="tableFrame" data-tour="home-data-table">
         <div className="empty">Sin datos cargados</div>
       </div>
     );
@@ -360,7 +360,7 @@ function resetColumnWidth(event, column) {
 
   return (
     <div className="tableFrame">
-      <div className="tableViewport" onScroll={handleScroll}>
+      <div className="tableViewport" data-tour="home-data-table" onScroll={handleScroll}>
         <div
           className="virtualTable"
           role="table"

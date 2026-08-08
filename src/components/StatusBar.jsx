@@ -20,14 +20,15 @@ export function StatusBar({
   const notLoadedCount = Math.max((totalFileCount || loadedCount) - loadedCount, 0);
 
   return (
-    <div className="statusMetrics">
+    <div className="statusMetrics" data-tour="status-metrics">
       <p className="statusText">
         {loading ? <Loader2 className="mr-2 inline animate-spin" size={16} /> : null}
         {status}
       </p>
-      <div className="statusActions">
+      <div className="statusActions" data-tour="hacienda-actions">
         <button
           className="actionButton statusActionButton"
+          data-tour="fill-stamps-button"
           disabled={loading || !rowCount}
           onClick={onFillReceptionStamps}
           title="Rellenar Serie del Documento vacio usando la columna Sello de Recepcion"
@@ -37,6 +38,7 @@ export function StatusBar({
         </button>
         <button
           className="actionButton statusActionButton"
+          data-tour="mass-query-button"
           disabled={loading || !rowCount}
           onClick={onQueryAllHacienda}
           title="Consultar Hacienda para todas las lineas visibles"
@@ -47,6 +49,7 @@ export function StatusBar({
         </button>
         <button
           className="actionButton statusActionButton"
+          data-tour="single-query-button"
           disabled={loading || !selectedRow}
           onClick={onOpenHacienda}
           title={selectedQueryUrl || 'Seleccione una fila con codigo de generacion y fecha'}
@@ -72,7 +75,7 @@ export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidCount = 0
   if (!dteSummary?.length && !duplicateCount && !invalidCount && !rejectedCount) return null;
 
   return (
-    <div className="mb-3">
+    <div className="mb-3" data-tour="dte-summary">
       <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-sm">
         {dteSummary?.length ? (
           <>
