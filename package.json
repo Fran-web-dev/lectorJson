@@ -38,9 +38,10 @@
   "build": {
     "appId": "sv.hacienda.lector.dte",
     "productName": "Lector DTE Hacienda",
+    "asar":true,
     "directories": {
-      "output": "release",
-      "asar":true
+      "output": "release"
+    
     },
     "files": [
       "dist/**/*",
