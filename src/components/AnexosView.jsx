@@ -170,10 +170,11 @@ export const ANEXOS_LABELS = {
 
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
 const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
-const ANEXO_LOAD_BATCH_SIZE = 1000;
+const ANEXO_LOAD_BATCH_SIZE = 4000;
 const ANEXO_ROW_HEIGHT = 28;
 const ANEXO_OVERSCAN_ROWS = 12;
 const ANEXO_STICKY_ROWS_HEIGHT = 76;
+const ANEXO_FILTER_VALUE_LIMIT = 1200;
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -274,6 +275,10 @@ function formatAnexoMoney(value) {
   return parseMoney(value).toFixed(2);
 }
 
+function formatPositiveAnexoMoney(value) {
+  return Math.abs(parseMoney(value)).toFixed(2);
+}
+
 function formatAnexoTotal(value) {
   return parseMoney(value).toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -282,8 +287,9 @@ function formatAnexoTotal(value) {
 }
 
 function isAnexoAmountColumn(header) {
-  return /VENTAS|DEBITO|MONTO|TOTAL|COMPRAS|CREDITO/i.test(header)
-    && !/NUMERO|DOCUMENTO|CONTROL|ANEXO|NIT|NRC|DUI|TIPO|CLASE|FECHA/i.test(header);
+  const normalizedHeader = normalizeColumnName(header);
+  return /VENTAS|DEBITO|MONTO|TOTAL|COMPRAS|CREDITO/i.test(normalizedHeader)
+    && !/NUMERO|DOCUMENTO|CONTROL|ANEXO|NIT|NRC|DUI|TIPO|CLASE|FECHA/i.test(normalizedHeader);
 }
 
 function extractDteTypeFromControl(value) {
@@ -429,12 +435,12 @@ function getProviderDui(row) {
 }
 
 function mapPurchaseToAnexoRow(row) {
-  const internalExempt = parseMoney(row['COMPRAS EXENTAS INTERNAS']);
-  const importExempt = parseMoney(row['COMPRAS EXENTAS IMPORTACIONES']);
-  const internationalExempt = parseMoney(row['COMPRAS EXENTAS INTERNACIONES']);
-  const internalTaxed = parseMoney(row['COMPRAS GRAVADAS INTERNAS']);
-  const importTaxed = parseMoney(row['COMPRAS GRAVADAS IMPORTACIONES']);
-  const internationalTaxed = parseMoney(row['COMPRAS GRAVADAS INTERNACIONES']);
+  const internalExempt = row['COMPRAS EXENTAS INTERNAS'];
+  const importExempt = row['COMPRAS EXENTAS IMPORTACIONES'];
+  const internationalExempt = row['COMPRAS EXENTAS INTERNACIONES'];
+  const internalTaxed = row['COMPRAS GRAVADAS INTERNAS'];
+  const importTaxed = row['COMPRAS GRAVADAS IMPORTACIONES'];
+  const internationalTaxed = row['COMPRAS GRAVADAS INTERNACIONES'];
 
   return {
     'FECHA DE EMISIÓN': row['FECHA DE EMISIÓN']
@@ -450,15 +456,15 @@ function mapPurchaseToAnexoRow(row) {
     'NOMBRE DEL PROVEEDOR': row['NOMBRE DEL PROVEEDOR']
       || getRowValueByTokens(row, ['NOMBRE', 'PROVEEDOR'])
       || '',
-    'COMPRAS INTERNAS EXENTAS Y/O NO SUJETAS': formatAnexoMoney(internalExempt),
-    'INTERNACIONES EXENTAS Y/O NO SUJETAS': formatAnexoMoney(internationalExempt),
-    'IMPORTACIONES EXENTAS Y/O NO SUJETAS': formatAnexoMoney(importExempt),
-    'COMPRAS INTERNAS GRAVADAS': formatAnexoMoney(internalTaxed),
-    'INTERNACIONES GRAVADAS DE BIENES': formatAnexoMoney(internationalTaxed),
-    'IMPORTACIONES GRAVADAS DE BIENES': formatAnexoMoney(importTaxed),
+    'COMPRAS INTERNAS EXENTAS Y/O NO SUJETAS': formatPositiveAnexoMoney(internalExempt),
+    'INTERNACIONES EXENTAS Y/O NO SUJETAS': formatPositiveAnexoMoney(internationalExempt),
+    'IMPORTACIONES EXENTAS Y/O NO SUJETAS': formatPositiveAnexoMoney(importExempt),
+    'COMPRAS INTERNAS GRAVADAS': formatPositiveAnexoMoney(internalTaxed),
+    'INTERNACIONES GRAVADAS DE BIENES': formatPositiveAnexoMoney(internationalTaxed),
+    'IMPORTACIONES GRAVADAS DE BIENES': formatPositiveAnexoMoney(importTaxed),
     'IMPORTACIONES GRAVADAS DE SERVICIOS': '0.00',
-    'CRÉDITO FISCAL': formatAnexoMoney(row.IVA || row['CREDITO FISCAL']),
-    'TOTAL DE COMPRAS': formatAnexoMoney(row['TOTAL COMPRAS'] || row['Total de Compra']),
+    'CRÉDITO FISCAL': formatPositiveAnexoMoney(row.IVA || row['CREDITO FISCAL']),
+    'TOTAL DE COMPRAS': formatPositiveAnexoMoney(row['TOTAL COMPRAS'] || row['Total de Compra']),
     'DUI DEL PROVEEDOR': getProviderDui(row),
     'TIPO DE OPERACIÓN': getRowValueByTokens(row, ['TIPO', 'OPERACION']),
     'CLASIFICACIÓN': getRowValueByTokens(row, ['CLASIFICACION']),
@@ -666,7 +672,7 @@ function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, fcfSalesRows, pr
         ['TOTAL', 'COMPRAS']
       ],
       mapRow: mapPurchaseToAnexoRow,
-      includeRow: () => true
+      includeRow: (row) => ['03', '05'].includes(extractDteTypeFromControl(row['NUMERO DE CONTROL']))
     },
     excludedSubject: {
       sourceRows: purchaseRows,
@@ -769,6 +775,18 @@ async function buildAnexoRows({ columns, loadConfig, onProgress }) {
   return nextRows;
 }
 
+function buildAnexoFilterValues(rows, openFilter) {
+  if (!openFilter) return [];
+
+  const values = new Set();
+  for (const row of rows) {
+    values.add(String(row[openFilter] || ''));
+    if (values.size >= ANEXO_FILTER_VALUE_LIMIT) break;
+  }
+
+  return Array.from(values).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 function getNoAnexoRowsMessage(type, { ccfSalesRows, fcfSalesRows, loadConfig, purchaseRows }) {
   if (type === 'excludedSubject') {
     const hasPurchaseBookRows = purchaseRows.some((row) => hasUsefulAnexoData(row, [
@@ -867,6 +885,7 @@ export function AnexosView({
   const [viewport, setViewport] = useState({ height: 600, scrollTop: 0 });
   const scrollFrameRef = useRef(0);
   const pendingViewportRef = useRef(viewport);
+  const rowsChangeTimerRef = useRef(0);
 
   const indexedRows = useMemo(() => rows.map((row, index) => ({ index, row })), [rows]);
   const visibleRows = useMemo(
@@ -902,10 +921,10 @@ export function AnexosView({
 
     return totals;
   }, [config.columns, visibleRows]);
-  const openFilterValues = useMemo(() => {
-    if (!openFilter) return [];
-    return Array.from(new Set(rows.map((row) => String(row[openFilter] || '')))).sort((a, b) => a.localeCompare(b, 'es'));
-  }, [openFilter, rows]);
+  const openFilterValues = useMemo(
+    () => buildAnexoFilterValues(rows, openFilter),
+    [openFilter, rows]
+  );
 
   useEffect(() => {
     const nextRows = savedRows?.length ? savedRows : initialRows;
@@ -921,11 +940,25 @@ export function AnexosView({
   }, [initialRows, savedRows]);
 
   useEffect(() => {
-    onRowsChange?.(rows);
+    if (!onRowsChange) return undefined;
+    if (rowsChangeTimerRef.current) window.clearTimeout(rowsChangeTimerRef.current);
+
+    rowsChangeTimerRef.current = window.setTimeout(() => {
+      rowsChangeTimerRef.current = 0;
+      onRowsChange(rows);
+    }, 120);
+
+    return () => {
+      if (rowsChangeTimerRef.current) {
+        window.clearTimeout(rowsChangeTimerRef.current);
+        rowsChangeTimerRef.current = 0;
+      }
+    };
   }, [onRowsChange, rows]);
 
   useEffect(() => () => {
     if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
+    if (rowsChangeTimerRef.current) window.clearTimeout(rowsChangeTimerRef.current);
   }, []);
 
   function startEditing(rowIndex) {
@@ -1095,9 +1128,7 @@ export function AnexosView({
   const progressMessage = loadProgress
     ? `Cargando ${loadProgress.completed}/${loadProgress.total} archivo(s). ${loadProgress.matched} registro(s) encontrado(s).`
     : '';
-  const statusMessage = progressMessage || message || (
-    loadedItemCount > 0 ? `${loadedItemCount} item(s) cargado(s)` : ''
-  );
+  const statusMessage = progressMessage || message;
 
   return (
     <section className="anexosView" data-tour="anexos-view">

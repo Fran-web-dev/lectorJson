@@ -75,9 +75,6 @@ export function FilterPanel({
             </span>
             Exportar Excel
           </button>
-          <button className="actionButton" data-tour="select-files-button" disabled={loading} onClick={onSelectFiles}>
-            <FileJson size={16} /> Seleccionar archivos
-          </button>
           <button className="actionButton" data-tour="load-json-button" disabled={loading || !folder.trim()} onClick={onReloadFolder}>
             <FileJson size={16} /> Cargar JSON
           </button>

@@ -11,9 +11,10 @@ import { Trash2 } from 'lucide-react';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
-const AUTO_WIDTH_SAMPLE_SIZE = 300;
+const AUTO_WIDTH_SAMPLE_SIZE = 80;
 const BOTTOM_SCROLL_PADDING = 56;
 const ACTIONS_COLUMN_WIDTH = 78;
+const TOTALS_CHUNK_SIZE = 2500;
 const PUBLIC_QUERY_COLUMNS = new Set([
   'Estado del DTE',
   'Descripcion del DTE',
@@ -24,6 +25,7 @@ const PUBLIC_QUERY_COLUMNS = new Set([
   'Numero de Control Consulta',
   'Documento ajustado',
   'Documento con Evento aplicado',
+  'Observaciones',
   'Documentos Relacionados'
 ]);
 
@@ -135,19 +137,15 @@ function formatTotal(value) {
   return `$${totalFormatter.format(value)}`;
 }
 
-function calculateColumnTotals(columns, rows) {
+function getMoneyColumns(columns) {
+  return columns.filter(isMoneyColumn);
+}
+
+function calculateColumnTotals(moneyColumns, rows) {
   const totals = {};
 
-  for (const column of columns) {
-    if (!isMoneyColumn(column)) continue;
-
-    let total = 0;
-
-    for (const row of rows) {
-      total += parseMoney(row[column]);
-    }
-
-    totals[column] = formatTotal(total);
+  for (const column of moneyColumns) {
+    totals[column] = 0;
   }
 
   return totals;
@@ -207,8 +205,10 @@ export function VirtualDataTable({
   onColumnFilterChange,
   onRowDelete,
   onRowSelect,
+  onSortConfigChange,
   rows,
-  selectedRow
+  selectedRow,
+  sortConfig = { column: '', direction: 'asc' }
 }) {
   const [viewport, setViewport] = useState({ height: 480, scrollTop: 0 });
   const [scrollLeft, setScrollLeft] = useState(0);
@@ -216,11 +216,11 @@ export function VirtualDataTable({
   const [filterPosition, setFilterPosition] = useState({ left: 0, top: 0 });
   const [filterSearch, setFilterSearch] = useState('');
   const [dateRangeFilter, setDateRangeFilter] = useState({ from: '', to: '' });
-  const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
   const [manualColumnWidths, setManualColumnWidths] = useState({});
   const [columnTotals, setColumnTotals] = useState({});
   const scrollFrameRef = useRef(0);
   const pendingViewportRef = useRef(viewport);
+  const totalsJobRef = useRef(0);
   
   const sortedRows = useMemo(() => {
     if (!sortConfig.column) return rows;
@@ -252,22 +252,51 @@ export function VirtualDataTable({
     () => ACTIONS_COLUMN_WIDTH + columnWidths.reduce((total, width) => total + width, 0),
     [columnWidths]
   );
+  const moneyColumns = useMemo(() => getMoneyColumns(columns), [columns]);
+
   useEffect(() => {
     let cancelled = false;
+    const jobId = totalsJobRef.current + 1;
+    totalsJobRef.current = jobId;
     setColumnTotals({});
 
-    const scheduleIdle = window.requestIdleCallback || ((callback) => window.setTimeout(callback, 0));
-    const cancelIdle = window.cancelIdleCallback || window.clearTimeout;
-    const idleId = scheduleIdle(() => {
-      const nextTotals = calculateColumnTotals(columns, sortedRows);
-      if (!cancelled) setColumnTotals(nextTotals);
-    });
+    if (!moneyColumns.length || !sortedRows.length) return () => {
+      cancelled = true;
+    };
+
+    const nextTotals = calculateColumnTotals(moneyColumns, sortedRows);
+    let rowIndex = 0;
+    let timerId = 0;
+
+    function processChunk() {
+      const end = Math.min(sortedRows.length, rowIndex + TOTALS_CHUNK_SIZE);
+
+      for (; rowIndex < end; rowIndex += 1) {
+        const row = sortedRows[rowIndex];
+        for (const column of moneyColumns) {
+          nextTotals[column] += parseMoney(row[column]);
+        }
+      }
+
+      if (cancelled || totalsJobRef.current !== jobId) return;
+
+      if (rowIndex < sortedRows.length) {
+        timerId = window.setTimeout(processChunk, 0);
+        return;
+      }
+
+      setColumnTotals(Object.fromEntries(
+        moneyColumns.map((column) => [column, formatTotal(nextTotals[column])])
+      ));
+    }
+
+    timerId = window.setTimeout(processChunk, 0);
 
     return () => {
       cancelled = true;
-      cancelIdle(idleId);
+      if (timerId) window.clearTimeout(timerId);
     };
-  }, [columns, sortedRows]);
+  }, [moneyColumns, sortedRows]);
 
   useEffect(() => () => {
     if (scrollFrameRef.current) cancelAnimationFrame(scrollFrameRef.current);
@@ -343,7 +372,7 @@ function resetColumnWidth(event, column) {
 }
 
   function toggleSort(column) {
-    setSortConfig((current) => ({
+    onSortConfigChange?.((current) => ({
       column,
       direction: current.column === column && current.direction === 'asc' ? 'desc' : 'asc'
     }));

@@ -371,6 +371,15 @@ export const PUBLIC_QUERY_COLUMNS = [
     searchKeys: ['eventoAplicado', 'documentoEvento', 'eventos', 'evento']
   },
   {
+    name: 'Observaciones',
+    source: 'publicQuery',
+    sections: ['observaciones'],
+    fields: ['*'],
+    style: 'publicObservations',
+    collectKey: 'observaciones',
+    searchKeys: ['observaciones']
+  },
+  {
     name: 'Documentos Relacionados',
     source: 'publicQuery',
     sections: ['documentoRelacionado'],

@@ -1,12 +1,7 @@
 import { ExternalLink, Loader2, Stamp } from 'lucide-react';
 import logoM from '../assets/LogoM.png';
 
-const STATUS_COUNT_SEPARATOR = ' | ';
-
 export function StatusBar({
-  columnCount,
-  dteSummary,
-  loadedCount,
   loading,
   onFillReceptionStamps,
   onOpenHacienda,
@@ -14,11 +9,8 @@ export function StatusBar({
   rowCount,
   selectedQueryUrl,
   selectedRow,
-  status,
-  totalFileCount
+  status
 }) {
-  const notLoadedCount = Math.max((totalFileCount || loadedCount) - loadedCount, 0);
-
   return (
     <div className="statusMetrics" data-tour="status-metrics">
       <p className="statusText">
@@ -58,21 +50,31 @@ export function StatusBar({
           <ExternalLink size={15} /> Consulta individual Hacienda
         </button>
       </div>
-      <p className="statusCounts">
-        <span className="font-bold text-emerald-600">{rowCount} visible(s)</span>
-        <span className="text-slate-400"> de </span>
-        <span className="font-bold text-blue-600">{loadedCount} cargado(s)</span>
-        <span className="text-slate-400">{STATUS_COUNT_SEPARATOR}</span>
-        <span className="font-bold text-red-600">{notLoadedCount} no cargado(s)</span>
-        <span className="text-slate-400">{STATUS_COUNT_SEPARATOR}</span>
-        <span>{columnCount} columna(s)</span>
-      </p>
     </div>
   );
 }
 
-export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidCount = 0, rejectedCount = 0 }) {
-  if (!dteSummary?.length && !duplicateCount && !invalidCount && !rejectedCount) return null;
+export function DteSummaryBar({
+  columnCount = 0,
+  dteSummary,
+  duplicateCount = 0,
+  invalidCount = 0,
+  loadedCount = 0,
+  rejectedCount = 0,
+  rowCount = 0,
+  totalFileCount = 0
+}) {
+  const notLoadedCount = Math.max((totalFileCount || loadedCount) - loadedCount, 0);
+  if (
+    !dteSummary?.length
+    && !duplicateCount
+    && !invalidCount
+    && !rejectedCount
+    && !loadedCount
+    && !rowCount
+    && !columnCount
+    && !notLoadedCount
+  ) return null;
 
   return (
     <div className="mb-3" data-tour="dte-summary">
@@ -95,6 +97,15 @@ export function DteSummaryBar({ dteSummary, duplicateCount = 0, invalidCount = 0
         </span>
         <span className="rounded-sm border border-orange-200 bg-orange-50 px-2 py-1 font-bold text-orange-700">
           DTE rechazados: {rejectedCount}
+        </span>
+        <span className="flex flex-wrap items-center gap-1 text-slate-500">
+          <span className="font-bold text-emerald-600">{rowCount} visible(s)</span>
+          <span className="text-slate-400">de</span>
+          <span className="font-bold text-blue-600">{loadedCount} cargado(s)</span>
+          <span className="px-1 text-slate-400">|</span>
+          <span className="font-bold text-red-600">{notLoadedCount} no cargado(s)</span>
+          <span className="px-1 text-slate-400">|</span>
+          <span>{columnCount} columna(s)</span>
         </span>
       </div>
     </div>

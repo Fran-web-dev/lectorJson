@@ -1,8 +1,25 @@
 import { useMemo, useEffect, useRef, useState } from 'react';
 import { Check, Download, FileSpreadsheet, Pencil, Plus, Trash2, X } from 'lucide-react';
+import {
+  loadPersistedFilters,
+  loadPersistedSort,
+  resolveFilterUpdate,
+  savePersistedFilters,
+  savePersistedSort
+} from '../lib/filterPersistence.js';
 
 const INITIAL_ROW_COUNT = 14;
 const REGISTER_CLEAR_KEY = '1234';
+const REGISTER_FILTER_STORAGE_PREFIX = 'dte-register-column-filters';
+const REGISTER_SORT_STORAGE_PREFIX = 'dte-register-column-sort';
+
+function getRegisterFilterStorageKey(type) {
+  return `${REGISTER_FILTER_STORAGE_PREFIX}-${type || 'clients'}`;
+}
+
+function getRegisterSortStorageKey(type) {
+  return `${REGISTER_SORT_STORAGE_PREFIX}-${type || 'clients'}`;
+}
 
 const REGISTER_CONFIG = {
   clients: {
@@ -222,6 +239,21 @@ function applyRegisterFilters(rows, filters, columns) {
   });
 }
 
+function compareRegisterValues(firstValue, secondValue) {
+  const firstText = String(firstValue ?? '').trim();
+  const secondText = String(secondValue ?? '').trim();
+  const firstNumber = Number(firstText.replace(/[$,\s]/g, ''));
+  const secondNumber = Number(secondText.replace(/[$,\s]/g, ''));
+  if (Number.isFinite(firstNumber) && Number.isFinite(secondNumber)) {
+    return firstNumber - secondNumber;
+  }
+
+  return firstText.localeCompare(secondText, 'es', {
+    numeric: true,
+    sensitivity: 'base'
+  });
+}
+
 function splitProviderDocument(value) {
   const rawValue = String(value || '').trim();
   const digits = rawValue.replace(/\D/g, '');
@@ -307,7 +339,8 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   const gridTemplateColumns = columnWidths.map((width) => `${width}px`).join(' ');
   const [rows, setRows] = useState(() => loadRows(type, config.columns));
   const [draftRow, setDraftRow] = useState(() => createEmptyRow(config.columns));
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(() => loadPersistedFilters(getRegisterFilterStorageKey(type)));
+  const [sortConfig, setSortConfig] = useState(() => loadPersistedSort(getRegisterSortStorageKey(type)));
   const [openFilter, setOpenFilter] = useState(null);
   const [filterSearch, setFilterSearch] = useState('');
   const [isEditing, setIsEditing] = useState(false);
@@ -320,6 +353,13 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
     () => applyRegisterFilters(rows, filters, config.columns),
     [config.columns, filters, rows]
   );
+  const sortedVisibleRows = useMemo(() => {
+    if (!sortConfig.column) return visibleRows;
+    const direction = sortConfig.direction === 'desc' ? -1 : 1;
+    return [...visibleRows].sort((firstRow, secondRow) => (
+      compareRegisterValues(firstRow[sortConfig.column], secondRow[sortConfig.column]) * direction
+    ));
+  }, [sortConfig, visibleRows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(
@@ -332,7 +372,8 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   useEffect(() => {
     setRows(loadRows(type, config.columns));
     setDraftRow(createEmptyRow(config.columns));
-    setFilters({});
+    setFilters(loadPersistedFilters(getRegisterFilterStorageKey(type)));
+    setSortConfig(loadPersistedSort(getRegisterSortStorageKey(type)));
     setOpenFilter(null);
     setFilterSearch('');
     setIsEditing(false);
@@ -344,6 +385,26 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   useEffect(() => {
     window.localStorage.setItem(getStorageKey(type), JSON.stringify(rows));
   }, [rows, type]);
+
+  function handleFiltersChange(update) {
+    setFilters((currentFilters) => {
+      const nextFilters = resolveFilterUpdate(update, currentFilters);
+      savePersistedFilters(getRegisterFilterStorageKey(type), nextFilters);
+      return nextFilters;
+    });
+  }
+
+  function toggleSort(column) {
+    if (column.header === 'CORR.') return;
+    setSortConfig((currentSort) => {
+      const nextSort = {
+        column: column.header,
+        direction: currentSort.column === column.header && currentSort.direction === 'asc' ? 'desc' : 'asc'
+      };
+      savePersistedSort(getRegisterSortStorageKey(type), nextSort);
+      return nextSort;
+    });
+  }
 
   function openAddModal() {
     setDraftRow(createEmptyRow(config.columns));
@@ -543,6 +604,9 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   function clearRows() {
     setRows(createRows(config.columns));
     setFilters({});
+    setSortConfig({ column: '', direction: 'asc' });
+    savePersistedFilters(getRegisterFilterStorageKey(type), {});
+    savePersistedSort(getRegisterSortStorageKey(type), { column: '', direction: 'asc' });
     setOpenFilter(null);
     setFilterSearch('');
     setIsEditing(false);
@@ -604,12 +668,16 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
         <div className="registerTableViewport">
           <div className={`registerTable ${config.tone}`} style={{ gridTemplateColumns }}>
             {config.columns.map((column, columnIndex) => (
-              <div className={`registerHeadCell ${config.tone}`} key={column.header}>
+              <div className={`registerHeadCell ${config.tone}`} key={column.header} onClick={() => toggleSort(column)} role="columnheader" title={column.header === 'CORR.' ? column.header : `Ordenar ${column.header}`}>
                 <span>{column.header}</span>
+                {sortConfig.column === column.header ? (
+                  <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                ) : null}
                 {column.header !== 'CORR.' ? (
                   <button
                     className={`excelFilterButton ${filters[column.header]?.length ? 'active' : ''}`}
-                    onClick={() => {
+                    onClick={(event) => {
+                      event.stopPropagation();
                       setOpenFilter(openFilter === column.header ? null : column.header);
                       setFilterSearch('');
                     }}
@@ -625,7 +693,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                     filterSearch={filterSearch}
                     onClose={() => setOpenFilter(null)}
                     onFilterSearchChange={setFilterSearch}
-                    onFiltersChange={setFilters}
+                    onFiltersChange={handleFiltersChange}
                     selectedValues={filters[column.header] || []}
                     values={openFilterValues}
                   />
@@ -638,7 +706,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                 />
               </div>
             ))}
-            {visibleRows.flatMap((row, rowIndex) => (
+            {sortedVisibleRows.flatMap((row, rowIndex) => (
               config.columns.map((column, columnIndex) => (
                 <div
                   className={`registerCell ${rowIndex % 2 === 0 ? 'odd' : 'even'}`}

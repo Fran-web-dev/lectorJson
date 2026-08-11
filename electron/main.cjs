@@ -31,6 +31,7 @@ const HACIENDA_PUBLIC_COLUMNS = new Set([
   'Numero de Control Consulta',
   'Documento ajustado',
   'Documento con Evento aplicado',
+  'Observaciones',
   'Documentos Relacionados'
 ]);
 const PUBLIC_QUERY_LIMIT = 300;
@@ -204,7 +205,7 @@ function parseJsonWithRepair(raw) {
     if (repaired !== normalizedRaw) {
       return JSON.parse(repaired);
     }
-    throw error;
+    throw new Error(`JSON invalido o danado: ${error.message}`);
   }
 }
 
@@ -220,6 +221,70 @@ function getLoadableDtePayload(item) {
   }
 
   return null;
+}
+
+function describeUnloadedItemReason(item) {
+  if (!item || typeof item !== 'object') {
+    return 'El contenido no es un objeto JSON valido de DTE. Revise que el archivo contenga la estructura completa del documento electronico.';
+  }
+
+  if (Array.isArray(item)) {
+    return 'Se encontro una lista anidada donde se esperaba un DTE individual. Revise que cada elemento tenga la seccion identificacion.';
+  }
+
+  const keys = Object.keys(item);
+  if (!keys.length) {
+    return 'El JSON esta vacio. No contiene datos para identificar ni cargar el documento.';
+  }
+
+  if (item.dteJson && typeof item.dteJson === 'object') {
+    if (!item.dteJson.identificacion) {
+      return 'Falta la seccion dteJson.identificacion. No se puede validar el tipo de documento porque el DTE viene dentro de dteJson.';
+    }
+    return 'Falta dteJson.identificacion.tipoDte. El programa solo carga documentos cuando el tipo DTE esta definido en esa ruta.';
+  }
+
+  if (!item.identificacion) {
+    return `Falta la seccion identificacion. El archivo no parece tener la estructura DTE esperada. Campos encontrados: ${keys.slice(0, 8).join(', ')}.`;
+  }
+
+  if (typeof item.identificacion !== 'object') {
+    return 'La seccion identificacion existe, pero no es un objeto valido. Revise el formato interno del JSON.';
+  }
+
+  if (!item.identificacion.tipoDte) {
+    return 'Falta identificacion.tipoDte. Por regla estricta, el programa solo identifica el tipo DTE desde esa ubicacion.';
+  }
+
+  return 'El archivo fue leido, pero no cumple la estructura minima para cargarlo como DTE.';
+}
+
+function describeReadError(filePath, error) {
+  const extension = path.extname(filePath).toLowerCase() || 'sin extension';
+  const rawMessage = String(error?.message || '').trim();
+  const detail = rawMessage ? ` Detalle tecnico: ${rawMessage}` : '';
+
+  if (/JSON invalido o danado/i.test(rawMessage) || /Unexpected token|Unexpected end|JSON/i.test(rawMessage)) {
+    return `No se pudo leer como JSON valido. Revise si el archivo esta incompleto, danado o tiene caracteres fuera de formato.${detail}`;
+  }
+
+  if (/ENOENT/i.test(rawMessage)) {
+    return `No se encontro el archivo en la ruta indicada. Puede haber sido movido, eliminado o estar en una unidad no disponible.${detail}`;
+  }
+
+  if (/EACCES|EPERM/i.test(rawMessage)) {
+    return `No hay permisos para leer el archivo. Revise permisos de Windows, antivirus o si el archivo esta bloqueado por otra aplicacion.${detail}`;
+  }
+
+  if (/EISDIR/i.test(rawMessage)) {
+    return `La ruta apunta a una carpeta y no a un archivo DTE.${detail}`;
+  }
+
+  if (extension === '.csv') {
+    return `No se pudo interpretar el CSV. Revise que tenga encabezados validos y filas con formato correcto.${detail}`;
+  }
+
+  return `No se pudo cargar el archivo ${extension}. Revise que sea un JSON/CSV valido y que no este bloqueado.${detail}`;
 }
 
 async function loadFiles(filePaths, sourcePath, progressWebContents) {
@@ -258,7 +323,7 @@ async function loadFiles(filePaths, sourcePath, progressWebContents) {
 
             if (!payload) {
               const suffix = items.length > 1 ? ` item ${itemIndex + 1}` : '';
-              errors.push({ filePath, message: `No cargado${suffix}: no se encontro identificacion.tipoDte.` });
+              errors.push({ filePath, message: `No cargado${suffix}: ${describeUnloadedItemReason(item)}` });
               return null;
             }
 
@@ -272,7 +337,7 @@ async function loadFiles(filePaths, sourcePath, progressWebContents) {
           .filter(Boolean);
       } catch (error) {
         documentsByFile[fileIndex] = [];
-        errors.push({ filePath, message: error.message });
+        errors.push({ filePath, message: describeReadError(filePath, error) });
       } finally {
         completedFiles += 1;
         sendLoadProgress();
@@ -759,13 +824,14 @@ async function writeLoadErrorExcel(filePath, errors) {
   const ExcelJS = getExcelJs();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('No cargados');
-  const headers = ['ITEM', 'RUTA DEL ARCHIVO', 'NOMBRE DEL ARCHIVO'];
+  const headers = ['ITEM', 'RUTA DEL ARCHIVO', 'NOMBRE DEL ARCHIVO', 'MOTIVO'];
   const minimumRows = 10;
 
   worksheet.columns = [
     { header: headers[0], key: 'item', width: 10 },
     { header: headers[1], key: 'filePath', width: 72 },
-    { header: headers[2], key: 'fileName', width: 36 }
+    { header: headers[2], key: 'fileName', width: 36 },
+    { header: headers[3], key: 'reason', width: 58 }
   ];
 
   errors.forEach((error, index) => {
@@ -773,12 +839,13 @@ async function writeLoadErrorExcel(filePath, errors) {
     worksheet.addRow({
       item: index + 1,
       filePath: fullPath,
-      fileName: path.basename(fullPath)
+      fileName: path.basename(fullPath),
+      reason: error?.message || 'No especificado'
     });
   });
 
   while (worksheet.rowCount < minimumRows + 1) {
-    worksheet.addRow({ item: '', filePath: '', fileName: '' });
+    worksheet.addRow({ item: '', filePath: '', fileName: '', reason: '' });
   }
 
   for (let rowNumber = 1; rowNumber <= worksheet.rowCount; rowNumber += 1) {

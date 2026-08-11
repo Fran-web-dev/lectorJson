@@ -39,6 +39,41 @@ function flattenVisible(value) {
   return value ?? '';
 }
 
+function collectValuesByKey(source, targetKey) {
+  const values = [];
+  const normalizedTarget = normalizeKey(targetKey);
+  const stack = [source];
+
+  while (stack.length) {
+    const current = stack.pop();
+    if (!current || typeof current !== 'object') continue;
+
+    if (Array.isArray(current)) {
+      for (let index = current.length - 1; index >= 0; index -= 1) {
+        stack.push(current[index]);
+      }
+      continue;
+    }
+
+    for (const [key, value] of Object.entries(current)) {
+      if (normalizeKey(key) === normalizedTarget && value !== null && value !== undefined && value !== '') {
+        values.push(value);
+      }
+
+      if (value && typeof value === 'object') {
+        stack.push(value);
+      }
+    }
+  }
+
+  return values;
+}
+
+function getDirectSection(source, sectionName) {
+  if (!source || typeof source !== 'object' || !sectionName) return source;
+  return Object.prototype.hasOwnProperty.call(source, sectionName) ? source[sectionName] : undefined;
+}
+
 function normalizeItems(value) {
   if (Array.isArray(value)) return value;
   if (value && typeof value === 'object') return [value];
@@ -48,6 +83,7 @@ function normalizeItems(value) {
 function formatValue(value, style) {
   if (style === 'adjustedDocument') return formatAdjustedDocuments(value);
   if (style === 'eventApplied') return formatEventApplied(value);
+  if (style === 'publicObservations') return formatPublicObservations(value);
   if (style === 'money' && (value === null || value === undefined || value === '')) {
     return moneyFormatter.format(0);
   }
@@ -62,6 +98,22 @@ function formatValue(value, style) {
     }
   }
   return flattenVisible(value);
+}
+
+function formatPublicObservations(value) {
+  const items = Array.isArray(value) ? value : [value];
+  const seen = new Set();
+
+  return items
+    .map(flattenVisible)
+    .map((item) => String(item || '').trim())
+    .filter(Boolean)
+    .filter((item) => {
+      if (seen.has(item)) return false;
+      seen.add(item);
+      return true;
+    })
+    .join('\n');
 }
 
 function formatAdjustedDocuments(value) {
@@ -427,7 +479,9 @@ export function extractRows(documents, options = {}) {
           .join('\n');
       } else {
         const sourcePayload = rule.source === 'publicQuery' ? document.payload?.__consultaPublica : document.payload;
-        const directValue = extractFieldDirect(sourcePayload, rule);
+        const directValue = rule.collectKey
+          ? { found: true, value: collectValuesByKey(getDirectSection(sourcePayload, rule.collectRoot), rule.collectKey) }
+          : extractFieldDirect(sourcePayload, rule);
         if (directValue.found) {
           baseRow[rule.name] = formatValue(directValue.value, rule.style);
         } else {

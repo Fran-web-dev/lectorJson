@@ -1,6 +1,24 @@
 import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import {
+  loadPersistedFilters,
+  loadPersistedSort,
+  resolveFilterUpdate,
+  savePersistedFilters,
+  savePersistedSort
+} from '../lib/filterPersistence.js';
+
+const IVA_BOOK_FILTER_STORAGE_PREFIX = 'dte-iva-book-column-filters';
+const IVA_BOOK_SORT_STORAGE_PREFIX = 'dte-iva-book-column-sort';
+
+function getIvaBookFilterStorageKey(type) {
+  return `${IVA_BOOK_FILTER_STORAGE_PREFIX}-${type || 'purchases'}`;
+}
+
+function getIvaBookSortStorageKey(type) {
+  return `${IVA_BOOK_SORT_STORAGE_PREFIX}-${type || 'purchases'}`;
+}
 
 const IVA_BOOKS = {
   purchases: {
@@ -77,8 +95,19 @@ const ACTIONS_COLUMN_WIDTH = '92px';
 const IVA_BOOK_ROW_HEIGHT = 24;
 const IVA_BOOK_OVERSCAN = 10;
 const FCF_IMPORT_PROGRESS_BATCH_SIZE = 250;
+const IVA_BOOK_FILTER_VALUE_LIMIT = 1200;
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
 const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
+const IVA_BOOK_HEADER_STORAGE_PREFIX = 'dte-iva-book-header';
+const EMPTY_IVA_BOOK_HEADER = {
+  companyName: '',
+  businessLine: '',
+  nrc: '',
+  nit: '',
+  dui: '',
+  month: '',
+  year: ''
+};
 const PROVIDER_RENT_COLUMNS = {
   operation: 'TIPO DE OPERACION (Renta)',
   classification: 'CLASIFICACION (Renta)',
@@ -603,7 +632,83 @@ function parseCurrency(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function isBookDateColumn(column) {
+  const header = String(column?.header || '').toUpperCase();
+  return header === 'FECHA DE EMISION' || header === 'FECHA EMISION';
+}
+
+function parseBookDate(value) {
+  const text = String(value || '').trim();
+  if (!text) return Number.NaN;
+
+  const dayFirst = text.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (dayFirst) {
+    const [, day, month, year, hour = '0', minute = '0', second = '0'] = dayFirst;
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    ).getTime();
+  }
+
+  const yearFirst = text.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+  if (yearFirst) {
+    const [, year, month, day, hour = '0', minute = '0', second = '0'] = yearFirst;
+    return new Date(
+      Number(year),
+      Number(month) - 1,
+      Number(day),
+      Number(hour),
+      Number(minute),
+      Number(second)
+    ).getTime();
+  }
+
+  return Number.NaN;
+}
+
+function getIvaBookHeaderStorageKey(type) {
+  return `${IVA_BOOK_HEADER_STORAGE_PREFIX}-${type || 'purchases'}`;
+}
+
+function loadIvaBookHeaderDraft(type) {
+  try {
+    const raw = window.localStorage.getItem(getIvaBookHeaderStorageKey(type));
+    if (!raw) return EMPTY_IVA_BOOK_HEADER;
+    return { ...EMPTY_IVA_BOOK_HEADER, ...JSON.parse(raw) };
+  } catch {
+    return EMPTY_IVA_BOOK_HEADER;
+  }
+}
+
+function saveIvaBookHeaderDraft(type, draft) {
+  try {
+    window.localStorage.setItem(getIvaBookHeaderStorageKey(type), JSON.stringify(draft));
+  } catch {
+    // Persistencia opcional: la app debe seguir funcionando aunque localStorage falle.
+  }
+}
+
+function clearIvaBookHeaderDraft(type) {
+  try {
+    window.localStorage.removeItem(getIvaBookHeaderStorageKey(type));
+  } catch {
+    // Sin accion requerida.
+  }
+}
+
 function compareBookValues(aValue, bValue, column) {
+  if (isBookDateColumn(column)) {
+    const aDate = parseBookDate(aValue);
+    const bDate = parseBookDate(bValue);
+    if (Number.isFinite(aDate) && Number.isFinite(bDate)) return aDate - bDate;
+    if (Number.isFinite(aDate)) return -1;
+    if (Number.isFinite(bDate)) return 1;
+  }
+
   if (column.money) return parseCurrency(aValue) - parseCurrency(bValue);
 
   const aNumber = Number(String(aValue || '').replace(/[$,\s]/g, ''));
@@ -760,6 +865,18 @@ function waitForNextFrame() {
   });
 }
 
+function buildBookFilterValues(rows, openFilter) {
+  if (!openFilter) return [];
+
+  const values = new Set();
+  for (const row of rows) {
+    values.add(String(row[openFilter] || ''));
+    if (values.size >= IVA_BOOK_FILTER_VALUE_LIMIT) break;
+  }
+
+  return Array.from(values).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
 export function IvaBooksView({
   onNavigateRegister,
   onRowsChange,
@@ -786,29 +903,47 @@ export function IvaBooksView({
   ));
   const [editingRowIndex, setEditingRowIndex] = useState(-1);
   const [editingDraft, setEditingDraft] = useState(null);
-  const [filters, setFilters] = useState({});
+  const [filters, setFilters] = useState(() => loadPersistedFilters(getIvaBookFilterStorageKey(type)));
   const [filterSearch, setFilterSearch] = useState('');
   const [message, setMessage] = useState('');
   const [importProgress, setImportProgress] = useState(null);
-  const [headerDraft, setHeaderDraft] = useState({
-    companyName: '',
-    businessLine: '',
-    nrc: '',
-    nit: '',
-    dui: '',
-    month: '',
-    year: ''
-  });
+  const [headerDraft, setHeaderDraft] = useState(() => loadIvaBookHeaderDraft(type));
   const [openFilter, setOpenFilter] = useState('');
-  const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
+  const [sortConfig, setSortConfig] = useState(() => loadPersistedSort(getIvaBookSortStorageKey(type)));
   const [viewport, setViewport] = useState({ height: 520, scrollTop: 0 });
+  const scrollFrameRef = useRef(0);
+  const pendingViewportRef = useRef(viewport);
+  const rowsChangeTimerRef = useRef(0);
 
   useEffect(() => {
-    onRowsChange?.(bookRows);
+    if (!onRowsChange) return undefined;
+    if (rowsChangeTimerRef.current) window.clearTimeout(rowsChangeTimerRef.current);
+
+    rowsChangeTimerRef.current = window.setTimeout(() => {
+      rowsChangeTimerRef.current = 0;
+      onRowsChange(bookRows);
+    }, 120);
+
+    return () => {
+      if (rowsChangeTimerRef.current) {
+        window.clearTimeout(rowsChangeTimerRef.current);
+        rowsChangeTimerRef.current = 0;
+      }
+    };
   }, [bookRows, onRowsChange]);
+
+  useEffect(() => () => {
+    if (scrollFrameRef.current) window.cancelAnimationFrame(scrollFrameRef.current);
+    if (rowsChangeTimerRef.current) window.clearTimeout(rowsChangeTimerRef.current);
+  }, []);
 
   useEffect(() => {
     setManualColumnWidths({});
+    setHeaderDraft(loadIvaBookHeaderDraft(type));
+    setFilters(loadPersistedFilters(getIvaBookFilterStorageKey(type)));
+    setSortConfig(loadPersistedSort(getIvaBookSortStorageKey(type)));
+    setOpenFilter('');
+    setFilterSearch('');
   }, [type]);
   const indexedBookRows = useMemo(
     () => bookRows.map((row, index) => ({ index, row })),
@@ -845,10 +980,18 @@ export function IvaBooksView({
 
     return nextTotals;
   }, [bookRows, config.columns]);
-  const openFilterValues = useMemo(() => {
-    if (!openFilter) return [];
-    return Array.from(new Set(bookRows.map((row) => String(row[openFilter] || '')))).sort((a, b) => a.localeCompare(b, 'es'));
-  }, [bookRows, openFilter]);
+
+  const handleFiltersChange = useCallback((update) => {
+    setFilters((currentFilters) => {
+      const nextFilters = resolveFilterUpdate(update, currentFilters);
+      savePersistedFilters(getIvaBookFilterStorageKey(type), nextFilters);
+      return nextFilters;
+    });
+  }, [type]);
+  const openFilterValues = useMemo(
+    () => buildBookFilterValues(bookRows, openFilter),
+    [bookRows, openFilter]
+  );
   const dteTypeSummary = useMemo(() => summarizeLoadedDteTypes(bookRows), [bookRows]);
   const bookAlertSummary = useMemo(() => summarizeBookAlerts(bookRows), [bookRows]);
   const duplicateKeys = useMemo(() => getBookDuplicateKeys(bookRows), [bookRows]);
@@ -858,22 +1001,48 @@ export function IvaBooksView({
     const nextValue = ['nrc', 'nit', 'dui'].includes(field)
       ? String(value || '').replace(/\D/g, '')
       : value;
-    setHeaderDraft((current) => ({ ...current, [field]: nextValue }));
-  }, []);
+    setHeaderDraft((current) => {
+      const nextDraft = { ...current, [field]: nextValue };
+      saveIvaBookHeaderDraft(type, nextDraft);
+      return nextDraft;
+    });
+  }, [type]);
+
+  const clearHeaderDraft = useCallback(() => {
+    clearIvaBookHeaderDraft(type);
+    setHeaderDraft(EMPTY_IVA_BOOK_HEADER);
+    setMessage('Datos del contribuyente eliminados correctamente.');
+  }, [type]);
 
   function toggleSort(column) {
-    setSortConfig((current) => ({
-      column: column.header,
-      direction: current.column === column.header && current.direction === 'asc' ? 'desc' : 'asc'
-    }));
+    setSortConfig((current) => {
+      const nextSort = {
+        column: column.header,
+        direction: current.column === column.header && current.direction === 'asc' ? 'desc' : 'asc'
+      };
+      savePersistedSort(getIvaBookSortStorageKey(type), nextSort);
+      return nextSort;
+    });
     setViewport((current) => ({ ...current, scrollTop: 0 }));
+  }
+
+  function clearSortConfig() {
+    const emptySort = { column: '', direction: 'asc' };
+    setSortConfig(emptySort);
+    savePersistedSort(getIvaBookSortStorageKey(type), emptySort);
   }
 
   const handleTableScroll = useCallback((event) => {
     const target = event.currentTarget;
-    setViewport({
+    pendingViewportRef.current = {
       height: target.clientHeight,
       scrollTop: target.scrollTop
+    };
+
+    if (scrollFrameRef.current) return;
+    scrollFrameRef.current = window.requestAnimationFrame(() => {
+      scrollFrameRef.current = 0;
+      setViewport(pendingViewportRef.current);
     });
   }, []);
 
@@ -958,10 +1127,9 @@ export function IvaBooksView({
     } else {
       setBookRows(nextRows.length ? nextRows : createEmptyBookRows(config.columns));
     }
-    setFilters({});
     setOpenFilter('');
     setFilterSearch('');
-    setSortConfig({ column: '', direction: 'asc' });
+    clearSortConfig();
     setMessage(`${nextRows.length} registro(s) importado(s).`);
     if (shouldShowFcfProgress) setImportProgress(null);
   }
@@ -1022,10 +1190,9 @@ export function IvaBooksView({
     if (firstColumn) newRow[firstColumn] = nextRows[targetIndex + 1]?.[firstColumn] || String(targetIndex + 2);
 
     setBookRows(nextRows);
-    setFilters({});
     setOpenFilter('');
     setFilterSearch('');
-    setSortConfig({ column: '', direction: 'asc' });
+    clearSortConfig();
     setEditingRowIndex(targetIndex + 1);
     setEditingDraft({ ...nextRows[targetIndex + 1] });
     setMessage('Linea agregada correctamente.');
@@ -1103,9 +1270,10 @@ export function IvaBooksView({
 
     setBookRows(createEmptyBookRows(config.columns));
     setFilters({});
+    savePersistedFilters(getIvaBookFilterStorageKey(type), {});
     setOpenFilter('');
     setFilterSearch('');
-    setSortConfig({ column: '', direction: 'asc' });
+    clearSortConfig();
     cancelEditing();
     setMessage(hasRows ? 'Tabla limpiada correctamente.' : 'La tabla ya esta vacia.');
   }
@@ -1153,6 +1321,11 @@ export function IvaBooksView({
         </button>
         <button className="actionButton" data-tour="iva-load-button" onClick={importData} type="button">CARGAR DATOS</button>
         <button className="actionButton" data-tour="iva-export-button" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
+        {useEditableBookHeader ? (
+          <button className="actionButton dangerActionButton" onClick={clearHeaderDraft} type="button">
+            LIMPIAR DATOS CONTRIBUYENTES
+          </button>
+        ) : null}
         <button className="actionButton dangerActionButton" data-tour="iva-clear-button" onClick={clearTable} type="button">LIMPIAR TABLA</button>
       </div>
 
@@ -1275,7 +1448,7 @@ export function IvaBooksView({
                   filterSearch={filterSearch}
                   onClose={() => setOpenFilter('')}
                   onFilterSearchChange={setFilterSearch}
-                  onFiltersChange={setFilters}
+                  onFiltersChange={handleFiltersChange}
                   selectedValues={filters[column.header] || []}
                   values={openFilterValues}
                 />

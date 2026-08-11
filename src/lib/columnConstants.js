@@ -10,6 +10,7 @@ export const HACIENDA_PUBLIC_COLUMN_NAMES = [
   'Numero de Control Consulta',
   'Documento ajustado',
   'Documento con Evento aplicado',
+  'Observaciones',
   'Documentos Relacionados'
 ];
 

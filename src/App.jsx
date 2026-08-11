@@ -18,6 +18,14 @@ import {
   getUniqueQueryableRows
 } from './lib/haciendaUtils.js';
 import {
+  loadPersistedFilters,
+  loadPersistedSort,
+  resolveFilterUpdate,
+  resolveSortUpdate,
+  savePersistedFilters,
+  savePersistedSort
+} from './lib/filterPersistence.js';
+import {
   applyColumnFilters,
   extractRowsForSummary,
   markDuplicateRows,
@@ -38,6 +46,8 @@ const RegisterView = lazy(() => import('./components/RegisterView.jsx').then((mo
   default: module.RegisterView
 })));
 const HOME_CLEAR_KEY = '1234';
+const HOME_FILTER_STORAGE_PREFIX = 'dte-home-column-filters';
+const HOME_SORT_STORAGE_PREFIX = 'dte-home-column-sort';
 const ANEXOS_VIEW_TYPES = {
   'anexos-sales-ccf': 'salesCcf',
   'anexos-sales-fcf': 'salesFcf',
@@ -48,6 +58,14 @@ const ANEXOS_VIEW_TYPES = {
   'anexos-perception-vat': 'perceptionVat',
   'anexos-invalid-documents': 'invalidDocuments'
 };
+
+function getHomeFilterStorageKey(typeCode, structureName) {
+  return `${HOME_FILTER_STORAGE_PREFIX}-${typeCode || 'all'}-${structureName || 'default'}`;
+}
+
+function getHomeSortStorageKey(typeCode, structureName) {
+  return `${HOME_SORT_STORAGE_PREFIX}-${typeCode || 'all'}-${structureName || 'default'}`;
+}
 
 function normalizeGenerationKey(value) {
   return String(value || '').replace(/-/g, '').trim().toUpperCase();
@@ -104,6 +122,30 @@ function getInicioAlertCounts(rows) {
   return { duplicateCount, invalidCount, rejectedCount };
 }
 
+function pruneUnavailableFilters(filters, rows, columns) {
+  const availableColumns = new Set(columns);
+  const nextFilters = {};
+  let changed = false;
+
+  for (const [column, selectedValues] of Object.entries(filters || {})) {
+    const values = Array.isArray(selectedValues) ? selectedValues : [];
+    if (!values.length) continue;
+
+    if (!availableColumns.has(column)) {
+      changed = true;
+      continue;
+    }
+
+    const availableValues = new Set(rows.map((row) => String(row[column] ?? '')));
+    const validValues = values.filter((value) => availableValues.has(String(value)));
+
+    if (validValues.length !== values.length) changed = true;
+    if (validValues.length) nextFilters[column] = validValues;
+  }
+
+  return { changed, filters: nextFilters };
+}
+
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [folder, setFolder] = useState('');
@@ -114,7 +156,16 @@ export default function App() {
   const [structureName, setStructureName] = useState(DEFAULT_STRUCTURE_NAME);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
-  const [columnFilters, setColumnFilters] = useState({});
+  const [columnFilters, setColumnFilters] = useState(() => loadPersistedFilters(getHomeFilterStorageKey(typeCode, structureName)));
+  const [homeFiltersByKey, setHomeFiltersByKey] = useState(() => {
+    const key = getHomeFilterStorageKey(typeCode, structureName);
+    return { [key]: loadPersistedFilters(key) };
+  });
+  const [homeSortConfig, setHomeSortConfig] = useState(() => loadPersistedSort(getHomeSortStorageKey(typeCode, structureName)));
+  const [homeSortByKey, setHomeSortByKey] = useState(() => {
+    const key = getHomeSortStorageKey(typeCode, structureName);
+    return { [key]: loadPersistedSort(key) };
+  });
   const [selectedRow, setSelectedRow] = useState(null);
   const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON.');
   const [loading, setLoading] = useState(false);
@@ -150,10 +201,44 @@ export default function App() {
     }
   }, [structureName, typeCode]);
 
+  const homeFilterStorageKey = useMemo(
+    () => getHomeFilterStorageKey(typeCode, structureName),
+    [structureName, typeCode]
+  );
+  const homeSortStorageKey = useMemo(
+    () => getHomeSortStorageKey(typeCode, structureName),
+    [structureName, typeCode]
+  );
+
   useEffect(() => {
-    setColumnFilters({});
+    setColumnFilters(homeFiltersByKey[homeFilterStorageKey] || loadPersistedFilters(homeFilterStorageKey));
+    setHomeSortConfig(homeSortByKey[homeSortStorageKey] || loadPersistedSort(homeSortStorageKey));
     setSelectedRow(null);
-  }, [structureName, typeCode]);
+  }, [homeFilterStorageKey, homeSortStorageKey]);
+
+  useEffect(() => {
+    if (activeView !== 'dte') return;
+    setColumnFilters(homeFiltersByKey[homeFilterStorageKey] || loadPersistedFilters(homeFilterStorageKey));
+    setHomeSortConfig(homeSortByKey[homeSortStorageKey] || loadPersistedSort(homeSortStorageKey));
+  }, [activeView, homeFilterStorageKey, homeSortStorageKey]);
+
+  const handleColumnFiltersChange = useCallback((update) => {
+    setColumnFilters((currentFilters) => {
+      const nextFilters = resolveFilterUpdate(update, currentFilters);
+      setHomeFiltersByKey((current) => ({ ...current, [homeFilterStorageKey]: nextFilters }));
+      savePersistedFilters(homeFilterStorageKey, nextFilters);
+      return nextFilters;
+    });
+  }, [homeFilterStorageKey]);
+
+  const handleHomeSortConfigChange = useCallback((update) => {
+    setHomeSortConfig((currentSort) => {
+      const nextSort = resolveSortUpdate(update, currentSort);
+      setHomeSortByKey((current) => ({ ...current, [homeSortStorageKey]: nextSort }));
+      savePersistedSort(homeSortStorageKey, nextSort);
+      return nextSort;
+    });
+  }, [homeSortStorageKey]);
 
   useEffect(() => {
     if (!rowPendingDelete) return undefined;
@@ -239,6 +324,23 @@ export default function App() {
     () => applyColumnFilters(rows, columnFilters),
     [rows, columnFilters]
   );
+
+  useEffect(() => {
+    if (!rows.length) return;
+    if (!Object.values(columnFilters || {}).some((values) => Array.isArray(values) && values.length)) return;
+
+    const { changed, filters: prunedFilters } = pruneUnavailableFilters(columnFilters, rows, columns);
+    const hasActiveFilters = Object.values(prunedFilters).some((values) => values.length);
+    const nextFilters = hasActiveFilters && applyColumnFilters(rows, prunedFilters).length
+      ? prunedFilters
+      : {};
+
+    if (!changed && nextFilters === prunedFilters) return;
+
+    setColumnFilters(nextFilters);
+    setHomeFiltersByKey((current) => ({ ...current, [homeFilterStorageKey]: nextFilters }));
+    savePersistedFilters(homeFilterStorageKey, nextFilters);
+  }, [columnFilters, columns, homeFilterStorageKey, rows]);
 
   const dteSummary = useMemo(
     () => summarizeDteTypes(extractRowsForSummary(documents)),
@@ -490,6 +592,11 @@ export default function App() {
     setRows([]);
     setErrors([]);
     setColumnFilters({});
+    setHomeSortConfig({ column: '', direction: 'asc' });
+    setHomeFiltersByKey((current) => ({ ...current, [homeFilterStorageKey]: {} }));
+    setHomeSortByKey((current) => ({ ...current, [homeSortStorageKey]: { column: '', direction: 'asc' } }));
+    savePersistedFilters(homeFilterStorageKey, {});
+    savePersistedSort(homeSortStorageKey, { column: '', direction: 'asc' });
     setSelectedRow(null);
     setTotalFileCount(0);
     setStatus('Tabla limpiada correctamente.');
@@ -537,8 +644,6 @@ export default function App() {
             loading={loading}
             metricsSlot={(
               <StatusBar
-                columnCount={columns.length}
-                loadedCount={documents.length}
                 loading={loading}
                 onFillReceptionStamps={fillMissingReceptionStamps}
                 onOpenHacienda={querySelectedInHacienda}
@@ -547,7 +652,6 @@ export default function App() {
                 selectedRow={selectedRow}
                 selectedQueryUrl={selectedQueryUrl}
                 status={status}
-                totalFileCount={totalFileCount}
               />
             )}
             onExportExcel={exportExcel}
@@ -573,10 +677,14 @@ export default function App() {
 
           <section className="px-6 py-4">
             <DteSummaryBar
+              columnCount={columns.length}
               duplicateCount={inicioAlertCounts.duplicateCount}
               dteSummary={dteSummary}
               invalidCount={inicioAlertCounts.invalidCount}
+              loadedCount={documents.length}
               rejectedCount={inicioAlertCounts.rejectedCount}
+              rowCount={filteredRows.length}
+              totalFileCount={totalFileCount}
             />
             {documents.length ? (
               <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando tabla...</div></div>}>
@@ -584,11 +692,13 @@ export default function App() {
                   columnFilters={columnFilters}
                   columns={columns}
                   filterSourceRows={rows}
-                  onColumnFilterChange={setColumnFilters}
+                  onColumnFilterChange={handleColumnFiltersChange}
                   onRowDelete={requestDeleteInicioRow}
                   onRowSelect={setSelectedRow}
+                  onSortConfigChange={handleHomeSortConfigChange}
                   rows={filteredRows}
                   selectedRow={selectedRow}
+                  sortConfig={homeSortConfig}
                 />
               </Suspense>
             ) : (
