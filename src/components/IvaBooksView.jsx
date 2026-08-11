@@ -96,6 +96,7 @@ const IVA_BOOK_ROW_HEIGHT = 24;
 const IVA_BOOK_OVERSCAN = 10;
 const FCF_IMPORT_PROGRESS_BATCH_SIZE = 250;
 const IVA_BOOK_FILTER_VALUE_LIMIT = 1200;
+const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
 const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
 const IVA_BOOK_HEADER_STORAGE_PREFIX = 'dte-iva-book-header';
@@ -724,6 +725,7 @@ function compareBookValues(aValue, bValue, column) {
 function applyBookFilters(rows, filters) {
   const activeFilters = Object.entries(filters).filter(([, values]) => values?.length);
   if (!activeFilters.length) return rows;
+  if (activeFilters.some(([, values]) => values.includes(NO_FILTER_VALUES_SELECTED))) return [];
   const filterSets = activeFilters.map(([column, values]) => [column, new Set(values)]);
 
   return rows.filter((row) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
@@ -972,14 +974,14 @@ export function IvaBooksView({
     const moneyColumns = config.columns.filter((column) => column.money);
     for (const column of moneyColumns) nextTotals[column.header] = 0;
 
-    for (const row of bookRows) {
+    for (const row of filteredBookRows) {
       for (const column of moneyColumns) {
         nextTotals[column.header] += parseCurrency(row[column.header]);
       }
     }
 
     return nextTotals;
-  }, [bookRows, config.columns]);
+  }, [filteredBookRows, config.columns]);
 
   const handleFiltersChange = useCallback((update) => {
     setFilters((currentFilters) => {
@@ -1631,12 +1633,16 @@ function IvaBookFilterMenu({
     ? values.filter((value) => value.toLowerCase().includes(normalizedSearch))
     : values;
   const searchedValues = matchingValues.slice(0, 200);
-  const effectiveSelected = selectedValues.length ? selectedValues : values;
+  const isNoneSelected = selectedValues.includes(NO_FILTER_VALUES_SELECTED);
+  const effectiveSelected = isNoneSelected ? [] : selectedValues.length ? selectedValues : values;
+  const allValuesSelected = values.length > 0
+    && effectiveSelected.length === values.length
+    && values.every((value) => effectiveSelected.includes(value));
 
   function setColumnValues(nextValues) {
     onFiltersChange((filters) => ({
       ...filters,
-      [column]: nextValues.length === values.length ? [] : nextValues
+      [column]: nextValues
     }));
   }
 
@@ -1658,7 +1664,7 @@ function IvaBookFilterMenu({
         value={filterSearch}
       />
       <div className="excelFilterActions">
-        <button onClick={() => setColumnValues(values)} type="button">Todos</button>
+        <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
         <button onClick={() => setColumnValues([])} type="button">Limpiar</button>
         <button onClick={onClose} type="button">Cerrar</button>
       </div>

@@ -12,6 +12,7 @@ const INITIAL_ROW_COUNT = 14;
 const REGISTER_CLEAR_KEY = '1234';
 const REGISTER_FILTER_STORAGE_PREFIX = 'dte-register-column-filters';
 const REGISTER_SORT_STORAGE_PREFIX = 'dte-register-column-sort';
+const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 
 function getRegisterFilterStorageKey(type) {
   return `${REGISTER_FILTER_STORAGE_PREFIX}-${type || 'clients'}`;
@@ -232,6 +233,7 @@ function getRegisterColumnOptions(type, header, value = '') {
 function applyRegisterFilters(rows, filters, columns) {
   const activeFilters = Object.entries(filters).filter(([, values]) => values?.length);
   if (!activeFilters.length) return rows;
+  if (activeFilters.some(([, values]) => values.includes(NO_FILTER_VALUES_SELECTED))) return [];
 
   return rows.filter((row) => {
     if (!hasUsefulData(row, columns)) return true;
@@ -462,6 +464,19 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
     setRows((currentRows) => currentRows.map((row) => (
       row === targetRow ? { ...row, [columnHeader]: toRegisterUppercase(value) } : row
     )));
+  }
+
+  function copyCellFromAbove(event, targetRow, rowIndex, columnHeader) {
+    if (event.key !== 'F3') return;
+
+    event.preventDefault();
+    const previousRow = sortedVisibleRows[rowIndex - 1];
+    if (!previousRow) {
+      setMessage('No hay una celda superior para copiar.');
+      return;
+    }
+
+    updateExistingCell(targetRow, columnHeader, previousRow[columnHeader] || '');
   }
 
   function toggleEditMode() {
@@ -732,6 +747,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                       comboKey={`${rowIndex}-${column.header}`}
                       column={column}
                       onChange={(value) => updateExistingCell(row, column.header, value)}
+                      onKeyDown={(event) => copyCellFromAbove(event, row, rowIndex, column.header)}
                       options={getRegisterColumnOptions(type, column.header, row[column.header])}
                       setActiveComboKey={setActiveComboKey}
                       value={row[column.header] || ''}
@@ -826,6 +842,7 @@ function RegisterFieldControl({
   column,
   comboKey = '',
   onChange,
+  onKeyDown,
   options = [],
   setActiveComboKey,
   value
@@ -873,6 +890,7 @@ function RegisterFieldControl({
           onClick={openOptions}
           onChange={(event) => onChange(event.target.value)}
           onFocus={openOptions}
+          onKeyDown={onKeyDown}
           placeholder="SELECCIONE O PEGUE UN VALOR..."
           value={value}
         />
@@ -919,6 +937,7 @@ function RegisterFieldControl({
     <input
       className={className}
       onChange={(event) => onChange(event.target.value)}
+      onKeyDown={onKeyDown}
       value={value}
     />
   );
@@ -937,7 +956,12 @@ function RegisterFilterMenu({
   const matchingValues = normalizedSearch
     ? values.filter((value) => value.toLowerCase().includes(normalizedSearch))
     : values;
-  const selectedSet = new Set(selectedValues);
+  const isNoneSelected = selectedValues.includes(NO_FILTER_VALUES_SELECTED);
+  const effectiveSelected = isNoneSelected ? [] : selectedValues;
+  const selectedSet = new Set(effectiveSelected);
+  const allValuesSelected = values.length > 0
+    && effectiveSelected.length === values.length
+    && values.every((value) => selectedSet.has(value));
 
   function setColumnValues(nextValues) {
     onFiltersChange((currentFilters) => ({
@@ -948,8 +972,8 @@ function RegisterFilterMenu({
 
   function toggleValue(value) {
     const nextValues = selectedSet.has(value)
-      ? selectedValues.filter((selectedValue) => selectedValue !== value)
-      : [...selectedValues, value];
+      ? effectiveSelected.filter((selectedValue) => selectedValue !== value)
+      : [...effectiveSelected, value];
     setColumnValues(nextValues);
   }
 
@@ -963,7 +987,7 @@ function RegisterFilterMenu({
         value={filterSearch}
       />
       <div className="excelFilterActions">
-        <button onClick={() => setColumnValues(values)} type="button">Todo</button>
+        <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
         <button onClick={() => setColumnValues([])} type="button">Limpiar</button>
         <button onClick={onClose} type="button">Cerrar</button>
       </div>

@@ -13,6 +13,7 @@ export function applyColumnFilters(rows, filters) {
     .filter(([, value]) => value.length);
 
   if (!activeFilters.length) return rows;
+  if (activeFilters.some(([, value]) => value.includes('__DTE_FILTER_NONE_SELECTED__'))) return [];
 
   const filterSets = activeFilters.map(([column, value]) => [column, new Set(value)]);
 

@@ -48,6 +48,7 @@ const RegisterView = lazy(() => import('./components/RegisterView.jsx').then((mo
 const HOME_CLEAR_KEY = '1234';
 const HOME_FILTER_STORAGE_PREFIX = 'dte-home-column-filters';
 const HOME_SORT_STORAGE_PREFIX = 'dte-home-column-sort';
+const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 const ANEXOS_VIEW_TYPES = {
   'anexos-sales-ccf': 'salesCcf',
   'anexos-sales-fcf': 'salesFcf',
@@ -133,6 +134,11 @@ function pruneUnavailableFilters(filters, rows, columns) {
 
     if (!availableColumns.has(column)) {
       changed = true;
+      continue;
+    }
+
+    if (values.includes(NO_FILTER_VALUES_SELECTED)) {
+      nextFilters[column] = [NO_FILTER_VALUES_SELECTED];
       continue;
     }
 
@@ -331,7 +337,8 @@ export default function App() {
 
     const { changed, filters: prunedFilters } = pruneUnavailableFilters(columnFilters, rows, columns);
     const hasActiveFilters = Object.values(prunedFilters).some((values) => values.length);
-    const nextFilters = hasActiveFilters && applyColumnFilters(rows, prunedFilters).length
+    const hasNoneSelection = Object.values(prunedFilters).some((values) => values.includes(NO_FILTER_VALUES_SELECTED));
+    const nextFilters = hasNoneSelection || (hasActiveFilters && applyColumnFilters(rows, prunedFilters).length)
       ? prunedFilters
       : {};
 

@@ -175,6 +175,7 @@ const ANEXO_ROW_HEIGHT = 28;
 const ANEXO_OVERSCAN_ROWS = 12;
 const ANEXO_STICKY_ROWS_HEIGHT = 76;
 const ANEXO_FILTER_VALUE_LIMIT = 1200;
+const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 
 function waitForNextFrame() {
   return new Promise((resolve) => {
@@ -634,6 +635,7 @@ function getAnexoColumnWidth(header) {
 function applyAnexoFilters(rows, filters) {
   const activeFilters = Object.entries(filters).filter(([, values]) => values?.length);
   if (!activeFilters.length) return rows;
+  if (activeFilters.some(([, values]) => values.includes(NO_FILTER_VALUES_SELECTED))) return [];
   const filterSets = activeFilters.map(([column, values]) => [column, new Set(values)]);
 
   return rows.filter(({ row }) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
@@ -1293,12 +1295,16 @@ function AnexoFilterMenu({
     ? values.filter((value) => value.toLowerCase().includes(normalizedSearch))
     : values;
   const searchedValues = matchingValues.slice(0, 200);
-  const effectiveSelected = selectedValues.length ? selectedValues : values;
+  const isNoneSelected = selectedValues.includes(NO_FILTER_VALUES_SELECTED);
+  const effectiveSelected = isNoneSelected ? [] : selectedValues.length ? selectedValues : values;
+  const allValuesSelected = values.length > 0
+    && effectiveSelected.length === values.length
+    && values.every((value) => effectiveSelected.includes(value));
 
   function setColumnValues(nextValues) {
     onFiltersChange((currentFilters) => ({
       ...currentFilters,
-      [column]: nextValues.length === values.length ? [] : nextValues
+      [column]: nextValues
     }));
   }
 
@@ -1312,7 +1318,7 @@ function AnexoFilterMenu({
         value={filterSearch}
       />
       <div className="excelFilterActions">
-        <button onClick={() => setColumnValues(values)} type="button">Todos</button>
+        <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
         <button onClick={() => setColumnValues([])} type="button">Limpiar</button>
         <button onClick={onClose} type="button">Cerrar</button>
       </div>

@@ -8,6 +8,10 @@ app.disableHardwareAcceleration();
 app.commandLine.appendSwitch('no-sandbox');
 const APP_ICON_PATH = path.join(__dirname, 'app-icon.ico');
 
+if (!isDev) {
+  app.setPath('userData', path.join(path.dirname(app.getPath('exe')), 'user-data'));
+}
+
 const EXCEL_FONT = 'Tw Cen MT Condensed';
 const EXCEL_FONT_SIZE = 12;
 const TABLE_HEADER_FILL = 'FF2EA8C9';

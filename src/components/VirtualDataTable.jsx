@@ -28,6 +28,7 @@ const PUBLIC_QUERY_COLUMNS = new Set([
   'Observaciones',
   'Documentos Relacionados'
 ]);
+const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 
 function getVisibleRange(scrollTop, viewportHeight, rowCount) {
   const startIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
@@ -379,7 +380,7 @@ function resetColumnWidth(event, column) {
     setViewport((current) => ({ ...current, scrollTop: 0 }));
   }
 
-  if (!sortedRows.length) {
+  if (!sortedRows.length && !columns.length) {
     return (
       <div className="tableFrame" data-tour="home-data-table">
         <div className="empty">Sin datos cargados</div>
@@ -503,12 +504,16 @@ function FilterMenu({
     ? values.filter((value) => value.toLowerCase().includes(normalizedSearch))
     : values;
   const searchedValues = matchingValues.slice(0, 200);
-  const effectiveSelected = selectedValues.length ? selectedValues : values;
+  const isNoneSelected = selectedValues.includes(NO_FILTER_VALUES_SELECTED);
+  const effectiveSelected = isNoneSelected ? [] : selectedValues.length ? selectedValues : values;
+  const allValuesSelected = values.length > 0
+    && effectiveSelected.length === values.length
+    && values.every((value) => effectiveSelected.includes(value));
 
   function setColumnValues(nextValues) {
     onColumnFilterChange((filters) => ({
       ...filters,
-      [column]: nextValues.length === values.length ? [] : nextValues
+      [column]: nextValues
     }));
   }
 
@@ -571,7 +576,7 @@ function FilterMenu({
         </div>
       ) : null}
       <div className="excelFilterActions">
-        <button onClick={() => setColumnValues(values)} type="button">
+        <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">
           Todos
         </button>
         <button onClick={() => setColumnValues([])} type="button">
