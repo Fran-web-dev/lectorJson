@@ -80,6 +80,12 @@ function isDateColumn(column) {
   return /^fecha$/i.test(String(column).trim());
 }
 
+function hasActiveColumnFilter(selectedValues = [], values = []) {
+  if (!selectedValues.length) return false;
+  if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
+  return selectedValues.length < values.length;
+}
+
 function parseFilterDate(value) {
   const text = String(value || '').trim();
   const dayFirst = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
@@ -309,6 +315,13 @@ export function VirtualDataTable({
       a.localeCompare(b, 'es')
     );
   }, [filterSourceRows, openFilter]);
+  const filterValuesByColumn = useMemo(() => {
+    const entries = columns.map((column) => [
+      column,
+      Array.from(new Set(filterSourceRows.map((row) => String(row[column] ?? ''))))
+    ]);
+    return Object.fromEntries(entries);
+  }, [columns, filterSourceRows]);
 
   const handleScroll = useCallback((event) => {
     const target = event.currentTarget;
@@ -421,7 +434,7 @@ function resetColumnWidth(event, column) {
                   <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
                 ) : null}
                 <button
-                  className={`excelFilterButton ${columnFilters[column]?.length ? 'active' : ''}`}
+                  className={`excelFilterButton ${hasActiveColumnFilter(columnFilters[column], filterValuesByColumn[column]) ? 'active' : ''}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     const rect = event.currentTarget.getBoundingClientRect();
@@ -578,9 +591,6 @@ function FilterMenu({
       <div className="excelFilterActions">
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">
           Todos
-        </button>
-        <button onClick={() => setColumnValues([])} type="button">
-          Limpiar
         </button>
         <button onClick={onClose} type="button">
           Cerrar

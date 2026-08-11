@@ -603,6 +603,7 @@ ipcMain.handle('iva-book:excel-export', async (_event, request) => {
   if (result.canceled || !result.filePath) return null;
   await writeIvaBookExcel(result.filePath, {
     columns,
+    headerDraft: request?.headerDraft || {},
     rows,
     title,
     totals: request?.totals || {}
@@ -896,12 +897,16 @@ async function writeIvaBookExcel(filePath, request) {
   const ExcelJS = getExcelJs();
   const workbook = new ExcelJS.Workbook();
   const worksheet = workbook.addWorksheet('Libro IVA', {
-    views: [{ state: 'frozen', ySplit: 7 }]
+    views: [{ state: 'frozen', ySplit: 9 }]
   });
   const columns = request.columns;
   const rows = request.rows;
   const title = String(request.title || 'LIBRO DE IVA').toUpperCase();
   const totals = request.totals || {};
+  const headerDraft = request.headerDraft || {};
+  const totalsRowNumber = 8;
+  const headerRowNumber = 9;
+  const dataStartRowNumber = 10;
 
   worksheet.columns = columns.map((column) => ({
     key: column.header,
@@ -935,7 +940,9 @@ async function writeIvaBookExcel(filePath, request) {
     });
   });
 
-  const totalsRow = worksheet.getRow(6);
+  writeIvaBookHeaderSection(worksheet, columns.length, title, headerDraft);
+
+  const totalsRow = worksheet.getRow(totalsRowNumber);
   columns.forEach((column, index) => {
     const cell = totalsRow.getCell(index + 1);
     cell.value = column.money ? parseAccountingMoney(totals[column.header]) : '';
@@ -952,7 +959,7 @@ async function writeIvaBookExcel(filePath, request) {
   });
   totalsRow.height = 18;
 
-  const headerRow = worksheet.getRow(7);
+  const headerRow = worksheet.getRow(headerRowNumber);
   columns.forEach((column, index) => {
     const cell = headerRow.getCell(index + 1);
     cell.value = column.header;
@@ -969,7 +976,7 @@ async function writeIvaBookExcel(filePath, request) {
   headerRow.height = 22;
 
   rows.forEach((rowData, rowIndex) => {
-    const row = worksheet.getRow(rowIndex + 8);
+    const row = worksheet.getRow(rowIndex + dataStartRowNumber);
     row.height = 18;
     columns.forEach((column, columnIndex) => {
       const cell = row.getCell(columnIndex + 1);
@@ -992,11 +999,88 @@ async function writeIvaBookExcel(filePath, request) {
   });
 
   worksheet.autoFilter = {
-    from: { row: 7, column: 1 },
-    to: { row: 7, column: columns.length }
+    from: { row: headerRowNumber, column: 1 },
+    to: { row: headerRowNumber, column: columns.length }
   };
 
   await workbook.xlsx.writeFile(filePath);
+}
+
+function mergeIfPossible(worksheet, startRow, startColumn, endRow, endColumn) {
+  if (endColumn <= startColumn) return;
+  worksheet.mergeCells(startRow, startColumn, endRow, endColumn);
+}
+
+function styleIvaHeaderLabel(cell) {
+  cell.font = { bold: true, color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+  cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+}
+
+function styleIvaHeaderValue(cell) {
+  cell.font = { color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE };
+  cell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+  cell.border = {
+    top: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    left: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+    bottom: { style: 'thin', color: { argb: 'FF94A3B8' } },
+    right: { style: 'thin', color: { argb: 'FFE2E8F0' } }
+  };
+}
+
+function writeMergedIvaHeaderValue(worksheet, rowNumber, startColumn, endColumn, value) {
+  mergeIfPossible(worksheet, rowNumber, startColumn, rowNumber, endColumn);
+  const cell = worksheet.getRow(rowNumber).getCell(startColumn);
+  cell.value = value || '';
+  styleIvaHeaderValue(cell);
+}
+
+function writeIvaBookHeaderSection(worksheet, columnCount, title, headerDraft) {
+  const lastColumn = Math.max(columnCount, 10);
+
+  const titleCell = worksheet.getCell(1, 1);
+  titleCell.value = title;
+  titleCell.font = { bold: true, color: { argb: 'FF0F172A' }, name: EXCEL_FONT, size: EXCEL_FONT_SIZE + 3 };
+  titleCell.alignment = { horizontal: 'left', vertical: 'middle', wrapText: false };
+  worksheet.getRow(1).height = 24;
+
+  for (let rowNumber = 2; rowNumber <= 6; rowNumber += 1) {
+    worksheet.getRow(rowNumber).height = 18;
+  }
+
+  const companyLabel = worksheet.getCell(2, 1);
+  companyLabel.value = 'NOMBRE DE LA EMPRESA:';
+  styleIvaHeaderLabel(companyLabel);
+  writeMergedIvaHeaderValue(worksheet, 2, 2, lastColumn, headerDraft.companyName);
+
+  const giroLabel = worksheet.getCell(3, 1);
+  giroLabel.value = 'GIRO:';
+  styleIvaHeaderLabel(giroLabel);
+  writeMergedIvaHeaderValue(worksheet, 3, 2, lastColumn, headerDraft.businessLine);
+
+  const nrcLabel = worksheet.getCell(4, 1);
+  nrcLabel.value = 'NRC:';
+  styleIvaHeaderLabel(nrcLabel);
+  writeMergedIvaHeaderValue(worksheet, 4, 2, 4, headerDraft.nrc);
+
+  const nitLabel = worksheet.getCell(4, 5);
+  nitLabel.value = 'NIT:';
+  styleIvaHeaderLabel(nitLabel);
+  writeMergedIvaHeaderValue(worksheet, 4, 6, 7, headerDraft.nit);
+
+  const duiLabel = worksheet.getCell(4, 8);
+  duiLabel.value = 'DUI:';
+  styleIvaHeaderLabel(duiLabel);
+  writeMergedIvaHeaderValue(worksheet, 4, 9, Math.max(9, Math.min(lastColumn, 10)), headerDraft.dui);
+
+  const monthLabel = worksheet.getCell(5, 1);
+  monthLabel.value = 'MES:';
+  styleIvaHeaderLabel(monthLabel);
+  writeMergedIvaHeaderValue(worksheet, 5, 2, 4, headerDraft.month);
+
+  const yearLabel = worksheet.getCell(6, 1);
+  yearLabel.value = 'AÑO:';
+  styleIvaHeaderLabel(yearLabel);
+  writeMergedIvaHeaderValue(worksheet, 6, 2, 4, headerDraft.year);
 }
 
 async function readRegisterExcel(filePath, columns) {

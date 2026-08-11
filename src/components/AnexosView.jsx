@@ -177,6 +177,12 @@ const ANEXO_STICKY_ROWS_HEIGHT = 76;
 const ANEXO_FILTER_VALUE_LIMIT = 1200;
 const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 
+function hasActiveColumnFilter(selectedValues = [], values = []) {
+  if (!selectedValues.length) return false;
+  if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
+  return selectedValues.length < values.length;
+}
+
 function waitForNextFrame() {
   return new Promise((resolve) => {
     requestAnimationFrame(() => resolve());
@@ -638,7 +644,10 @@ function applyAnexoFilters(rows, filters) {
   if (activeFilters.some(([, values]) => values.includes(NO_FILTER_VALUES_SELECTED))) return [];
   const filterSets = activeFilters.map(([column, values]) => [column, new Set(values)]);
 
-  return rows.filter(({ row }) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
+  return rows.filter(({ row }) => (
+    Object.values(row || {}).some((value) => String(value || '').trim())
+    && filterSets.every(([column, values]) => values.has(String(row[column] || '')))
+  ));
 }
 
 function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, fcfSalesRows, providerLookup, purchaseRows }) {
@@ -906,6 +915,7 @@ export function AnexosView({
 
     return {
       rows: visibleRows.slice(start, end),
+      startIndex: start,
       totalHeight: visibleRows.length * ANEXO_ROW_HEIGHT
     };
   }, [viewport.height, viewport.scrollTop, visibleRows]);
@@ -927,6 +937,12 @@ export function AnexosView({
     () => buildAnexoFilterValues(rows, openFilter),
     [openFilter, rows]
   );
+  const filterValuesByColumn = useMemo(() => Object.fromEntries(
+    config.columns.map(([header]) => [
+      header,
+      buildAnexoFilterValues(rows, header)
+    ])
+  ), [config.columns, rows]);
 
   useEffect(() => {
     const nextRows = savedRows?.length ? savedRows : initialRows;
@@ -1165,7 +1181,7 @@ export function AnexosView({
               <div className="anexosHeadCell" key={header}>
                 <span>{header}</span>
                 <button
-                  className={`excelFilterButton ${filters[header]?.length ? 'active' : ''}`}
+                  className={`excelFilterButton ${hasActiveColumnFilter(filters[header], filterValuesByColumn[header]) ? 'active' : ''}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     setOpenFilter(openFilter === header ? '' : header);
@@ -1197,7 +1213,9 @@ export function AnexosView({
             ))}
 
             <div className="anexosVirtualBody" style={{ height: virtualRows.totalHeight }}>
-              {virtualRows.rows.map(({ row, index }) => (
+              {virtualRows.rows.map(({ row, index }, renderIndex) => {
+                const visualIndex = virtualRows.startIndex + renderIndex;
+                return (
                 <AnexoVirtualRow
                   columns={config.columns}
                   editingDraft={editingDraft}
@@ -1211,8 +1229,10 @@ export function AnexosView({
                   onUpdateEditingValue={updateEditingValue}
                   row={row}
                   rowIndex={index}
+                  visualIndex={visualIndex}
                 />
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
@@ -1232,15 +1252,16 @@ function AnexoVirtualRow({
   onStartEditing,
   onUpdateEditingValue,
   row,
-  rowIndex
+  rowIndex,
+  visualIndex
 }) {
-  const rowNumber = rowIndex + 1;
+  const rowNumber = visualIndex + 1;
   const rowTone = rowNumber % 2 ? 'odd' : 'even';
 
   return (
     <div
       className="anexosVirtualRow"
-      style={{ gridTemplateColumns, transform: `translateY(${rowIndex * ANEXO_ROW_HEIGHT}px)` }}
+      style={{ gridTemplateColumns, transform: `translateY(${visualIndex * ANEXO_ROW_HEIGHT}px)` }}
     >
       <div className={`anexosCell anexosActionsCell ${rowTone}`}>
         {isEditing ? (
@@ -1319,7 +1340,6 @@ function AnexoFilterMenu({
       />
       <div className="excelFilterActions">
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
-        <button onClick={() => setColumnValues([])} type="button">Limpiar</button>
         <button onClick={onClose} type="button">Cerrar</button>
       </div>
       <div className="excelFilterValues">

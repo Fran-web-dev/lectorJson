@@ -22,6 +22,12 @@ function getRegisterSortStorageKey(type) {
   return `${REGISTER_SORT_STORAGE_PREFIX}-${type || 'clients'}`;
 }
 
+function hasActiveColumnFilter(selectedValues = [], values = []) {
+  if (!selectedValues.length) return false;
+  if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
+  return selectedValues.length < values.length;
+}
+
 const REGISTER_CONFIG = {
   clients: {
     title: 'REGISTRO DE CLIENTES',
@@ -236,7 +242,7 @@ function applyRegisterFilters(rows, filters, columns) {
   if (activeFilters.some(([, values]) => values.includes(NO_FILTER_VALUES_SELECTED))) return [];
 
   return rows.filter((row) => {
-    if (!hasUsefulData(row, columns)) return true;
+    if (!hasUsefulData(row, columns)) return false;
     return activeFilters.every(([column, values]) => values.includes(String(row[column] || '')));
   });
 }
@@ -358,10 +364,15 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
   const sortedVisibleRows = useMemo(() => {
     if (!sortConfig.column) return visibleRows;
     const direction = sortConfig.direction === 'desc' ? -1 : 1;
-    return [...visibleRows].sort((firstRow, secondRow) => (
+    const filledRows = visibleRows.filter((row) => hasUsefulData(row, config.columns));
+    const emptyRows = visibleRows.filter((row) => !hasUsefulData(row, config.columns));
+    return [
+      ...filledRows.sort((firstRow, secondRow) => (
       compareRegisterValues(firstRow[sortConfig.column], secondRow[sortConfig.column]) * direction
-    ));
-  }, [sortConfig, visibleRows]);
+      )),
+      ...emptyRows
+    ];
+  }, [config.columns, sortConfig, visibleRows]);
   const openFilterValues = useMemo(() => {
     if (!openFilter) return [];
     return Array.from(new Set(
@@ -370,6 +381,16 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
         .map((row) => String(row[openFilter] || ''))
     )).sort((a, b) => a.localeCompare(b, 'es'));
   }, [config.columns, openFilter, rows]);
+  const filterValuesByColumn = useMemo(() => Object.fromEntries(
+    config.columns.map((column) => [
+      column.header,
+      Array.from(new Set(
+        rows
+          .filter((row) => hasUsefulData(row, config.columns))
+          .map((row) => String(row[column.header] || ''))
+      ))
+    ])
+  ), [config.columns, rows]);
 
   useEffect(() => {
     setRows(loadRows(type, config.columns));
@@ -690,7 +711,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                 ) : null}
                 {column.header !== 'CORR.' ? (
                   <button
-                    className={`excelFilterButton ${filters[column.header]?.length ? 'active' : ''}`}
+                    className={`excelFilterButton ${hasActiveColumnFilter(filters[column.header], filterValuesByColumn[column.header]) ? 'active' : ''}`}
                     onClick={(event) => {
                       event.stopPropagation();
                       setOpenFilter(openFilter === column.header ? null : column.header);
@@ -957,7 +978,7 @@ function RegisterFilterMenu({
     ? values.filter((value) => value.toLowerCase().includes(normalizedSearch))
     : values;
   const isNoneSelected = selectedValues.includes(NO_FILTER_VALUES_SELECTED);
-  const effectiveSelected = isNoneSelected ? [] : selectedValues;
+  const effectiveSelected = isNoneSelected ? [] : selectedValues.length ? selectedValues : values;
   const selectedSet = new Set(effectiveSelected);
   const allValuesSelected = values.length > 0
     && effectiveSelected.length === values.length
@@ -988,7 +1009,6 @@ function RegisterFilterMenu({
       />
       <div className="excelFilterActions">
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
-        <button onClick={() => setColumnValues([])} type="button">Limpiar</button>
         <button onClick={onClose} type="button">Cerrar</button>
       </div>
       <div className="excelFilterValues">

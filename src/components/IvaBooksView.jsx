@@ -20,6 +20,12 @@ function getIvaBookSortStorageKey(type) {
   return `${IVA_BOOK_SORT_STORAGE_PREFIX}-${type || 'purchases'}`;
 }
 
+function hasActiveColumnFilter(selectedValues = [], values = []) {
+  if (!selectedValues.length) return false;
+  if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
+  return selectedValues.length < values.length;
+}
+
 const IVA_BOOKS = {
   purchases: {
     title: 'LIBRO PARA REGISTRAR COMPRAS',
@@ -364,7 +370,9 @@ function renumberBookRows(rows, columns) {
 }
 
 function getVisibleBookRange(scrollTop, viewportHeight, rowCount) {
-  const startIndex = Math.max(0, Math.floor(scrollTop / IVA_BOOK_ROW_HEIGHT) - IVA_BOOK_OVERSCAN);
+  if (rowCount <= 0) return { endIndex: 0, startIndex: 0 };
+  const rawStartIndex = Math.max(0, Math.floor(scrollTop / IVA_BOOK_ROW_HEIGHT) - IVA_BOOK_OVERSCAN);
+  const startIndex = Math.min(rawStartIndex, rowCount);
   const visibleCount = Math.ceil(viewportHeight / IVA_BOOK_ROW_HEIGHT) + IVA_BOOK_OVERSCAN * 2;
   const endIndex = Math.min(rowCount, startIndex + visibleCount);
   return { endIndex, startIndex };
@@ -372,6 +380,14 @@ function getVisibleBookRange(scrollTop, viewportHeight, rowCount) {
 
 function hasBookRowData(row, columns) {
   return columns.some((column, columnIndex) => columnIndex > 0 && String(row?.[column.header] || '').trim());
+}
+
+function hasUsefulBookFilterData(row) {
+  return Object.entries(row || {}).some(([key, value]) => (
+    !key.startsWith('__')
+    && !['NO. CORR.', 'ITEM', 'CORR.'].includes(key)
+    && String(value || '').trim()
+  ));
 }
 
 function mergeTypedBookRows(currentRows, importedRows, importedTypeCode, columns, type) {
@@ -728,7 +744,10 @@ function applyBookFilters(rows, filters) {
   if (activeFilters.some(([, values]) => values.includes(NO_FILTER_VALUES_SELECTED))) return [];
   const filterSets = activeFilters.map(([column, values]) => [column, new Set(values)]);
 
-  return rows.filter((row) => filterSets.every(([column, values]) => values.has(String(row[column] || ''))));
+  return rows.filter((row) => (
+    hasUsefulBookFilterData(row)
+    && filterSets.every(([column, values]) => values.has(String(row[column] || '')))
+  ));
 }
 
 function matchesBookRequirement(requirement, sourceTypeCode, sourceStructureName) {
@@ -913,6 +932,7 @@ export function IvaBooksView({
   const [openFilter, setOpenFilter] = useState('');
   const [sortConfig, setSortConfig] = useState(() => loadPersistedSort(getIvaBookSortStorageKey(type)));
   const [viewport, setViewport] = useState({ height: 520, scrollTop: 0 });
+  const tableViewportRef = useRef(null);
   const scrollFrameRef = useRef(0);
   const pendingViewportRef = useRef(viewport);
   const rowsChangeTimerRef = useRef(0);
@@ -989,11 +1009,23 @@ export function IvaBooksView({
       savePersistedFilters(getIvaBookFilterStorageKey(type), nextFilters);
       return nextFilters;
     });
-  }, [type]);
+    if (tableViewportRef.current) tableViewportRef.current.scrollTop = 0;
+    pendingViewportRef.current = {
+      height: tableViewportRef.current?.clientHeight || viewport.height,
+      scrollTop: 0
+    };
+    setViewport((current) => ({ ...current, scrollTop: 0 }));
+  }, [type, viewport.height]);
   const openFilterValues = useMemo(
     () => buildBookFilterValues(bookRows, openFilter),
     [bookRows, openFilter]
   );
+  const filterValuesByColumn = useMemo(() => Object.fromEntries(
+    config.columns.map((column) => [
+      column.header,
+      buildBookFilterValues(bookRows, column.header)
+    ])
+  ), [bookRows, config.columns]);
   const dteTypeSummary = useMemo(() => summarizeLoadedDteTypes(bookRows), [bookRows]);
   const bookAlertSummary = useMemo(() => summarizeBookAlerts(bookRows), [bookRows]);
   const duplicateKeys = useMemo(() => getBookDuplicateKeys(bookRows), [bookRows]);
@@ -1255,6 +1287,7 @@ export function IvaBooksView({
         : exportRows;
       const filePath = await window.dteApp.exportIvaBookExcel({
         columns: config.columns,
+        headerDraft,
         rows: rowsForExport,
         title: config.title,
         totals
@@ -1411,7 +1444,7 @@ export function IvaBooksView({
           </div>
         )}
 
-        <div className="ivaBookTableViewport" onScroll={handleTableScroll}>
+        <div className="ivaBookTableViewport" onScroll={handleTableScroll} ref={tableViewportRef}>
           <div className="ivaBookTable" style={{ gridTemplateColumns }}>
           <div className="ivaBookTotalCell" />
           {config.columns.map((column, columnIndex) => {
@@ -1432,7 +1465,7 @@ export function IvaBooksView({
                 <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
               ) : null}
               <button
-                className={`excelFilterButton ${filters[column.header]?.length ? 'active' : ''}`}
+                className={`excelFilterButton ${hasActiveColumnFilter(filters[column.header], filterValuesByColumn[column.header]) ? 'active' : ''}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   setOpenFilter(openFilter === column.header ? '' : column.header);
@@ -1665,7 +1698,6 @@ function IvaBookFilterMenu({
       />
       <div className="excelFilterActions">
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
-        <button onClick={() => setColumnValues([])} type="button">Limpiar</button>
         <button onClick={onClose} type="button">Cerrar</button>
       </div>
       <div className="excelFilterValues">

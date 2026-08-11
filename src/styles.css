@@ -4,6 +4,11 @@
 
 body {
   margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 34rem),
+    linear-gradient(180deg, #f8fafc 0%, #eef5fb 100%);
+  color: #0f172a;
+  font-family: Inter, "Segoe UI", Arial, sans-serif;
 }
 
 html,
@@ -77,8 +82,9 @@ body,
   }
 
   .brandHeader {
-    @apply relative z-[200] flex items-center gap-8 border-b border-slate-200 bg-white px-6 py-2;
-    box-shadow: 0 1px 0 rgba(15, 23, 42, 0.04);
+    @apply relative z-[200] flex items-center gap-8 border-b border-slate-200/80 bg-white/95 px-6 py-2;
+    backdrop-filter: blur(16px);
+    box-shadow: 0 12px 32px -28px rgba(15, 23, 42, 0.7);
   }
 
   .brandLogo {
@@ -92,21 +98,21 @@ body,
   }
 
   .navButton {
-    @apply inline-flex h-9 items-center gap-2 border border-transparent bg-white px-3.5 text-sm font-bold text-slate-700 transition hover:border-slate-900 hover:bg-white hover:text-sky-800;
+    @apply inline-flex h-10 items-center gap-2 rounded-lg border border-transparent bg-transparent px-3.5 text-sm font-bold text-slate-700 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-800;
     letter-spacing: 0;
-    box-shadow: 0 0 0 #0f172a;
+    box-shadow: none;
     transform: translate(0, 0);
   }
 
   .navButton:hover,
   .navDropdown:focus-within .navButton {
-    box-shadow: -6px 7px 0 #0f172a;
-    transform: translate(3px, -3px);
+    box-shadow: 0 10px 22px -18px rgba(2, 132, 199, 0.8);
+    transform: translateY(-1px);
   }
 
   .navButton.active {
-    @apply border-sky-700 bg-sky-50 text-sky-800;
-    box-shadow: -5px 6px 0 #075985;
+    @apply border-sky-200 bg-sky-50 text-sky-800;
+    box-shadow: inset 0 -3px 0 #0284c7, 0 12px 26px -22px rgba(2, 132, 199, 0.9);
   }
 
   .navChevron {
@@ -123,8 +129,9 @@ body,
   }
 
   .navDropdownMenu {
-    @apply invisible absolute left-0 top-10 z-[220] min-w-64 overflow-hidden rounded-md border border-slate-200 bg-white p-1.5 opacity-0 shadow-xl transition;
-    transform: translateY(4px);
+    @apply invisible absolute left-0 top-11 z-[220] min-w-64 overflow-hidden rounded-xl border border-slate-200 bg-white p-1.5 opacity-0 shadow-xl transition;
+    transform: translateY(8px);
+    box-shadow: 0 18px 44px -24px rgba(15, 23, 42, 0.55);
   }
 
   .navDropdown:hover .navDropdownMenu,
@@ -134,18 +141,18 @@ body,
   }
 
   .navDropdownMenu button {
-    @apply flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-800;
+    @apply flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm font-semibold text-slate-700 transition hover:bg-sky-50 hover:text-sky-800;
   }
 
   .tourStartButton {
-    @apply ml-auto inline-flex h-9 items-center gap-2 border border-slate-900 bg-white px-3.5 text-sm font-black text-slate-800 transition hover:bg-white hover:text-sky-800;
-    box-shadow: 0 0 0 #0f172a;
+    @apply ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-black text-slate-800 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800;
+    box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.8);
     transform: translate(0, 0);
   }
 
   .tourStartButton:hover {
-    box-shadow: -6px 7px 0 #0f172a;
-    transform: translate(3px, -3px);
+    box-shadow: 0 14px 28px -20px rgba(2, 132, 199, 0.9);
+    transform: translateY(-1px);
   }
 
   .dteShepherdStep {
@@ -187,12 +194,12 @@ body,
   }
 
   .navDropdownRegisters .navButton {
-    @apply hover:border-slate-900 hover:bg-white hover:text-teal-800;
+    @apply hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800;
   }
 
   .navDropdownRegisters .navButton.active {
-    @apply border-teal-700 bg-teal-50 text-teal-800;
-    box-shadow: -5px 6px 0 #0f766e;
+    @apply border-teal-200 bg-teal-50 text-teal-800;
+    box-shadow: inset 0 -3px 0 #0f766e, 0 12px 26px -22px rgba(15, 118, 110, 0.9);
   }
 
   .navDropdownRegisters .navButton svg,
@@ -201,7 +208,7 @@ body,
   }
 
   .navDropdownRegisters .navDropdownMenu {
-    @apply border-teal-200 bg-teal-50;
+    @apply border-teal-200 bg-white;
   }
 
   .navDropdownRegisters .navDropdownMenu button {
@@ -213,26 +220,26 @@ body,
   }
 
   .field {
-    @apply h-9 min-w-0 flex-1 border-b-2 border-slate-900 bg-white px-2 py-2 text-sm text-slate-700;
+    @apply h-10 min-w-0 flex-1 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus-within:border-sky-500;
   }
 
   .input,
   .select,
   .dateInput {
-    @apply h-9 w-full border border-slate-300 bg-white px-2 text-sm outline-none transition focus:border-red-600 focus:ring-1 focus:ring-red-600;
+    @apply h-10 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100;
   }
 
   .select {
-    @apply border-x-0 border-t-0 border-b-2 border-slate-900;
+    @apply border-slate-300;
   }
 
   .iconButton,
   .actionButton {
-    @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap border rounded-md border-slate-900 bg-white px-3 text-sm font-semibold text-slate-950 transition hover:bg-red-50 disabled:opacity-50;
+    @apply inline-flex h-10 items-center justify-center gap-2 whitespace-nowrap rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-semibold text-slate-950 shadow-sm transition hover:border-sky-300 hover:bg-sky-50 disabled:opacity-50;
   }
 
   .dangerActionButton {
-    @apply border-red-700 text-red-700 hover:bg-red-50;
+    @apply border-red-300 text-red-700 hover:border-red-400 hover:bg-red-50;
   }
 
   .iconButton {
@@ -303,11 +310,11 @@ body,
   }
 
   .statusCounts span {
-    @apply rounded-sm px-1;
+    @apply rounded-md px-1.5 py-0.5;
   }
 
   .tableFrame {
-    @apply flex rounded-md border border-slate-200 bg-white;
+    @apply flex rounded-xl border border-slate-200 bg-white shadow-sm;
     --table-scrollbar-size: 28px;
     flex-direction: column;
     height: calc(100vh - 225px);
@@ -315,7 +322,7 @@ body,
   }
 
   .tableViewport {
-    @apply overflow-x-hidden rounded-t-md;
+    @apply overflow-x-hidden rounded-t-xl;
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: scroll;
@@ -342,7 +349,7 @@ body,
   }
 
   .horizontalScrollbar {
-    @apply overflow-x-auto overflow-y-hidden rounded-b-md border-t border-slate-200 bg-slate-50;
+    @apply overflow-x-auto overflow-y-hidden rounded-b-xl border-t border-slate-200 bg-slate-50;
     flex: 0 0 var(--table-scrollbar-size);
     height: var(--table-scrollbar-size);
     position: sticky;
@@ -400,7 +407,7 @@ body,
   }
 
   .virtualTotals {
-    @apply sticky top-0 z-40 border-b border-sky-200 bg-slate-50;
+    @apply sticky top-0 z-40 border-b border-sky-100 bg-white;
     height: 24px;
   }
 
@@ -418,18 +425,18 @@ body,
   }
 
   .virtualHeader {
-    @apply sticky top-0 z-30 bg-sky-500;
+    @apply sticky top-0 z-30 bg-sky-600;
     height: 42px;
     top: 24px;
   }
 
   .virtualHeadCell {
-    @apply relative flex h-[42px] cursor-pointer items-center justify-between gap-2 overflow-visible border-b border-r border-sky-200 bg-sky-500 px-2 text-left font-bold text-white transition hover:bg-sky-600;
+    @apply relative flex h-[42px] cursor-pointer items-center justify-between gap-2 overflow-visible border-b border-r border-sky-500 bg-sky-600 px-2 text-left font-bold text-white transition hover:bg-sky-700;
     font-size: 12px;
   }
 
   .virtualActionsHeadCell {
-    @apply sticky left-0 z-50 cursor-default justify-center bg-sky-600 text-center hover:bg-sky-600;
+    @apply sticky left-0 z-50 cursor-default justify-center bg-sky-700 text-center hover:bg-sky-700;
   }
 
   .columnResizeHandle {
@@ -468,7 +475,7 @@ body,
   }
 
   .excelFilterButton {
-    @apply flex h-5 w-5 shrink-0 items-center justify-center border border-sky-700 bg-white text-[10px] font-bold leading-none text-slate-700 shadow-sm transition hover:bg-sky-50;
+    @apply flex h-5 w-5 shrink-0 items-center justify-center rounded border border-sky-600 bg-white text-[10px] font-bold leading-none text-slate-700 shadow-sm transition hover:bg-sky-50;
   }
 
   .excelFilterButton.active {
@@ -476,7 +483,8 @@ body,
   }
 
   .excelFilterMenu {
-    @apply fixed z-[500] w-72 rounded-md border border-slate-400 bg-white p-2 text-slate-900 shadow-xl;
+    @apply fixed z-[500] w-72 rounded-xl border border-slate-200 bg-white p-2 text-slate-900 shadow-xl;
+    box-shadow: 0 20px 48px -28px rgba(15, 23, 42, 0.65);
   }
 
   .excelFilterTitle {
@@ -484,7 +492,7 @@ body,
   }
 
   .excelFilterSearch {
-    @apply mb-2 h-8 w-full border border-slate-300 px-2 text-sm font-normal text-slate-900 outline-none focus:border-sky-600;
+    @apply mb-2 h-9 w-full rounded-lg border border-slate-300 px-2 text-sm font-normal text-slate-900 outline-none focus:border-sky-600 focus:ring-2 focus:ring-sky-100;
   }
 
   .excelFilterActions {
@@ -504,7 +512,7 @@ body,
   }
 
   .excelFilterActions button {
-    @apply border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-sky-50;
+    @apply rounded-md border border-slate-300 bg-slate-50 px-2 py-1 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:bg-sky-50;
   }
 
   .excelFilterValues {
@@ -605,16 +613,17 @@ body,
   }
 
   .registerView {
-    @apply overflow-hidden bg-slate-50 px-6 py-5;
+    @apply overflow-hidden px-6 py-5;
     height: calc(100vh - 69px);
   }
 
   .registerSheet {
-    @apply flex h-full min-w-full flex-col border border-slate-200 bg-white shadow-sm;
+    @apply flex h-full min-w-full flex-col rounded-xl border border-slate-200 bg-white shadow-sm;
+    box-shadow: 0 22px 50px -38px rgba(15, 23, 42, 0.7);
   }
 
   .registerToolbar {
-    @apply flex items-center justify-between gap-4 border-b border-slate-200 bg-slate-50 px-3 py-2;
+    @apply flex items-center justify-between gap-4 rounded-t-xl border-b border-slate-200 bg-white px-3 py-2;
   }
 
   .registerActions {
@@ -636,8 +645,8 @@ body,
   .registerTable {
     display: grid;
     width: max-content;
-    overflow: hidden;
-    border-radius: 6px;
+    overflow: visible;
+    border-radius: 10px;
     border-left: 1px solid #bae6fd;
     border-top: 1px solid #bae6fd;
     font-family: "Arial Narrow", Arial, sans-serif;
@@ -645,7 +654,7 @@ body,
   }
 
   .registerHeadCell {
-    @apply sticky top-0 z-40 flex min-h-10 items-center justify-between gap-2 bg-sky-500 px-2 text-left text-xs font-bold uppercase leading-tight text-white;
+    @apply sticky top-0 z-40 flex min-h-10 items-center justify-between gap-2 bg-sky-600 px-2 text-left text-xs font-bold uppercase leading-tight text-white;
     border-bottom: 1px solid #bae6fd;
     border-right: 1px solid #bae6fd;
     box-shadow: 0 1px 0 #bae6fd;
@@ -745,7 +754,7 @@ body,
   }
 
   .registerComboboxMenu {
-    @apply fixed z-[500] max-h-80 overflow-auto border border-slate-500 bg-white text-left shadow-xl;
+    @apply fixed z-[500] max-h-80 overflow-auto rounded-lg border border-slate-200 bg-white text-left shadow-xl;
   }
 
   .registerComboboxOption {
@@ -754,11 +763,12 @@ body,
   }
 
   .registerModalBackdrop {
-    @apply fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/30 px-4;
+    @apply fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/40 px-4;
+    backdrop-filter: blur(3px);
   }
 
   .registerModal {
-    @apply w-full max-w-3xl border border-slate-200 bg-white shadow-2xl;
+    @apply w-full max-w-3xl overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl;
   }
 
   .clearConfirmModal {
@@ -831,7 +841,7 @@ body,
   }
 
   .primaryModalButton {
-    @apply inline-flex h-9 items-center justify-center border border-sky-700 bg-sky-700 px-4 text-sm font-bold text-white transition hover:bg-sky-800;
+    @apply inline-flex h-10 items-center justify-center rounded-lg border border-sky-700 bg-sky-700 px-4 text-sm font-bold text-white transition hover:bg-sky-800;
   }
 
   .registerFilterMenu {
@@ -839,17 +849,18 @@ body,
   }
 
   .ivaBookView {
-    @apply flex flex-col overflow-hidden bg-slate-50 px-6 pb-5;
+    @apply flex flex-col overflow-hidden px-6 pb-5;
     height: calc(100vh - 69px);
   }
 
   .ivaBookSheet {
-    @apply flex min-h-0 min-w-full flex-1 flex-col border border-slate-300 bg-white px-3 py-3 shadow-sm;
+    @apply flex min-h-0 min-w-full flex-1 flex-col rounded-xl border border-slate-200 bg-white px-3 py-3 shadow-sm;
     font-family: "Arial Narrow", Arial, sans-serif;
+    box-shadow: 0 22px 50px -38px rgba(15, 23, 42, 0.7);
   }
 
   .ivaBookToolbar {
-    @apply sticky left-0 top-0 mb-3 flex min-h-12 w-full flex-wrap items-center justify-end gap-2 border border-slate-200 bg-white px-3 py-2;
+    @apply sticky left-0 top-0 mb-3 flex min-h-12 w-full flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2;
     z-index: 120;
     box-shadow: 0 10px 18px -18px rgba(15, 23, 42, 0.55);
   }
@@ -863,7 +874,7 @@ body,
   }
 
   .ivaBookTypeChip {
-    @apply inline-flex items-center rounded-sm border border-blue-200 bg-blue-50 px-2 py-1 font-black text-blue-700;
+    @apply inline-flex items-center rounded-md border border-blue-200 bg-blue-50 px-2 py-1 font-black text-blue-700;
   }
 
   .ivaBookAlertSummary {
@@ -871,7 +882,7 @@ body,
   }
 
   .ivaBookAlertChip {
-    @apply inline-flex items-center rounded-sm border px-2 py-1 font-black;
+    @apply inline-flex items-center rounded-md border px-2 py-1 font-black;
   }
 
   .ivaBookAlertChip.duplicate {
@@ -923,26 +934,26 @@ body,
   }
 
   .ivaBookSalesHeader {
-    @apply mb-3 shrink-0 bg-white pb-3 text-slate-950;
+    @apply mb-2 shrink-0 bg-white pb-2 text-slate-950;
     min-width: 1280px;
     font-family: "Arial Narrow", Arial, sans-serif;
   }
 
   .ivaBookSalesHeaderTitle {
-    @apply mb-3 text-left text-2xl font-black uppercase leading-tight;
+    @apply mb-2 text-left text-sm font-black uppercase leading-tight;
   }
 
   .ivaBookSalesHeaderField {
-    @apply mb-1 grid items-center gap-3 text-xl uppercase;
-    grid-template-columns: 260px 240px;
+    @apply mb-1 grid items-center gap-2 text-xs uppercase;
+    grid-template-columns: 170px 240px;
   }
 
   .ivaBookSalesHeaderField.company {
-    grid-template-columns: 260px 1080px;
+    grid-template-columns: 170px 1080px;
   }
 
   .ivaBookSalesHeaderField.giro {
-    grid-template-columns: 260px 1080px;
+    grid-template-columns: 170px 1080px;
   }
 
   .ivaBookSalesHeaderField.compact {
@@ -951,12 +962,12 @@ body,
   }
 
   .ivaBookSalesHeaderField span {
-    @apply font-normal;
+    @apply font-bold;
   }
 
   .ivaBookSalesHeaderField input {
-    @apply h-9 border border-slate-300 bg-white px-2 text-lg outline-none;
-    box-shadow: inset 2px 2px 0 rgba(15, 23, 42, 0.25);
+    @apply h-6 rounded border border-slate-300 bg-white px-1.5 text-xs outline-none transition;
+    box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.08);
     font-family: "Arial Narrow", Arial, sans-serif;
   }
 
@@ -965,7 +976,7 @@ body,
   }
 
   .ivaBookSalesHeaderRow {
-    @apply mb-1 grid items-center gap-16;
+    @apply mb-1 grid items-center gap-10;
     grid-template-columns: 500px 320px 320px;
   }
 
@@ -974,10 +985,11 @@ body,
   }
 
   .ivaBookTableViewport {
-    @apply min-h-0 flex-1 overflow-auto rounded-md border;
-    border-color: #0f172a;
+    @apply min-h-0 flex-1 overflow-auto rounded-lg border bg-white;
+    border-color: #cbd5e1;
     scrollbar-color: #38bdf8 #f1f5f9;
     scrollbar-width: auto;
+    padding-top: 1px;
   }
 
   .ivaBookTableViewport::-webkit-scrollbar {
@@ -998,10 +1010,12 @@ body,
     position: relative;
     isolation: isolate;
     display: grid;
+    align-content: start;
+    grid-auto-rows: max-content;
     width: max-content;
     background: #ffffff;
-    border-left: 1px solid #0f172a;
-    border-top: 1px solid #0f172a;
+    border-left: 1px solid #cbd5e1;
+    border-top: 1px solid #cbd5e1;
   }
 
   .ivaBookVirtualSpacer {
@@ -1011,9 +1025,9 @@ body,
 
   .ivaBookTotalCell {
     @apply sticky top-0 z-50 flex items-center justify-center overflow-visible whitespace-nowrap border-b border-r border-slate-400 bg-white px-1 text-emerald-700;
-    height: 42px;
-    min-height: 42px;
-    box-shadow: 0 -32px 0 32px #ffffff;
+    height: 24px;
+    min-height: 24px;
+    box-shadow: none;
     font-family: "Tw Cen MT Condensed", "Arial Narrow", Arial, sans-serif;
     font-size: 12px;
     font-weight: 700;
@@ -1022,8 +1036,9 @@ body,
   }
 
   .ivaBookHeadCell {
-    @apply sticky top-[42px] z-[60] flex min-h-11 cursor-pointer items-center justify-center gap-1 border-b border-r border-slate-900 bg-sky-100 px-1.5 text-center text-xs font-black uppercase leading-tight text-slate-950 transition hover:bg-sky-200;
-    box-shadow: 0 -1px 0 #0f172a, 0 2px 6px rgba(15, 23, 42, 0.12);
+    @apply sticky top-[24px] z-[60] flex min-h-11 cursor-pointer items-center justify-center gap-1 border-b border-r border-sky-200 bg-sky-50 px-1.5 text-center text-xs font-black uppercase leading-tight text-slate-950 transition hover:bg-sky-100;
+    height: 48px;
+    box-shadow: 0 2px 7px rgba(15, 23, 42, 0.08);
   }
 
   .ivaBookRedHeadCell {
@@ -1099,7 +1114,7 @@ body,
   }
 
   .ivaBookRowButton {
-    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-sm border bg-white transition;
+    @apply inline-flex h-5 w-5 shrink-0 items-center justify-center rounded border bg-white transition;
   }
 
   .ivaBookRowButton.edit {
@@ -1139,7 +1154,7 @@ body,
   }
 
   .ivaBookComboboxMenu {
-    @apply fixed z-[700] max-h-80 overflow-auto border border-slate-500 bg-white text-left shadow-xl;
+    @apply fixed z-[700] max-h-80 overflow-auto rounded-lg border border-slate-200 bg-white text-left shadow-xl;
   }
 
   .ivaBookComboboxOption {
@@ -1148,21 +1163,22 @@ body,
   }
 
   .anexosView {
-    @apply overflow-hidden bg-slate-50 px-6 py-5;
+    @apply overflow-hidden px-6 py-5;
     height: calc(100vh - 69px);
   }
 
   .anexosSheet {
-    @apply flex h-full min-w-full flex-col border border-slate-300 bg-white p-3 shadow-sm;
+    @apply flex h-full min-w-full flex-col rounded-xl border border-slate-200 bg-white p-3 shadow-sm;
     font-family: "Arial Narrow", Arial, sans-serif;
+    box-shadow: 0 22px 50px -38px rgba(15, 23, 42, 0.7);
   }
 
   .anexosHeader {
-    @apply mb-3 flex min-h-14 w-full shrink-0 items-center justify-between gap-4 border border-slate-200 bg-white px-3 py-2 shadow-sm;
+    @apply mb-3 flex min-h-14 w-full shrink-0 items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-3 py-2 shadow-sm;
   }
 
   .anexosToolbar {
-    @apply mb-3 flex min-h-12 w-full shrink-0 flex-wrap items-center justify-end gap-2 border border-slate-200 bg-white px-3 py-2;
+    @apply mb-3 flex min-h-12 w-full shrink-0 flex-wrap items-center justify-end gap-2 rounded-lg border border-slate-200 bg-white px-3 py-2;
     box-shadow: 0 10px 18px -18px rgba(15, 23, 42, 0.55);
   }
 
@@ -1171,16 +1187,16 @@ body,
   }
 
   .anexosCounter {
-    @apply inline-flex h-8 shrink-0 items-center rounded border border-blue-200 bg-blue-50 px-3 text-xs font-black text-blue-700;
+    @apply inline-flex h-8 shrink-0 items-center rounded-md border border-blue-200 bg-blue-50 px-3 text-xs font-black text-blue-700;
   }
 
   .anexosTitle {
-    @apply inline-flex h-9 shrink-0 items-center border border-slate-900 bg-yellow-100 px-4 text-base font-black uppercase text-slate-950;
+    @apply inline-flex h-9 shrink-0 items-center rounded-lg border border-yellow-300 bg-yellow-50 px-4 text-base font-black uppercase text-slate-950;
   }
 
   .anexosTableViewport {
-    @apply min-h-0 flex-1 overflow-auto rounded-md border;
-    border-color: #0f172a;
+    @apply min-h-0 flex-1 overflow-auto rounded-xl border;
+    border-color: #cbd5e1;
     scrollbar-color: #38bdf8 #f1f5f9;
     scrollbar-width: auto;
   }
@@ -1200,7 +1216,7 @@ body,
   }
 
   .anexosTable {
-    @apply grid border-l border-t border-slate-900 bg-white;
+    @apply grid border-l border-t border-slate-300 bg-white;
     width: max-content;
   }
 
@@ -1246,7 +1262,7 @@ body,
   }
 
   .anexosHeadCell {
-    @apply sticky top-7 z-40 min-h-12 justify-center gap-1 bg-sky-100 text-center font-black uppercase leading-tight;
+    @apply sticky top-7 z-40 min-h-12 justify-center gap-1 bg-sky-50 text-center font-black uppercase leading-tight;
     position: sticky;
   }
 
