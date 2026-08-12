@@ -1,5 +1,5 @@
 import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { Info, X } from 'lucide-react';
+import { CircleX, Info, X } from 'lucide-react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { AppTour } from './components/AppTour.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
@@ -33,6 +33,8 @@ import {
   summarizeDteTypes
 } from './lib/tableRowUtils.js';
 
+import closeIcon from './assets/close.png';
+
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
   default: module.VirtualDataTable
 })));
@@ -44,6 +46,9 @@ const IvaBooksView = lazy(() => import('./components/IvaBooksView.jsx').then((mo
 })));
 const RegisterView = lazy(() => import('./components/RegisterView.jsx').then((module) => ({
   default: module.RegisterView
+})));
+const CodeAppendixView = lazy(() => import('./components/CodeAppendixView.jsx').then((module) => ({
+  default: module.CodeAppendixView
 })));
 const HOME_CLEAR_KEY = '1234';
 const HOME_FILTER_STORAGE_PREFIX = 'dte-home-column-filters';
@@ -185,12 +190,18 @@ export default function App() {
   const [showClearTableModal, setShowClearTableModal] = useState(false);
   const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
   const [showLoadCancelledModal, setShowLoadCancelledModal] = useState(false);
+  const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
   const [clearTablePassword, setClearTablePassword] = useState('');
   const [rowPendingDelete, setRowPendingDelete] = useState(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 120);
     return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!window.dteApp?.onCloseRequest) return undefined;
+    return window.dteApp.onCloseRequest(() => setShowExitConfirmModal(true));
   }, []);
 
   useEffect(() => {
@@ -269,6 +280,21 @@ export default function App() {
     window.addEventListener('keydown', handleLoadCancelledModalKeyDown);
     return () => window.removeEventListener('keydown', handleLoadCancelledModalKeyDown);
   }, [showLoadCancelledModal]);
+
+  useEffect(() => {
+    if (!showExitConfirmModal) return undefined;
+
+    function handleExitConfirmModalKeyDown(event) {
+      if (event.key === 'Escape') setShowExitConfirmModal(false);
+    }
+
+    window.addEventListener('keydown', handleExitConfirmModalKeyDown);
+    return () => window.removeEventListener('keydown', handleExitConfirmModalKeyDown);
+  }, [showExitConfirmModal]);
+
+  function confirmExitApp() {
+    window.dteApp?.confirmCloseApp?.();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -840,6 +866,37 @@ export default function App() {
               </div>
             </div>
           ) : null}
+          {false && showExitConfirmModal ? (
+            <div className="registerModalBackdrop">
+              <div className="registerModal clearConfirmModal" role="dialog" aria-modal="true" aria-labelledby="exit-confirm-modal-title">
+                <div className="registerModalHeader">
+                  <span className="modalIcon">
+                    <img src={closeIcon} alt="Exit icon"  style={{ width: '22px', height: '22px' }} />
+                  </span>
+                  <h2 id="exit-confirm-modal-title">Salir del sistema</h2>
+                  <button className="modalIconButton" onClick={() => setShowExitConfirmModal(false)} type="button">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div>
+                    <p className="font-bold underline clearConfirmText">
+                  Se borrara toda la informacion cargada.
+                </p>
+                </div>
+                <p className="clearConfirmText">
+                  Esta acción no se puede deshacer.
+                </p>
+                <div className="registerModalActions">
+                  <button className="actionButton dangerActionButton" onClick={confirmExitApp} type="button">
+                    Aceptar
+                  </button>
+                  <button className="actionButton" onClick={() => setShowExitConfirmModal(false)} type="button">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : activeView.startsWith('iva-books') ? (
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando libro...</div></div>}>
@@ -872,6 +929,10 @@ export default function App() {
             type={activeAnexoType}
           />
         </Suspense>
+      ) : activeView === 'code-appendix' ? (
+        <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando apendice...</div></div>}>
+          <CodeAppendixView />
+        </Suspense>
       ) : (
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando registros...</div></div>}>
           <RegisterView
@@ -889,6 +950,37 @@ export default function App() {
           />
         </Suspense>
       )}
+      {showExitConfirmModal ? (
+        <div className="registerModalBackdrop">
+          <div className="registerModal clearConfirmModal exitConfirmModal" role="dialog" aria-modal="true" aria-labelledby="exit-confirm-modal-title">
+            <div className="registerModalHeader exitConfirmHeader">
+              <div className="exitConfirmTitle">
+                <span className="exitConfirmIcon">
+                  <img src={closeIcon} alt="Exit icon" style={{ width: '22px', height: '22px' }} />
+                </span>
+                <h2 id="exit-confirm-modal-title">Salir del sistema</h2>
+              </div>
+              <button className="modalIconButton exitConfirmCloseButton" onClick={() => setShowExitConfirmModal(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="font-bold font-xl clearConfirmText">
+              Se borrara toda la informacion cargada. Esta acción no se puede deshacer
+            </p>
+            <p className="font-xl clearConfirmText">
+               ¿Estás seguro de salir?.
+            </p>
+            <div className="registerModalActions">
+              <button className="actionButton dangerActionButton" onClick={confirmExitApp} type="button">
+                Aceptar
+              </button>
+              <button className="actionButton" onClick={() => setShowExitConfirmModal(false)} type="button">
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }

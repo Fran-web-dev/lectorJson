@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
+﻿const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require('electron');
 const path = require('path');
 const fs = require('fs/promises');
 const fsSync = require('fs');
@@ -92,6 +92,7 @@ function getPublicQueryHttp() {
 
 function createWindow() {
   const startupTime = Date.now();
+  let forceClose = false;
   writeStartupLog(`Starting app. packaged=${app.isPackaged} dirname=${__dirname}`);
   const win = new BrowserWindow({
     width: 1280,
@@ -137,6 +138,18 @@ function createWindow() {
 
   win.webContents.on('console-message', (_event, level, message, line, sourceId) => {
     if (level >= 2) writeStartupLog(`Renderer: ${message} (${sourceId}:${line})`);
+  });
+
+  win.on('close', (event) => {
+    if (forceClose) return;
+    event.preventDefault();
+    if (!win.webContents.isDestroyed()) win.webContents.send('app:confirm-close');
+  });
+
+  ipcMain.removeHandler('app:confirm-close');
+  ipcMain.handle('app:confirm-close', () => {
+    forceClose = true;
+    win.close();
   });
 }
 
@@ -965,7 +978,7 @@ async function writeIvaBookExcel(filePath, request) {
     ['NOMBRE EMPRESA:', ''],
     ['NRC:', '', 'NIT:', ''],
     ['GIRO:', ''],
-    ['MES:', '', 'AÑO:', '']
+    ['MES:', '', 'AÃ‘O:', '']
   ];
 
   headerInfo.forEach((items, index) => {
@@ -1120,7 +1133,7 @@ function writeIvaBookHeaderSection(worksheet, columnCount, title, headerDraft) {
   writeMergedIvaHeaderValue(worksheet, 5, 2, 4, headerDraft.month);
 
   const yearLabel = worksheet.getCell(6, 1);
-  yearLabel.value = 'AÑO:';
+  yearLabel.value = 'AÃ‘O:';
   styleIvaHeaderLabel(yearLabel);
   writeMergedIvaHeaderValue(worksheet, 6, 2, 4, headerDraft.year);
 }

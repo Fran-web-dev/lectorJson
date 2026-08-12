@@ -1,4 +1,4 @@
-import { BookOpen, Building2, ChevronDown, FileText, HelpCircle, TableProperties, Users } from 'lucide-react';
+import { BookOpen, Building2, ChevronDown, FileText, HelpCircle, LibraryBig, TableProperties, Users } from 'lucide-react';
 import logoFevv from '../assets/logo-fevv-technologies-startup.jpg';
 
 export function AppHeader({ activeView, onNavigate, onStartTour }) {
@@ -117,6 +117,14 @@ export function AppHeader({ activeView, onNavigate, onStartTour }) {
             </button>
           </div>
         </div>
+        <button
+          className={`navButton ${activeView === 'code-appendix' ? 'active' : ''}`}
+          onClick={() => onNavigate('code-appendix')}
+          type="button"
+        >
+          <LibraryBig size={16} />
+          APENDICE DE CODIGOS
+        </button>
       </nav>
       <button className="tourStartButton" data-tour="start-guide" onClick={onStartTour} type="button">
         <HelpCircle size={16} />

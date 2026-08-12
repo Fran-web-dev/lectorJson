@@ -790,6 +790,10 @@ body,
     @apply max-w-lg border-red-200;
   }
 
+  .exitConfirmModal {
+    @apply border-red-300;
+  }
+
   .emptyTableModal {
     @apply max-w-lg overflow-hidden border-slate-200;
   }
@@ -798,8 +802,24 @@ body,
     @apply flex items-center justify-between border-b border-slate-200 bg-slate-50 px-4 py-3;
   }
 
+  .exitConfirmHeader {
+    @apply border-red-700 bg-red-600 text-white;
+  }
+
   .registerModalHeader h2 {
     @apply text-base font-bold text-slate-950;
+  }
+
+  .exitConfirmHeader h2 {
+    @apply text-white;
+  }
+
+  .exitConfirmTitle {
+    @apply flex items-center gap-3;
+  }
+
+  .exitConfirmIcon {
+    @apply inline-flex h-10 w-10 items-center justify-center rounded-full border border-white/50 bg-white text-red-600 shadow-sm;
   }
 
   .emptyTableTitle {
@@ -812,6 +832,10 @@ body,
 
   .modalIconButton {
     @apply inline-flex h-8 w-8 items-center justify-center border border-transparent bg-white text-slate-700 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700;
+  }
+
+  .exitConfirmCloseButton {
+    @apply border-white/30 bg-red-700 text-white hover:border-white hover:bg-red-800 hover:text-white;
   }
 
   .registerFormGrid {
@@ -1344,6 +1368,104 @@ body,
 
   .ivaBookEditInput.money {
     @apply text-right;
+  }
+
+  .codeAppendixView {
+    @apply grid gap-4 px-6 py-5;
+    grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+    height: calc(100vh - 69px);
+  }
+
+  .codeAppendixSidebar,
+  .codeAppendixPanel {
+    @apply min-h-0 rounded-xl border border-slate-200 bg-white shadow-sm;
+    box-shadow: 0 22px 50px -38px rgba(15, 23, 42, 0.7);
+  }
+
+  .codeAppendixSidebar {
+    @apply flex flex-col gap-4 p-4;
+  }
+
+  .codeAppendixSidebar h1 {
+    @apply text-base font-black tracking-wide text-slate-950;
+  }
+
+  .codeAppendixSidebar p {
+    @apply mt-1 text-xs font-semibold text-slate-500;
+  }
+
+  .codeAppendixNav {
+    @apply flex min-h-0 flex-col gap-2 overflow-auto pr-1;
+  }
+
+  .codeAppendixNavButton {
+    @apply flex w-full items-center justify-between gap-3 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs font-black text-slate-700 transition hover:-translate-y-0.5 hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800 hover:shadow-md;
+  }
+
+  .codeAppendixNavButton.active {
+    @apply border-sky-400 bg-sky-100 text-sky-900 shadow-sm;
+  }
+
+  .codeAppendixNavButton strong {
+    @apply rounded-md border border-sky-200 bg-white px-2 py-1 text-[11px] text-sky-700;
+  }
+
+  .codeAppendixPanel {
+    @apply flex min-w-0 flex-col overflow-hidden p-4;
+  }
+
+  .codeAppendixToolbar {
+    @apply mb-3 flex shrink-0 flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2;
+  }
+
+  .codeAppendixToolbar h2 {
+    @apply text-base font-black text-slate-950;
+  }
+
+  .codeAppendixEyebrow {
+    @apply text-[11px] font-black uppercase tracking-wide text-sky-700;
+  }
+
+  .codeAppendixSearch {
+    @apply ml-auto flex h-9 min-w-72 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-slate-500 shadow-sm focus-within:border-sky-400 focus-within:ring-2 focus-within:ring-sky-100;
+  }
+
+  .codeAppendixSearch input {
+    @apply h-full min-w-0 flex-1 bg-transparent text-sm font-semibold text-slate-800 outline-none placeholder:text-slate-400;
+  }
+
+  .codeAppendixCounter {
+    @apply inline-flex h-9 shrink-0 items-center rounded-lg border border-blue-200 bg-blue-50 px-3 text-xs font-black text-blue-700;
+  }
+
+  .codeAppendixTableViewport {
+    @apply min-h-0 flex-1 overflow-auto rounded-lg border border-slate-300 bg-white;
+    scrollbar-color: #38bdf8 #f1f5f9;
+    scrollbar-width: auto;
+  }
+
+  .codeAppendixTable {
+    @apply min-w-full border-collapse text-left text-xs text-slate-800;
+  }
+
+  .codeAppendixTable th {
+    @apply sticky top-0 z-10 border-b border-r border-slate-300 bg-sky-50 px-3 py-2 font-black uppercase text-slate-950;
+  }
+
+  .codeAppendixTable td {
+    @apply border-b border-r border-slate-200 px-3 py-1.5 font-semibold;
+  }
+
+  .codeAppendixTable tbody tr:nth-child(even) td {
+    @apply bg-sky-50/40;
+  }
+
+  .codeAppendixTable tbody tr:hover td {
+    @apply bg-amber-50;
+  }
+
+  .codeAppendixEmpty {
+    @apply h-20 text-center text-sm font-bold text-slate-500;
   }
 }
 
