@@ -154,6 +154,34 @@ const ANEXOS = {
       ['HASTA', '100'],
       ['CÓDIGO DE GENERACIÓN', '100']
     ]
+  },
+  f14: {
+    title: 'ANEXO F14',
+    columns: [
+      ['DOMICILIADO', ''],
+      ['CODIGO DE PAIS', ''],
+      ['APELLIDOS, NOMBRES; RAZON O DENOMINACION SOCIAL.', 'SIN LIMITE'],
+      ['NIT/NIE', ''],
+      ['DUI', ''],
+      ['CODIGO DE INGRESO', ''],
+      ['MONTO DEVENGADO', ''],
+      ['MONTO DEVENGADO POR BONIFICACIONES Y GRATIFICACIONES', ''],
+      ['IMPUESTO RETENIDO', ''],
+      ['AGUINALDO EXENTO', ''],
+      ['AGUINALDO GRAVADO', ''],
+      ['AFP', ''],
+      ['ISSS', ''],
+      ['INPEP', ''],
+      ['IPSFA', ''],
+      ['CEFAFA', ''],
+      ['BIENESTAR MAGISTERIAL', ''],
+      ['ISSS IVM', ''],
+      ['TIPO DE OPERACION', ''],
+      ['CLASIFICACION', ''],
+      ['SECTOR', ''],
+      ['TIPO DE COSTO/GASTO', ''],
+      ['PERIODO', '']
+    ]
   }
 };
 
@@ -165,7 +193,8 @@ export const ANEXOS_LABELS = {
   advanceVat: 'Anexo anticipo IVA 2%',
   retentionVat: 'Anexo retencion IVA 1%',
   perceptionVat: 'Anexo percepcion IVA 1%',
-  invalidDocuments: 'Anexo documentos invalidados'
+  invalidDocuments: 'Anexo documentos invalidados',
+  f14: 'Anexo F14'
 };
 
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
@@ -1022,7 +1051,7 @@ export function AnexosView({
     });
 
     if (!loadConfig) {
-      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compras, compra sujeto excluido FSE, anticipo IVA 2%, retencion IVA 1%, percepcion IVA 1% y documentos invalidados.');
+      setMessage('Carga de datos disponible por ahora para anexos de venta CCF, venta FCF, compras, compra sujeto excluido FSE, anticipo IVA 2%, retencion IVA 1%, percepcion IVA 1% y documentos invalidados. Anexo F14 queda disponible como estructura editable manual.');
       return;
     }
 

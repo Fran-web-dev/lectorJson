@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 
 export function useDteActions({
   folder,
@@ -7,9 +7,12 @@ export function useDteActions({
   setErrors,
   setFolder,
   setLoading,
+  setShowLoadCancelledModal,
   setStatus,
   setTotalFileCount
 }) {
+  const loadCancelledRef = useRef(false);
+
   const withFileLoadProgress = useCallback(async (action) => {
     let removeProgressListener = () => {};
 
@@ -32,6 +35,7 @@ export function useDteActions({
   }, [setStatus]);
 
   const applyLoadResult = useCallback((result) => {
+    if (loadCancelledRef.current) return;
     setFolder(result.sourcePath);
     setDocuments(result.documents);
     setErrors(result.errors);
@@ -41,6 +45,7 @@ export function useDteActions({
   }, [setDocuments, setErrors, setFolder, setStatus, setTotalFileCount]);
 
   const selectFolder = useCallback(async () => {
+    loadCancelledRef.current = false;
     setLoading(true);
     setStatus('Leyendo carpeta y subcarpetas...');
     try {
@@ -52,13 +57,19 @@ export function useDteActions({
 
       applyLoadResult(result);
     } catch (error) {
-      setStatus(`Error al leer carpeta: ${error.message}`);
+      if (/cancelada/i.test(error.message)) {
+        setStatus('Carga cancelada por el usuario.');
+        setShowLoadCancelledModal?.(true);
+      } else {
+        setStatus(`Error al leer carpeta: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
-  }, [applyLoadResult, setLoading, setStatus, withFileLoadProgress]);
+  }, [applyLoadResult, setLoading, setShowLoadCancelledModal, setStatus, withFileLoadProgress]);
 
   const selectFiles = useCallback(async () => {
+    loadCancelledRef.current = false;
     setLoading(true);
     setStatus('Leyendo archivos CSV/JSON...');
     try {
@@ -70,11 +81,16 @@ export function useDteActions({
 
       applyLoadResult(result);
     } catch (error) {
-      setStatus(`Error al leer archivos: ${error.message}`);
+      if (/cancelada/i.test(error.message)) {
+        setStatus('Carga cancelada por el usuario.');
+        setShowLoadCancelledModal?.(true);
+      } else {
+        setStatus(`Error al leer archivos: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
-  }, [applyLoadResult, setLoading, setStatus, withFileLoadProgress]);
+  }, [applyLoadResult, setLoading, setShowLoadCancelledModal, setStatus, withFileLoadProgress]);
 
   const reloadFolder = useCallback(async () => {
     const folderPath = String(folder || '').trim();
@@ -83,6 +99,7 @@ export function useDteActions({
       return;
     }
 
+    loadCancelledRef.current = false;
     setLoading(true);
     setStatus('Cargando JSON de la carpeta seleccionada...');
     try {
@@ -92,11 +109,27 @@ export function useDteActions({
       const result = await withFileLoadProgress(() => window.dteApp.reloadFolder(folderPath));
       applyLoadResult(result);
     } catch (error) {
-      setStatus(`Error al cargar JSON: ${error.message}`);
+      if (/cancelada/i.test(error.message)) {
+        setStatus('Carga cancelada por el usuario.');
+        setShowLoadCancelledModal?.(true);
+      } else {
+        setStatus(`Error al cargar JSON: ${error.message}`);
+      }
     } finally {
       setLoading(false);
     }
-  }, [applyLoadResult, folder, setLoading, setStatus, withFileLoadProgress]);
+  }, [applyLoadResult, folder, setLoading, setShowLoadCancelledModal, setStatus, withFileLoadProgress]);
+
+  const cancelFileLoad = useCallback(async () => {
+    loadCancelledRef.current = true;
+    setStatus('Cancelando carga...');
+    try {
+      if (!window.dteApp?.cancelFileLoad) return;
+      await window.dteApp.cancelFileLoad();
+    } catch (error) {
+      setStatus(`No se pudo cancelar la carga: ${error.message}`);
+    }
+  }, [setStatus]);
 
   const exportExcel = useCallback(async () => {
     if (!rows.length) {
@@ -115,5 +148,5 @@ export function useDteActions({
     }
   }, [rows, setLoading, setStatus]);
 
-  return { exportExcel, reloadFolder, selectFiles, selectFolder };
+  return { cancelFileLoad, exportExcel, reloadFolder, selectFiles, selectFolder };
 }

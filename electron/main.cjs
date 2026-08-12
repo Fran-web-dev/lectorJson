@@ -45,6 +45,7 @@ const FILE_READ_CONCURRENCY = 32;
 const FOLDER_SCAN_CONCURRENCY = 16;
 const ENRICH_PUBLIC_QUERY_ON_LOAD = false;
 const publicQueryCache = new Map();
+let activeFileLoadController = null;
 let papaParser;
 let excelJs;
 let axiosClient;
@@ -149,11 +150,28 @@ function isSupportedDataFile(name) {
   return extension === '.json' || extension === '.csv' || extension === '';
 }
 
-async function collectFiles(folderPath) {
+function createFileLoadController() {
+  if (activeFileLoadController) activeFileLoadController.cancelled = true;
+  activeFileLoadController = { cancelled: false };
+  return activeFileLoadController;
+}
+
+function cancelActiveFileLoad() {
+  if (!activeFileLoadController) return false;
+  activeFileLoadController.cancelled = true;
+  return true;
+}
+
+function throwIfLoadCancelled(controller) {
+  if (controller?.cancelled) throw new Error('Carga cancelada por el usuario.');
+}
+
+async function collectFiles(folderPath, controller) {
   const files = [];
   let pendingFolders = [folderPath];
 
   async function scanFolder(currentFolder) {
+    throwIfLoadCancelled(controller);
     const nextFolders = [];
     let entries;
     try {
@@ -164,6 +182,7 @@ async function collectFiles(folderPath) {
     }
 
     for (const entry of entries) {
+      throwIfLoadCancelled(controller);
       const fullPath = path.join(currentFolder, entry.name);
       if (entry.isDirectory()) {
         if (!shouldSkipDirectory(entry.name)) nextFolders.push(fullPath);
@@ -176,6 +195,7 @@ async function collectFiles(folderPath) {
   }
 
   while (pendingFolders.length) {
+    throwIfLoadCancelled(controller);
     const currentBatch = pendingFolders.splice(0, FOLDER_SCAN_CONCURRENCY);
     const nextBatches = await Promise.all(currentBatch.map((folder) => scanFolder(folder)));
     pendingFolders = pendingFolders.concat(...nextBatches);
@@ -291,7 +311,7 @@ function describeReadError(filePath, error) {
   return `No se pudo cargar el archivo ${extension}. Revise que sea un JSON/CSV valido y que no este bloqueado.${detail}`;
 }
 
-async function loadFiles(filePaths, sourcePath, progressWebContents) {
+async function loadFiles(filePaths, sourcePath, progressWebContents, controller) {
   const documentsByFile = new Array(filePaths.length);
   const errors = [];
   let nextFileIndex = 0;
@@ -315,12 +335,14 @@ async function loadFiles(filePaths, sourcePath, progressWebContents) {
 
   async function worker() {
     while (nextFileIndex < filePaths.length) {
+      throwIfLoadCancelled(controller);
       const fileIndex = nextFileIndex;
       nextFileIndex += 1;
 
       const filePath = filePaths[fileIndex];
       try {
         const items = await readDataFile(filePath);
+        throwIfLoadCancelled(controller);
         documentsByFile[fileIndex] = items
           .map((item, itemIndex) => {
             const payload = getLoadableDtePayload(item);
@@ -350,6 +372,7 @@ async function loadFiles(filePaths, sourcePath, progressWebContents) {
   }
 
   await Promise.all(Array.from({ length: Math.min(FILE_READ_CONCURRENCY, filePaths.length || 1) }, () => worker()));
+  throwIfLoadCancelled(controller);
   sendLoadProgress(true);
 
   const documents = documentsByFile.flat();
@@ -500,8 +523,13 @@ ipcMain.handle('folder:select', async (event) => {
 
   if (result.canceled || !result.filePaths[0]) return null;
   const folderPath = result.filePaths[0];
-  const files = await collectFiles(folderPath);
-  return loadFiles(files, folderPath, event.sender);
+  const controller = createFileLoadController();
+  try {
+    const files = await collectFiles(folderPath, controller);
+    return await loadFiles(files, folderPath, event.sender, controller);
+  } finally {
+    if (activeFileLoadController === controller) activeFileLoadController = null;
+  }
 });
 
 ipcMain.handle('folder:reload', async (event, folderPath) => {
@@ -509,8 +537,13 @@ ipcMain.handle('folder:reload', async (event, folderPath) => {
   const stat = await fs.stat(resolvedFolderPath);
   if (!stat.isDirectory()) throw new Error('La carpeta seleccionada ya no existe o no es valida.');
 
-  const files = await collectFiles(resolvedFolderPath);
-  return loadFiles(files, resolvedFolderPath, event.sender);
+  const controller = createFileLoadController();
+  try {
+    const files = await collectFiles(resolvedFolderPath, controller);
+    return await loadFiles(files, resolvedFolderPath, event.sender, controller);
+  } finally {
+    if (activeFileLoadController === controller) activeFileLoadController = null;
+  }
 });
 
 ipcMain.handle('files:select', async (event) => {
@@ -525,7 +558,16 @@ ipcMain.handle('files:select', async (event) => {
   });
 
   if (result.canceled || !result.filePaths.length) return null;
-  return loadFiles(result.filePaths, `${result.filePaths.length} archivo(s) seleccionado(s)`, event.sender);
+  const controller = createFileLoadController();
+  try {
+    return await loadFiles(result.filePaths, `${result.filePaths.length} archivo(s) seleccionado(s)`, event.sender, controller);
+  } finally {
+    if (activeFileLoadController === controller) activeFileLoadController = null;
+  }
+});
+
+ipcMain.handle('files:cancel-load', async () => {
+  return cancelActiveFileLoad();
 });
 
 ipcMain.handle('excel:export', async (_event, rows) => {

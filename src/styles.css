@@ -683,6 +683,13 @@ body,
     color: #111827;
   }
 
+  .registerHeadCell.providerF14 {
+    background-color: #f3e8ff;
+    border-bottom-color: #c084fc;
+    border-right-color: #c084fc;
+    color: #3b0764;
+  }
+
   .registerCell {
     @apply flex min-h-[30px] items-center whitespace-normal px-1.5 leading-tight text-slate-700;
     border-bottom: 1px solid #e0f2fe;
@@ -720,6 +727,14 @@ body,
 
   .registerTable.client .registerCell.odd {
     background-color: #f0fdf4;
+  }
+
+  .registerTable.providerF14 .registerCell.even {
+    background-color: #fff;
+  }
+
+  .registerTable.providerF14 .registerCell.odd {
+    background-color: #faf5ff;
   }
 
   .registerCorrCell {

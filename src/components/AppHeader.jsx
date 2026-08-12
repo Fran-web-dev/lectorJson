@@ -35,6 +35,10 @@ export function AppHeader({ activeView, onNavigate, onStartTour }) {
               <Building2 size={15} />
               Registros de proveedores
             </button>
+            <button onClick={() => onNavigate('registers-providers-f14')} type="button">
+              <Building2 size={15} />
+              Registro de proveedores F14
+            </button>
           </div>
         </div>
         <div className="navDropdown">
@@ -106,6 +110,10 @@ export function AppHeader({ activeView, onNavigate, onStartTour }) {
             <button onClick={() => onNavigate('anexos-invalid-documents')} type="button">
               <TableProperties size={15} />
               Anexo documentos invalidados
+            </button>
+            <button onClick={() => onNavigate('anexos-f14')} type="button">
+              <TableProperties size={15} />
+              Anexo F14
             </button>
           </div>
         </div>

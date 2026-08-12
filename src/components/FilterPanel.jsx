@@ -1,4 +1,4 @@
-import { FileJson, FileSpreadsheet, FolderOpen, Trash2 } from 'lucide-react';
+import { FileJson, FileSpreadsheet, FolderOpen, OctagonX, Trash2 } from 'lucide-react';
 import { getStructureOptions } from '../lib/dteStructureOptions.js';
 import { DTE_TYPES } from '../lib/dteTypes.js';
 
@@ -9,6 +9,7 @@ export function FilterPanel({
   metricsSlot,
   onClearDates,
   onClearTable,
+  onCancelLoad,
   onExportExcel,
   onExportLoadErrorsExcel,
   onFromDateChange,
@@ -77,6 +78,9 @@ export function FilterPanel({
           </button>
           <button className="actionButton" data-tour="load-json-button" disabled={loading || !folder.trim()} onClick={onReloadFolder}>
             <FileJson size={16} /> Cargar JSON
+          </button>
+          <button className="actionButton dangerActionButton" disabled={!loading} onClick={onCancelLoad} type="button">
+            <OctagonX size={16} /> Cancelar Carga
           </button>
           <button
             className="actionButton"

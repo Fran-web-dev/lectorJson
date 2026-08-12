@@ -55,6 +55,24 @@ const REGISTER_CONFIG = {
       { header: 'TIPO DE COSTO/GASTO (Renta)', width: '260px' }
     ],
     tone: 'provider'
+  },
+  providersF14: {
+    title: 'REGISTRO DE PROVEEDORES F14',
+    columns: [
+      { header: 'CORR.', width: '72px' },
+      { header: 'NRC', width: '140px' },
+      { header: 'NIT', width: '150px' },
+      { header: 'DUI', width: '135px' },
+      { header: 'NOMBRE DEL PROVEEDOR', width: '380px' },
+      { header: 'DOMICILIADO', width: '140px' },
+      { header: 'CODIGO DE PAIS', width: '140px' },
+      { header: 'CODIGO DE INGRESO', width: '160px' },
+      { header: 'TIPO DE OPERACION (Renta)', width: '220px' },
+      { header: 'CLASIFICACION (Renta)', width: '220px' },
+      { header: 'SECTOR (Renta)', width: '190px' },
+      { header: 'TIPO DE COSTO/GASTO (Renta)', width: '260px' }
+    ],
+    tone: 'providerF14'
   }
 };
 
@@ -69,12 +87,18 @@ const IMPORTABLE_STRUCTURES = {
     '03|CCF RECEPTOR COMPRA',
     '09|DCL RECEPTOR',
     '14|FSE EMISOR'
+  ]),
+  providersF14: new Set([
+    '03|CCF RECEPTOR COMPRA',
+    '09|DCL RECEPTOR',
+    '14|FSE EMISOR'
   ])
 };
 
 const IMPORTABLE_STRUCTURE_MESSAGES = {
   clients: 'Importe disponible solo para 01 FCF EMISOR, 03 CCF EMISOR VENTA, 07 COMPROBANTE DE RETENCION RECEPTOR y 09 DCL RECEPTOR.',
-  providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA, 09 DCL RECEPTOR y 14 FSE EMISOR.'
+  providers: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA, 09 DCL RECEPTOR y 14 FSE EMISOR.',
+  providersF14: 'Importe disponible solo para 03 CCF RECEPTOR COMPRA, 09 DCL RECEPTOR y 14 FSE EMISOR.'
 };
 
 const CLIENT_TYPE_OPERATION_OPTIONS = [
@@ -144,6 +168,11 @@ const PROVIDER_COST_EXPENSE_OPTIONS = [
   '0 CUANDO SE TRATE DE PERIODOS TRIBUTARIOS ANTERIORES A FEBRERO DE 2024'
 ];
 
+const PROVIDER_F14_DOMICILED_OPTIONS = [
+  '1 DOMICILIADO',
+  '2 NO DOMICILIADO'
+];
+
 function createRows(columns, count = INITIAL_ROW_COUNT) {
   return Array.from({ length: count }, () => createEmptyRow(columns));
 }
@@ -199,7 +228,7 @@ function normalizeKey(value) {
 }
 
 function getRegisterKey(row, type) {
-  const nameKey = type === 'providers' ? row['NOMBRE DEL PROVEEDOR'] : row['NOMBRE DEL CLIENTE'];
+  const nameKey = type === 'providers' || type === 'providersF14' ? row['NOMBRE DEL PROVEEDOR'] : row['NOMBRE DEL CLIENTE'];
   return normalizeKey(row.NIT) || normalizeKey(row.NRC) || normalizeKey(nameKey);
 }
 
@@ -219,8 +248,10 @@ function getRegisterColumnOptions(type, header, value = '') {
       : header === 'TIPO DE INGRESO'
         ? CLIENT_TYPE_INCOME_OPTIONS
         : []
-    : type === 'providers'
-      ? header === 'TIPO DE OPERACION (Renta)'
+    : type === 'providers' || type === 'providersF14'
+      ? type === 'providersF14' && header === 'DOMICILIADO'
+        ? PROVIDER_F14_DOMICILED_OPTIONS
+        : header === 'TIPO DE OPERACION (Renta)'
         ? PROVIDER_TYPE_OPERATION_OPTIONS
         : header === 'CLASIFICACION (Renta)'
           ? PROVIDER_CLASSIFICATION_OPTIONS
@@ -273,7 +304,7 @@ function splitProviderDocument(value) {
 }
 
 function mapSourceRowToRegister(row, type, sourceTypeCode) {
-  if (type === 'providers') {
+  if (type === 'providers' || type === 'providersF14') {
     if (sourceTypeCode === '14') {
       const document = splitProviderDocument(row['Doc ID Sujeto Excluido']);
 
@@ -282,6 +313,9 @@ function mapSourceRowToRegister(row, type, sourceTypeCode) {
         NIT: document.nit,
         DUI: document.dui,
         'NOMBRE DEL PROVEEDOR': row['Nombre sujetoExcluido'] || '',
+        DOMICILIADO: '',
+        'CODIGO DE PAIS': '',
+        'CODIGO DE INGRESO': '',
         'TIPO DE OPERACION (Renta)': '',
         'CLASIFICACION (Renta)': '',
         'SECTOR (Renta)': '',
@@ -297,6 +331,9 @@ function mapSourceRowToRegister(row, type, sourceTypeCode) {
         NIT: document.nit,
         DUI: document.dui,
         'NOMBRE DEL PROVEEDOR': row['Nombre emisor'] || '',
+        DOMICILIADO: '',
+        'CODIGO DE PAIS': '',
+        'CODIGO DE INGRESO': '',
         'TIPO DE OPERACION (Renta)': '',
         'CLASIFICACION (Renta)': '',
         'SECTOR (Renta)': '',
@@ -311,6 +348,9 @@ function mapSourceRowToRegister(row, type, sourceTypeCode) {
       NIT: document.nit,
       DUI: document.dui,
       'NOMBRE DEL PROVEEDOR': row['Nombre emisor'] || '',
+      DOMICILIADO: '',
+      'CODIGO DE PAIS': '',
+      'CODIGO DE INGRESO': '',
       'TIPO DE OPERACION (Renta)': '',
       'CLASIFICACION (Renta)': '',
       'SECTOR (Renta)': '',

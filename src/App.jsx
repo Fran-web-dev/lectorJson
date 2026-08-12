@@ -57,7 +57,8 @@ const ANEXOS_VIEW_TYPES = {
   'anexos-advance-vat': 'advanceVat',
   'anexos-retention-vat': 'retentionVat',
   'anexos-perception-vat': 'perceptionVat',
-  'anexos-invalid-documents': 'invalidDocuments'
+  'anexos-invalid-documents': 'invalidDocuments',
+  'anexos-f14': 'f14'
 };
 
 function getHomeFilterStorageKey(typeCode, structureName) {
@@ -183,6 +184,7 @@ export default function App() {
   const [tourRunId, setTourRunId] = useState(0);
   const [showClearTableModal, setShowClearTableModal] = useState(false);
   const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
+  const [showLoadCancelledModal, setShowLoadCancelledModal] = useState(false);
   const [clearTablePassword, setClearTablePassword] = useState('');
   const [rowPendingDelete, setRowPendingDelete] = useState(null);
 
@@ -256,6 +258,17 @@ export default function App() {
     window.addEventListener('keydown', handleDeleteRowModalKeyDown);
     return () => window.removeEventListener('keydown', handleDeleteRowModalKeyDown);
   }, [rowPendingDelete]);
+
+  useEffect(() => {
+    if (!showLoadCancelledModal) return undefined;
+
+    function handleLoadCancelledModalKeyDown(event) {
+      if (event.key === 'Escape') setShowLoadCancelledModal(false);
+    }
+
+    window.addEventListener('keydown', handleLoadCancelledModalKeyDown);
+    return () => window.removeEventListener('keydown', handleLoadCancelledModalKeyDown);
+  }, [showLoadCancelledModal]);
 
   useEffect(() => {
     let cancelled = false;
@@ -388,7 +401,7 @@ export default function App() {
     ));
   }, [activeAnexoType]);
 
-  const { exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
+  const { cancelFileLoad, exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
     documents,
     folder,
     rows: filteredRows,
@@ -396,6 +409,7 @@ export default function App() {
     setErrors,
     setFolder,
     setLoading,
+    setShowLoadCancelledModal,
     setStatus,
     setTotalFileCount
   });
@@ -662,6 +676,7 @@ export default function App() {
               />
             )}
             onExportExcel={exportExcel}
+            onCancelLoad={cancelFileLoad}
             onClearTable={openClearTableModal}
             onExportLoadErrorsExcel={exportLoadErrorsExcel}
             onReloadFolder={reloadFolder}
@@ -800,6 +815,31 @@ export default function App() {
               </div>
             </div>
           ) : null}
+          {showLoadCancelledModal ? (
+            <div className="registerModalBackdrop">
+              <div className="registerModal emptyTableModal" role="dialog" aria-modal="true" aria-labelledby="load-cancelled-modal-title">
+                <div className="registerModalHeader">
+                  <div className="emptyTableTitle">
+                    <span className="emptyTableIcon">
+                      <Info size={18} />
+                    </span>
+                    <h2 id="load-cancelled-modal-title">Carga cancelada</h2>
+                  </div>
+                  <button className="modalIconButton" onClick={() => setShowLoadCancelledModal(false)} type="button">
+                    <X size={18} />
+                  </button>
+                </div>
+                <div className="emptyTableBody">
+                  <p>Carga cancelada</p>
+                </div>
+                <div className="registerModalActions">
+                  <button className="primaryModalButton" onClick={() => setShowLoadCancelledModal(false)} type="button">
+                    Aceptar
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : null}
         </>
       ) : activeView.startsWith('iva-books') ? (
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando libro...</div></div>}>
@@ -839,7 +879,13 @@ export default function App() {
             sourceRows={rows}
             sourceStructureName={structureName}
             sourceTypeCode={typeCode}
-            type={activeView === 'registers-providers' ? 'providers' : 'clients'}
+            type={
+              activeView === 'registers-providers'
+                ? 'providers'
+                : activeView === 'registers-providers-f14'
+                  ? 'providersF14'
+                  : 'clients'
+            }
           />
         </Suspense>
       )}

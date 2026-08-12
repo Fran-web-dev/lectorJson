@@ -15,6 +15,7 @@ contextBridge.exposeInMainWorld('dteApp', {
   selectFolder: () => ipcRenderer.invoke('folder:select'),
   reloadFolder: (folderPath) => ipcRenderer.invoke('folder:reload', folderPath),
   selectFiles: () => ipcRenderer.invoke('files:select'),
+  cancelFileLoad: () => ipcRenderer.invoke('files:cancel-load'),
   exportExcel: (rows) => ipcRenderer.invoke('excel:export', rows),
   exportIvaBookExcel: (request) => ipcRenderer.invoke('iva-book:excel-export', request),
   exportRegisterTemplate: (request) => ipcRenderer.invoke('register:template-export', request),
