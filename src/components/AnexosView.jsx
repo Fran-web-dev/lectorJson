@@ -199,12 +199,35 @@ export const ANEXOS_LABELS = {
 
 const CLIENT_REGISTER_STORAGE_KEY = 'dte-registers-clients';
 const PROVIDER_REGISTER_STORAGE_KEY = 'dte-registers-providers';
+const PROVIDER_F14_REGISTER_STORAGE_KEY = 'dte-registers-providersF14';
 const ANEXO_LOAD_BATCH_SIZE = 4000;
 const ANEXO_ROW_HEIGHT = 28;
 const ANEXO_OVERSCAN_ROWS = 12;
 const ANEXO_STICKY_ROWS_HEIGHT = 76;
 const ANEXO_FILTER_VALUE_LIMIT = 1200;
 const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
+const F14_TOTAL_COLUMNS = new Set([
+  'IMPUESTO RETENIDO',
+  'AGUINALDO EXENTO',
+  'AGUINALDO GRAVADO',
+  'AFP',
+  'ISSS',
+  'INPEP',
+  'IPSFA',
+  'CEFAFA',
+  'BIENESTAR MAGISTERIAL',
+  'ISSS IVM'
+]);
+const ANEXO_TOTAL_COLUMNS = new Set([
+  'EXPORTACIONES DENTRO DEL AREA CENTROAMERICANA',
+  'EXPORTACIONES FUERA DEL AREA CENTROAMERICANA',
+  'EXPORTACIONES DE SERVICIOS',
+  'INTERNACIONES EXENTAS Y/O NO SUJETAS',
+  'IMPORTACIONES EXENTAS Y/O NO SUJETAS',
+  'INTERNACIONES GRAVADAS DE BIENES',
+  'IMPORTACIONES GRAVADAS DE BIENES',
+  'IMPORTACIONES GRAVADAS DE SERVICIOS'
+]);
 
 function hasActiveColumnFilter(selectedValues = [], values = []) {
   if (!selectedValues.length) return false;
@@ -228,6 +251,10 @@ function loadClientRegisterLookup() {
 
 function loadProviderRegisterLookup() {
   return loadRegisterLookup(PROVIDER_REGISTER_STORAGE_KEY);
+}
+
+function loadProviderF14RegisterLookup() {
+  return loadRegisterLookup(PROVIDER_F14_REGISTER_STORAGE_KEY);
 }
 
 function loadRegisterLookup(storageKey) {
@@ -271,6 +298,29 @@ function getPurchasePerceptionVatAmount(row) {
     || row['PERCEPCION 2% / 1% IVA']
     || getRowValueByTokens(row, ['PERCEPCION', '1'])
   );
+}
+
+function getF14IncomeRetentionAmount(row) {
+  return parseMoney(
+    row?.['Retencion Renta']
+    || row?.['RETENCION RENTA']
+    || getRowValueByTokens(row, ['RETENCION', 'RENTA'])
+  );
+}
+
+function isFseInicioRow(row) {
+  const typeCode = String(
+    row?.['Tipo DTE']
+    || row?.['Tipo DTE']
+    || row?.['Tipo de Documento']
+    || extractDteTypeFromControl(row?.['Numero de Control'] || row?.['NUMERO DE CONTROL'])
+    || ''
+  ).replace(/\D/g, '').padStart(2, '0');
+  return typeCode === '14';
+}
+
+function isF14IncomeRetentionRow(row) {
+  return isFseInicioRow(row) && getF14IncomeRetentionAmount(row) > 0;
 }
 
 function isInvalidDocumentCustomer(row) {
@@ -324,6 +374,8 @@ function formatAnexoTotal(value) {
 
 function isAnexoAmountColumn(header) {
   const normalizedHeader = normalizeColumnName(header);
+  if (F14_TOTAL_COLUMNS.has(normalizedHeader)) return true;
+  if (ANEXO_TOTAL_COLUMNS.has(normalizedHeader)) return true;
   return /VENTAS|DEBITO|MONTO|TOTAL|COMPRAS|CREDITO/i.test(normalizedHeader)
     && !/NUMERO|DOCUMENTO|CONTROL|ANEXO|NIT|NRC|DUI|TIPO|CLASE|FECHA/i.test(normalizedHeader);
 }
@@ -357,7 +409,76 @@ function getLeadingDigit(value) {
   return String(value || '').trim().match(/\d/)?.[0] || '';
 }
 
+function getDigitsBeforeDash(value, maxLength) {
+  const beforeDash = String(value || '').trim().split('-')[0] || '';
+  return beforeDash.replace(/\D/g, '').slice(0, maxLength);
+}
+
+function cleanDelimitedIdentifier(value, maxLength) {
+  return String(value || '').replace(/[-/|\s]/g, '').slice(0, maxLength);
+}
+
+function limitCsvText(value, maxLength) {
+  return String(value || '').trim().slice(0, maxLength);
+}
+
+function formatF14CsvMoney(value) {
+  return formatAnexoMoney(value).replace(/,/g, '');
+}
+
+function getF14PeriodValue(period = {}) {
+  const monthText = normalizeColumnName(period.month);
+  const monthMap = {
+    ENERO: '01',
+    FEBRERO: '02',
+    MARZO: '03',
+    ABRIL: '04',
+    MAYO: '05',
+    JUNIO: '06',
+    JULIO: '07',
+    AGOSTO: '08',
+    SEPTIEMBRE: '09',
+    SETIEMBRE: '09',
+    OCTUBRE: '10',
+    NOVIEMBRE: '11',
+    DICIEMBRE: '12'
+  };
+  const numericMonth = String(period.month || '').replace(/\D/g, '');
+  const month = monthMap[monthText] || (numericMonth ? numericMonth.padStart(2, '0').slice(-2) : '');
+  const year = String(period.year || '').replace(/\D/g, '').slice(0, 4);
+  return month && year.length === 4 ? `${month}${year}` : '';
+}
+
 function prepareAnexoRowForCsv(row, type) {
+  if (type === 'f14') {
+    return {
+      ...row,
+      DOMICILIADO: getLeadingDigit(row.DOMICILIADO),
+      'CODIGO DE PAIS': getDigitsBeforeDash(row['CODIGO DE PAIS'], 4),
+      'APELLIDOS, NOMBRES; RAZON O DENOMINACION SOCIAL.': limitCsvText(row['APELLIDOS, NOMBRES; RAZON O DENOMINACION SOCIAL.'], 100),
+      'NIT/NIE': cleanDelimitedIdentifier(row['NIT/NIE'], 14),
+      DUI: cleanDelimitedIdentifier(row.DUI, 9),
+      'CODIGO DE INGRESO': getDigitsBeforeDash(row['CODIGO DE INGRESO'], 2),
+      'MONTO DEVENGADO': formatF14CsvMoney(row['MONTO DEVENGADO']),
+      'MONTO DEVENGADO POR BONIFICACIONES Y GRATIFICACIONES': formatF14CsvMoney(row['MONTO DEVENGADO POR BONIFICACIONES Y GRATIFICACIONES']),
+      'IMPUESTO RETENIDO': formatF14CsvMoney(row['IMPUESTO RETENIDO']),
+      'AGUINALDO EXENTO': formatF14CsvMoney(row['AGUINALDO EXENTO']),
+      'AGUINALDO GRAVADO': formatF14CsvMoney(row['AGUINALDO GRAVADO']),
+      AFP: formatF14CsvMoney(row.AFP),
+      ISSS: formatF14CsvMoney(row.ISSS),
+      INPEP: formatF14CsvMoney(row.INPEP),
+      IPSFA: formatF14CsvMoney(row.IPSFA),
+      CEFAFA: formatF14CsvMoney(row.CEFAFA),
+      'BIENESTAR MAGISTERIAL': formatF14CsvMoney(row['BIENESTAR MAGISTERIAL']),
+      'ISSS IVM': formatF14CsvMoney(row['ISSS IVM']),
+      'TIPO DE OPERACION': getLeadingDigit(row['TIPO DE OPERACION']),
+      CLASIFICACION: getLeadingDigit(row.CLASIFICACION),
+      SECTOR: getLeadingDigit(row.SECTOR),
+      'TIPO DE COSTO/GASTO': getLeadingDigit(row['TIPO DE COSTO/GASTO']),
+      PERIODO: cleanDelimitedIdentifier(row.PERIODO, 6)
+    };
+  }
+
   if (type === 'purchases') {
     return {
       ...row,
@@ -591,6 +712,46 @@ function mapPerceptionVatToAnexoRow(row, providerLookup = new Map()) {
   };
 }
 
+function mapF14ToAnexoRow(row, providerF14Lookup = new Map(), periodValue = '') {
+  const documentId = row['Doc ID Sujeto Excluido']
+    || getRowValueByTokens(row, ['DOC', 'ID', 'SUJETO', 'EXCLUIDO'])
+    || '';
+  const documentDigits = String(documentId || '').replace(/\D/g, '');
+  const nitNie = documentDigits.length === 14 ? documentDigits : '';
+  const dui = documentDigits.length === 9 ? documentDigits : '';
+  const provider = providerF14Lookup.get(normalizeRegisterLookupKey(nitNie))
+    || providerF14Lookup.get(normalizeRegisterLookupKey(dui))
+    || new Map();
+
+  return {
+    DOMICILIADO: provider?.DOMICILIADO || '',
+    'CODIGO DE PAIS': provider?.['CODIGO DE PAIS'] || '',
+    'APELLIDOS, NOMBRES; RAZON O DENOMINACION SOCIAL.': row['Nombre sujetoExcluido']
+      || getRowValueByTokens(row, ['NOMBRE', 'SUJETOEXCLUIDO'])
+      || '',
+    'NIT/NIE': nitNie,
+    DUI: dui,
+    'CODIGO DE INGRESO': provider?.['CODIGO DE INGRESO'] || '',
+    'MONTO DEVENGADO': formatAnexoMoney(row['Subtotal Compra'] || getRowValueByTokens(row, ['SUBTOTAL', 'COMPRA'])),
+    'MONTO DEVENGADO POR BONIFICACIONES Y GRATIFICACIONES': '0.00',
+    'IMPUESTO RETENIDO': formatAnexoMoney(getF14IncomeRetentionAmount(row)),
+    'AGUINALDO EXENTO': '0.00',
+    'AGUINALDO GRAVADO': '0.00',
+    AFP: '0.00',
+    ISSS: '0.00',
+    INPEP: '0.00',
+    IPSFA: '0.00',
+    CEFAFA: '0.00',
+    'BIENESTAR MAGISTERIAL': '0.00',
+    'ISSS IVM': '0.00',
+    'TIPO DE OPERACION': provider?.['TIPO DE OPERACION (Renta)'] || '',
+    CLASIFICACION: provider?.['CLASIFICACION (Renta)'] || '',
+    SECTOR: provider?.['SECTOR (Renta)'] || '',
+    'TIPO DE COSTO/GASTO': provider?.['TIPO DE COSTO/GASTO (Renta)'] || '',
+    PERIODO: periodValue
+  };
+}
+
 function mapInvalidDocumentToAnexoRow(row) {
   return {
     'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
@@ -679,7 +840,23 @@ function applyAnexoFilters(rows, filters) {
   ));
 }
 
-function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, fcfSalesRows, providerLookup, purchaseRows }) {
+function compareAnexoValues(firstValue, secondValue) {
+  const firstText = String(firstValue || '').trim();
+  const secondText = String(secondValue || '').trim();
+  const firstNumber = Number(firstText.replace(/[$,\s]/g, ''));
+  const secondNumber = Number(secondText.replace(/[$,\s]/g, ''));
+
+  if (Number.isFinite(firstNumber) && Number.isFinite(secondNumber)) {
+    return firstNumber - secondNumber;
+  }
+
+  return firstText.localeCompare(secondText, 'es', {
+    numeric: true,
+    sensitivity: 'base'
+  });
+}
+
+function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, f14PeriodValue, fcfSalesRows, homeRows, providerF14Lookup, providerLookup, purchaseRows }) {
   const loadConfigByType = {
     salesCcf: {
       sourceRows: ccfSalesRows,
@@ -775,6 +952,17 @@ function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, fcfSalesRows, pr
       mapRow: mapInvalidDocumentToAnexoRow,
       includeRow: shouldIncludeInvalidDocumentRow,
       includeInvalidOrRejected: true
+    },
+    f14: {
+      sourceRows: homeRows,
+      sourceLabel: 'INICIO DTE14 FSE EMISOR',
+      usefulColumns: [
+        ['Doc ID Sujeto Excluido'],
+        ['Nombre sujetoExcluido'],
+        ['Subtotal Compra']
+      ],
+      mapRow: (row) => mapF14ToAnexoRow(row, providerF14Lookup, f14PeriodValue),
+      includeRow: isF14IncomeRetentionRow
     }
   };
 
@@ -888,12 +1076,17 @@ function getNoAnexoRowsMessage(type, { ccfSalesRows, fcfSalesRows, loadConfig, p
       : 'No hay datos en Libro de Ventas CCF ni Libro de Ventas FCF. Cargue datos en esos libros y vuelva a intentar.';
   }
 
+  if (type === 'f14') {
+    return 'No se encontraron DTE14 FSE EMISOR en INICIO. Cargue los JSON tipo 14 y vuelva a intentar.';
+  }
+
   return `No hay datos validos cargados en ${loadConfig.sourceLabel}.`;
 }
 
 export function AnexosView({
   ccfSalesRows = [],
   fcfSalesRows = [],
+  homeRows = [],
   purchaseRows = [],
   onRowsChange,
   savedRows,
@@ -919,7 +1112,9 @@ export function AnexosView({
   const [editingDraft, setEditingDraft] = useState(null);
   const [message, setMessage] = useState('');
   const [loadProgress, setLoadProgress] = useState(null);
+  const [f14Period, setF14Period] = useState({ month: '', year: '' });
   const [filters, setFilters] = useState({});
+  const [sortConfig, setSortConfig] = useState({ column: '', direction: 'asc' });
   const [filterSearch, setFilterSearch] = useState('');
   const [openFilter, setOpenFilter] = useState('');
   const [viewport, setViewport] = useState({ height: 600, scrollTop: 0 });
@@ -929,8 +1124,16 @@ export function AnexosView({
 
   const indexedRows = useMemo(() => rows.map((row, index) => ({ index, row })), [rows]);
   const visibleRows = useMemo(
-    () => applyAnexoFilters(indexedRows, filters),
-    [filters, indexedRows]
+    () => {
+      const filteredRows = applyAnexoFilters(indexedRows, filters);
+      if (!sortConfig.column) return filteredRows;
+      const direction = sortConfig.direction === 'desc' ? -1 : 1;
+
+      return [...filteredRows].sort((firstRow, secondRow) => (
+        compareAnexoValues(firstRow.row?.[sortConfig.column], secondRow.row?.[sortConfig.column]) * direction
+      ));
+    },
+    [filters, indexedRows, sortConfig]
   );
   const loadedItemCount = useMemo(
     () => rows.filter((row) => hasUsefulAnexoData(row, config.columns)).length,
@@ -978,6 +1181,7 @@ export function AnexosView({
     setRows((currentRows) => (currentRows === nextRows ? currentRows : nextRows));
     setMessage('');
     setFilters({});
+    setSortConfig({ column: '', direction: 'asc' });
     setOpenFilter('');
     setFilterSearch('');
     setManualColumnWidths({});
@@ -1042,10 +1246,15 @@ export function AnexosView({
   async function loadData() {
     const clientLookup = loadClientRegisterLookup();
     const providerLookup = loadProviderRegisterLookup();
+    const providerF14Lookup = loadProviderF14RegisterLookup();
+    const f14PeriodValue = getF14PeriodValue(f14Period);
     const loadConfig = getAnexoLoadConfig(type, {
       ccfSalesRows,
       clientLookup,
+      f14PeriodValue,
       fcfSalesRows,
+      homeRows,
+      providerF14Lookup,
       providerLookup,
       purchaseRows
     });
@@ -1085,10 +1294,67 @@ export function AnexosView({
   function clearData() {
     setRows(initialRows);
     setFilters({});
+    setSortConfig({ column: '', direction: 'asc' });
     setOpenFilter('');
     setFilterSearch('');
     cancelEditing();
     setMessage('Datos del anexo borrados correctamente.');
+  }
+
+  async function exportF14ExcelTemplate() {
+    try {
+      if (!window.dteApp?.exportRegisterTemplate) {
+        setMessage('Reinicie la aplicacion para generar plantillas Excel.');
+        return;
+      }
+
+      const filePath = await window.dteApp.exportRegisterTemplate({
+        columns: config.columns.map(([header]) => header),
+        title: config.title
+      });
+      if (filePath) setMessage(`Plantilla creada: ${filePath}`);
+    } catch (error) {
+      setMessage(`No se pudo crear la plantilla: ${error.message}`);
+    }
+  }
+
+  async function importF14ExcelTemplate() {
+    try {
+      if (!window.dteApp?.importRegisterExcel) {
+        setMessage('Reinicie la aplicacion para importar Excel.');
+        return;
+      }
+
+      const importedRows = await window.dteApp.importRegisterExcel({
+        columns: config.columns.map(([header]) => header),
+        title: config.title
+      });
+      if (!importedRows) return;
+
+      const emptyRowTemplate = createEmptyAnexoRow(config.columns);
+      const nextRows = importedRows
+        .map((row) => ({ ...emptyRowTemplate, ...row }))
+        .filter((row) => hasUsefulAnexoData(row, config.columns));
+
+      if (!nextRows.length) {
+        setMessage('No se encontraron datos en la plantilla seleccionada.');
+        return;
+      }
+
+      const emptyRowsNeeded = Math.max(22 - nextRows.length, 1);
+      setRows([
+        ...nextRows,
+        ...Array.from({ length: emptyRowsNeeded }, () => createEmptyAnexoRow(config.columns))
+      ]);
+      setFilters({});
+      setSortConfig({ column: '', direction: 'asc' });
+      setOpenFilter('');
+      setFilterSearch('');
+      cancelEditing();
+      setMessage(`${nextRows.length} registro(s) importado(s) desde Excel.`);
+    } catch (error) {
+      setMessage(`No se pudo importar Excel: ${error.message}`);
+    }
   }
 
   async function exportCsv() {
@@ -1157,6 +1423,14 @@ export function AnexosView({
     });
   }, []);
 
+  function toggleSort(header) {
+    setSortConfig((currentSort) => ({
+      column: header,
+      direction: currentSort.column === header && currentSort.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setViewport((current) => ({ ...current, scrollTop: 0 }));
+  }
+
   const handleTableScroll = useCallback((event) => {
     const target = event.currentTarget;
     pendingViewportRef.current = {
@@ -1183,12 +1457,38 @@ export function AnexosView({
         <div className="anexosToolbar" data-tour="anexos-toolbar">
           {statusMessage ? <span className="anexosMessage">{statusMessage}</span> : null}
           <span className="anexosCounter">{loadedItemCount} item(s) cargado(s)</span>
+          {type === 'f14' ? (
+            <>
+              <button className="actionButton" disabled={isLoadingData} onClick={exportF14ExcelTemplate} type="button">PLANTILLA EXCEL</button>
+              <button className="actionButton" disabled={isLoadingData} onClick={importF14ExcelTemplate} type="button">IMPORTAR EXCEL</button>
+            </>
+          ) : null}
           <button className="actionButton" data-tour="anexo-load-button" disabled={isLoadingData} onClick={loadData} type="button">CARGAR DATOS</button>
           <button className="actionButton" data-tour="anexo-csv-button" disabled={isLoadingData} onClick={exportCsv} type="button">GENERAR CSV</button>
           <button className="actionButton dangerActionButton" data-tour="anexo-clear-button" disabled={isLoadingData} onClick={clearData} type="button">BORRAR DATOS</button>
         </div>
-        <div className="anexosHeader">
+        <div className={`anexosHeader ${type === 'f14' ? 'anexosHeaderF14' : ''}`}>
           <h1 className="anexosTitle">{config.title}</h1>
+          {type === 'f14' ? (
+            <div className="anexosF14PeriodFields" aria-label="Periodo Anexo F14">
+              <label className="anexosF14PeriodField">
+                <span>MES</span>
+                <input
+                  onChange={(event) => setF14Period((current) => ({ ...current, month: event.target.value }))}
+                  type="text"
+                  value={f14Period.month}
+                />
+              </label>
+              <label className="anexosF14PeriodField">
+                <span>AÑO</span>
+                <input
+                  onChange={(event) => setF14Period((current) => ({ ...current, year: event.target.value }))}
+                  type="text"
+                  value={f14Period.year}
+                />
+              </label>
+            </div>
+          ) : null}
         </div>
         <div className="anexosTableViewport" onScroll={handleTableScroll}>
           <div className="anexosTable" style={{ gridTemplateColumns }}>
@@ -1207,8 +1507,11 @@ export function AnexosView({
             <div className="anexosHeadCell anexosActionsHead">ACCIONES</div>
             <div className="anexosMetaCell anexosCorrHead">CORR.</div>
             {config.columns.map(([header]) => (
-              <div className="anexosHeadCell" key={header}>
+              <div className="anexosHeadCell" key={header} onClick={() => toggleSort(header)} role="columnheader" title={`Ordenar ${header}`}>
                 <span>{header}</span>
+                {sortConfig.column === header ? (
+                  <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
+                ) : null}
                 <button
                   className={`excelFilterButton ${hasActiveColumnFilter(filters[header], filterValuesByColumn[header]) ? 'active' : ''}`}
                   onClick={(event) => {
@@ -1228,6 +1531,8 @@ export function AnexosView({
                     onClose={() => setOpenFilter('')}
                     onFilterSearchChange={setFilterSearch}
                     onFiltersChange={setFilters}
+                    onSortChange={setSortConfig}
+                    sortConfig={sortConfig}
                     selectedValues={filters[header] || []}
                     values={openFilterValues}
                   />
@@ -1337,6 +1642,8 @@ function AnexoFilterMenu({
   onClose,
   onFilterSearchChange,
   onFiltersChange,
+  onSortChange,
+  sortConfig,
   selectedValues,
   values
 }) {
@@ -1368,8 +1675,25 @@ function AnexoFilterMenu({
         value={filterSearch}
       />
       <div className="excelFilterActions">
+        <button
+          className={sortConfig?.column === column && sortConfig?.direction === 'asc' ? 'active' : ''}
+          onClick={() => onSortChange({ column, direction: 'asc' })}
+          type="button"
+        >
+          Menor a mayor
+        </button>
+        <button
+          className={sortConfig?.column === column && sortConfig?.direction === 'desc' ? 'active' : ''}
+          onClick={() => onSortChange({ column, direction: 'desc' })}
+          type="button"
+        >
+          Mayor a menor
+        </button>
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
-        <button onClick={onClose} type="button">Cerrar</button>
+        <button onClick={(event) => {
+          event.stopPropagation();
+          onClose();
+        }} type="button">Cerrar</button>
       </div>
       <div className="excelFilterValues">
         {searchedValues.map((value) => (

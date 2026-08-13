@@ -1,5 +1,5 @@
 import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
-import { CircleX, Info, X } from 'lucide-react';
+import { CircleX, Info, LogOut, Power, X } from 'lucide-react';
 import { AppHeader } from './components/AppHeader.jsx';
 import { AppTour } from './components/AppTour.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
@@ -34,6 +34,7 @@ import {
 } from './lib/tableRowUtils.js';
 
 import closeIcon from './assets/close.png';
+import warningFlaticonIcon from './assets/warning-flaticon.svg';
 
 const VirtualDataTable = lazy(() => import('./components/VirtualDataTable.jsx').then((module) => ({
   default: module.VirtualDataTable
@@ -129,6 +130,54 @@ function getInicioAlertCounts(rows) {
   return { duplicateCount, invalidCount, rejectedCount };
 }
 
+function getNotLoadedCount(totalFileCount, loadedCount) {
+  return Math.max((totalFileCount || loadedCount) - loadedCount, 0);
+}
+
+function buildLoadErrorReportRows(errors, notLoadedCount, folder) {
+  const errorRows = Array.isArray(errors) ? [...errors] : [];
+  const missingCount = Math.max(notLoadedCount - errorRows.length, 0);
+
+  if (!missingCount) return errorRows;
+
+  return [
+    ...errorRows,
+    ...Array.from({ length: missingCount }, (_, index) => ({
+      filePath: folder || '',
+      fileName: 'Archivo no identificado',
+      message: `Archivo no cargado sin detalle tecnico registrado (${index + 1} de ${missingCount}). Revise que el JSON tenga identificacion.tipoDte, una estructura compatible con el tipo seleccionado y que no este duplicado o fuera de los filtros aplicados.`
+    }))
+  ];
+}
+
+function getPathFileName(filePath) {
+  return String(filePath || '').split(/[\\/]/).filter(Boolean).pop() || '';
+}
+
+function normalizeFilePathKey(filePath) {
+  return String(filePath || '').trim().toLowerCase();
+}
+
+function buildExactLoadErrorReportRows({ documents, errors, filePaths, folder, notLoadedCount }) {
+  const errorRows = Array.isArray(errors) ? [...errors] : [];
+  const erroredFilePaths = new Set(errorRows.map((error) => normalizeFilePathKey(error?.filePath)).filter(Boolean));
+  const loadedFilePaths = new Set((documents || []).map((document) => normalizeFilePathKey(document?.sourceFile)).filter(Boolean));
+  const missingRows = [];
+
+  for (const filePath of filePaths || []) {
+    const normalizedPath = normalizeFilePathKey(filePath);
+    if (!normalizedPath || loadedFilePaths.has(normalizedPath) || erroredFilePaths.has(normalizedPath)) continue;
+    missingRows.push({
+      filePath,
+      fileName: getPathFileName(filePath),
+      message: 'El archivo fue revisado, pero no genero registros visibles para la estructura seleccionada. Revise si corresponde a otro tipo de DTE, si fue filtrado por la estructura actual o si no contiene datos utiles para cargar.'
+    });
+  }
+
+  const reportRows = [...errorRows, ...missingRows];
+  return reportRows.length ? reportRows : buildLoadErrorReportRows(errorRows, notLoadedCount, folder);
+}
+
 function pruneUnavailableFilters(filters, rows, columns) {
   const availableColumns = new Set(columns);
   const nextFilters = {};
@@ -163,6 +212,7 @@ export default function App() {
   const [folder, setFolder] = useState('');
   const [documents, setDocuments] = useState([]);
   const [errors, setErrors] = useState([]);
+  const [loadedFilePaths, setLoadedFilePaths] = useState([]);
   const [totalFileCount, setTotalFileCount] = useState(0);
   const [typeCode, setTypeCode] = useState('01');
   const [structureName, setStructureName] = useState(DEFAULT_STRUCTURE_NAME);
@@ -396,6 +446,10 @@ export default function App() {
     () => getInicioAlertCounts(rows),
     [rows]
   );
+  const notLoadedCount = useMemo(
+    () => getNotLoadedCount(totalFileCount, documents.length),
+    [documents.length, totalFileCount]
+  );
 
   const activeIvaBookType = activeView === 'iva-books-ccf-sales'
     ? 'ccfSales'
@@ -433,6 +487,7 @@ export default function App() {
     rows: filteredRows,
     setDocuments,
     setErrors,
+    setLoadedFilePaths,
     setFolder,
     setLoading,
     setShowLoadCancelledModal,
@@ -443,14 +498,21 @@ export default function App() {
   const selectedQueryUrl = useMemo(() => buildHaciendaQueryUrl(selectedRow), [selectedRow]);
 
   async function exportLoadErrorsExcel() {
-    if (!errors.length) {
+    const reportRows = buildExactLoadErrorReportRows({
+      documents,
+      errors,
+      filePaths: loadedFilePaths,
+      folder,
+      notLoadedCount
+    });
+    if (!reportRows.length) {
       setStatus('No hay archivos no cargados para generar reporte.');
       return;
     }
 
     try {
       setLoading(true);
-      const filePath = await window.dteApp.exportLoadErrorExcel(errors);
+      const filePath = await window.dteApp.exportLoadErrorExcel(reportRows);
       if (filePath) setStatus(`Reporte de archivos no cargados exportado: ${filePath}`);
     } catch (error) {
       setStatus(`No se pudo generar el reporte de no cargados: ${error.message}`);
@@ -560,9 +622,9 @@ export default function App() {
     const stampsByCode = new Map();
 
     for (const row of filteredRows) {
-      const code = getSelectedGenerationCode(row);
-      const localStamp = String(row['Serie del Documento'] || '').trim();
-      const publicStamp = String(row['Sello de Recepcion'] || '').trim();
+      const code = normalizeGenerationKey(getSelectedGenerationCode(row));
+      const localStamp = String(row['Serie del Documento'] || row['Serie de Documento'] || row['Serie Documento'] || '').trim();
+      const publicStamp = String(row['Sello de Recepcion'] || row['selloVal'] || '').trim();
       if (code && !localStamp && publicStamp) stampsByCode.set(code, publicStamp);
     }
 
@@ -573,7 +635,7 @@ export default function App() {
 
     let updatedCount = 0;
     setDocuments((currentDocuments) => currentDocuments.map((document) => {
-      const documentCode = getDocumentGenerationCode(document);
+      const documentCode = normalizeGenerationKey(getDocumentGenerationCode(document));
       const publicStamp = stampsByCode.get(documentCode);
       const currentStamp = String(
         document?.payload?.selloRecepcion
@@ -590,7 +652,8 @@ export default function App() {
         ...document,
         payload: {
           ...document.payload,
-          selloRecepcion: publicStamp
+          selloRecepcion: publicStamp,
+          selloRecibido: publicStamp
         }
       };
     }));
@@ -638,6 +701,7 @@ export default function App() {
     setDocuments([]);
     setRows([]);
     setErrors([]);
+    setLoadedFilePaths([]);
     setColumnFilters({});
     setHomeSortConfig({ column: '', direction: 'asc' });
     setHomeFiltersByKey((current) => ({ ...current, [homeFilterStorageKey]: {} }));
@@ -717,7 +781,7 @@ export default function App() {
             onStructureNameChange={setStructureName}
             onToDateChange={setToDate}
             onTypeCodeChange={setTypeCode}
-            notLoadedCount={errors.length}
+            notLoadedCount={notLoadedCount}
             structureName={structureName}
             toDate={toDate}
             typeCode={typeCode}
@@ -923,6 +987,7 @@ export default function App() {
             key={activeAnexoType}
             ccfSalesRows={ivaBookRowsByType.ccfSales || []}
             fcfSalesRows={ivaBookRowsByType.fcfSales || []}
+            homeRows={rows}
             purchaseRows={ivaBookRowsByType.purchases || []}
             onRowsChange={handleAnexoRowsChange}
             savedRows={anexoRowsByType[activeAnexoType]}
@@ -951,30 +1016,37 @@ export default function App() {
         </Suspense>
       )}
       {showExitConfirmModal ? (
-        <div className="registerModalBackdrop">
+        <div className="registerModalBackdrop exitConfirmBackdrop">
           <div className="registerModal clearConfirmModal exitConfirmModal" role="dialog" aria-modal="true" aria-labelledby="exit-confirm-modal-title">
             <div className="registerModalHeader exitConfirmHeader">
               <div className="exitConfirmTitle">
                 <span className="exitConfirmIcon">
-                  <img src={closeIcon} alt="Exit icon" style={{ width: '22px', height: '22px' }} />
+                  <Power size={34} strokeWidth={3} />
                 </span>
+                <span className="exitConfirmDivider" aria-hidden="true" />
                 <h2 id="exit-confirm-modal-title">Salir del sistema</h2>
               </div>
               <button className="modalIconButton exitConfirmCloseButton" onClick={() => setShowExitConfirmModal(false)} type="button">
-                <X size={18} />
+                <X size={42} strokeWidth={3} />
               </button>
             </div>
-            <p className="font-bold font-xl clearConfirmText">
-              Se borrara toda la informacion cargada. Esta acción no se puede deshacer
-            </p>
-            <p className="font-xl clearConfirmText">
-               ¿Estás seguro de salir?.
-            </p>
-            <div className="registerModalActions">
-              <button className="actionButton dangerActionButton" onClick={confirmExitApp} type="button">
+            <div className="exitConfirmBody">
+              <div className="exitConfirmWarningIcon">
+                <img className="exitConfirmWarningImage" src={warningFlaticonIcon} alt="Advertencia" />
+              </div>
+              <span className="exitConfirmBodyDivider" aria-hidden="true" />
+              <div className="exitConfirmMessage">
+                <p className="exitConfirmPrimaryText">Se borrara todo la informacion cargada. Esta accion no se puede deshacer.</p>
+                <p className="exitConfirmSecondaryText">Seguro que quieres salir del sistema?</p>
+              </div>
+            </div>
+            <div className="registerModalActions exitConfirmActions">
+              <button className="exitConfirmAcceptButton" onClick={confirmExitApp} type="button">
+                <LogOut size={24} />
                 Aceptar
               </button>
-              <button className="actionButton" onClick={() => setShowExitConfirmModal(false)} type="button">
+              <button className="exitConfirmCancelButton" onClick={() => setShowExitConfirmModal(false)} type="button">
+                <CircleX size={24} />
                 Cancelar
               </button>
             </div>

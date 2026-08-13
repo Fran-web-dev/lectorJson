@@ -7,6 +7,7 @@ import {
   savePersistedFilters,
   savePersistedSort
 } from '../lib/filterPersistence.js';
+import { CODE_APPENDIX_TABLES } from '../data/codeAppendixTables.js';
 
 const INITIAL_ROW_COUNT = 14;
 const REGISTER_CLEAR_KEY = '1234';
@@ -173,6 +174,26 @@ const PROVIDER_F14_DOMICILED_OPTIONS = [
   '2 NO DOMICILIADO'
 ];
 
+const COUNTRY_CODE_OPTIONS = (() => {
+  const countryTable = CODE_APPENDIX_TABLES.find((table) => table.title === 'CODIGO DE PAIS');
+  const codeAndNameIndex = countryTable?.headers?.findIndex((header) => normalizeKey(header) === 'CODIGO Y NOMBRE') ?? -1;
+  if (!countryTable || codeAndNameIndex < 0) return [];
+
+  return countryTable.rows
+    .map((row) => String(row?.[codeAndNameIndex] || '').trim())
+    .filter(Boolean);
+})();
+
+const INCOME_CODE_OPTIONS = (() => {
+  const incomeTable = CODE_APPENDIX_TABLES.find((table) => table.title === 'CODIGO DE INGRESO');
+  const codeAndDescriptionIndex = incomeTable?.headers?.findIndex((header) => normalizeKey(header) === 'CODIGO Y DESCRIPCION') ?? -1;
+  if (!incomeTable || codeAndDescriptionIndex < 0) return [];
+
+  return incomeTable.rows
+    .map((row) => String(row?.[codeAndDescriptionIndex] || '').trim())
+    .filter(Boolean);
+})();
+
 function createRows(columns, count = INITIAL_ROW_COUNT) {
   return Array.from({ length: count }, () => createEmptyRow(columns));
 }
@@ -251,6 +272,10 @@ function getRegisterColumnOptions(type, header, value = '') {
     : type === 'providers' || type === 'providersF14'
       ? type === 'providersF14' && header === 'DOMICILIADO'
         ? PROVIDER_F14_DOMICILED_OPTIONS
+        : type === 'providersF14' && header === 'CODIGO DE PAIS'
+          ? COUNTRY_CODE_OPTIONS
+          : type === 'providersF14' && header === 'CODIGO DE INGRESO'
+            ? INCOME_CODE_OPTIONS
         : header === 'TIPO DE OPERACION (Renta)'
         ? PROVIDER_TYPE_OPERATION_OPTIONS
         : header === 'CLASIFICACION (Renta)'
@@ -467,6 +492,13 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
       savePersistedSort(getRegisterSortStorageKey(type), nextSort);
       return nextSort;
     });
+  }
+
+  function applySort(columnHeader, direction) {
+    if (columnHeader === 'CORR.') return;
+    const nextSort = { column: columnHeader, direction };
+    savePersistedSort(getRegisterSortStorageKey(type), nextSort);
+    setSortConfig(nextSort);
   }
 
   function openAddModal() {
@@ -770,7 +802,9 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                     onClose={() => setOpenFilter(null)}
                     onFilterSearchChange={setFilterSearch}
                     onFiltersChange={handleFiltersChange}
+                    onSortChange={applySort}
                     selectedValues={filters[column.header] || []}
+                    sortConfig={sortConfig}
                     values={openFilterValues}
                   />
                 ) : null}
@@ -807,6 +841,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                       className="registerEditInput"
                       comboKey={`${rowIndex}-${column.header}`}
                       column={column}
+                      filterSuggestions={type === 'providersF14' && ['CODIGO DE PAIS', 'CODIGO DE INGRESO'].includes(column.header)}
                       onChange={(value) => updateExistingCell(row, column.header, value)}
                       onKeyDown={(event) => copyCellFromAbove(event, row, rowIndex, column.header)}
                       options={getRegisterColumnOptions(type, column.header, row[column.header])}
@@ -837,6 +872,7 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                   <span>{column.header}</span>
                   <RegisterFieldControl
                     column={column}
+                    filterSuggestions={type === 'providersF14' && ['CODIGO DE PAIS', 'CODIGO DE INGRESO'].includes(column.header)}
                     options={getRegisterColumnOptions(type, column.header, draftRow[column.header])}
                     value={draftRow[column.header] || ''}
                     onChange={(value) => setDraftRow((currentRow) => ({
@@ -902,6 +938,7 @@ function RegisterFieldControl({
   className = '',
   column,
   comboKey = '',
+  filterSuggestions = false,
   onChange,
   onKeyDown,
   options = [],
@@ -914,6 +951,10 @@ function RegisterFieldControl({
   const comboRef = useRef(null);
   const isControlledCombo = Boolean(comboKey && setActiveComboKey);
   const comboIsOpen = isControlledCombo ? activeComboKey === comboKey : isOpen;
+  const normalizedSuggestionSearch = String(value || '').trim().toLowerCase();
+  const visibleOptions = filterSuggestions && normalizedSuggestionSearch
+    ? options.filter((option) => option.toLowerCase().includes(normalizedSuggestionSearch)).slice(0, 80)
+    : options;
 
   function openOptions() {
     if (closeTimerRef.current) window.clearTimeout(closeTimerRef.current);
@@ -973,7 +1014,7 @@ function RegisterFieldControl({
         </button>
         {comboIsOpen ? (
           <div className="registerComboboxMenu" style={menuStyle}>
-            {options.map((option) => (
+            {visibleOptions.length ? visibleOptions.map((option) => (
               <button
                 className="registerComboboxOption"
                 key={option}
@@ -987,7 +1028,9 @@ function RegisterFieldControl({
               >
                 {option}
               </button>
-            ))}
+            )) : (
+              <div className="registerComboboxEmpty">Sin coincidencias</div>
+            )}
           </div>
         ) : null}
       </div>
@@ -1010,7 +1053,9 @@ function RegisterFilterMenu({
   onClose,
   onFilterSearchChange,
   onFiltersChange,
+  onSortChange,
   selectedValues,
+  sortConfig,
   values
 }) {
   const normalizedSearch = filterSearch.trim().toLowerCase();
@@ -1039,7 +1084,7 @@ function RegisterFilterMenu({
   }
 
   return (
-    <div className="excelFilterMenu registerFilterMenu">
+    <div className="excelFilterMenu registerFilterMenu" onClick={(event) => event.stopPropagation()}>
       <div className="excelFilterTitle">{column}</div>
       <input
         className="excelFilterSearch"
@@ -1048,8 +1093,25 @@ function RegisterFilterMenu({
         value={filterSearch}
       />
       <div className="excelFilterActions">
+        <button
+          className={sortConfig?.column === column && sortConfig?.direction === 'asc' ? 'active' : ''}
+          onClick={() => onSortChange(column, 'asc')}
+          type="button"
+        >
+          Menor a mayor
+        </button>
+        <button
+          className={sortConfig?.column === column && sortConfig?.direction === 'desc' ? 'active' : ''}
+          onClick={() => onSortChange(column, 'desc')}
+          type="button"
+        >
+          Mayor a menor
+        </button>
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
-        <button onClick={onClose} type="button">Cerrar</button>
+        <button onClick={(event) => {
+          event.stopPropagation();
+          onClose();
+        }} type="button">Cerrar</button>
       </div>
       <div className="excelFilterValues">
         {matchingValues.map((value) => (

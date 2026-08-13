@@ -1060,6 +1060,13 @@ export function IvaBooksView({
     setViewport((current) => ({ ...current, scrollTop: 0 }));
   }
 
+  function applySort(columnHeader, direction) {
+    const nextSort = { column: columnHeader, direction };
+    savePersistedSort(getIvaBookSortStorageKey(type), nextSort);
+    setSortConfig(nextSort);
+    setViewport((current) => ({ ...current, scrollTop: 0 }));
+  }
+
   function clearSortConfig() {
     const emptySort = { column: '', direction: 'asc' };
     setSortConfig(emptySort);
@@ -1484,7 +1491,9 @@ export function IvaBooksView({
                   onClose={() => setOpenFilter('')}
                   onFilterSearchChange={setFilterSearch}
                   onFiltersChange={handleFiltersChange}
+                  onSortChange={applySort}
                   selectedValues={filters[column.header] || []}
+                  sortConfig={sortConfig}
                   values={openFilterValues}
                 />
               ) : null}
@@ -1658,7 +1667,9 @@ function IvaBookFilterMenu({
   onClose,
   onFilterSearchChange,
   onFiltersChange,
+  onSortChange,
   selectedValues,
+  sortConfig,
   values
 }) {
   const normalizedSearch = filterSearch.trim().toLowerCase();
@@ -1697,8 +1708,25 @@ function IvaBookFilterMenu({
         value={filterSearch}
       />
       <div className="excelFilterActions">
+        <button
+          className={sortConfig?.column === column && sortConfig?.direction === 'asc' ? 'active' : ''}
+          onClick={() => onSortChange(column, 'asc')}
+          type="button"
+        >
+          Menor a mayor
+        </button>
+        <button
+          className={sortConfig?.column === column && sortConfig?.direction === 'desc' ? 'active' : ''}
+          onClick={() => onSortChange(column, 'desc')}
+          type="button"
+        >
+          Mayor a menor
+        </button>
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">Todos</button>
-        <button onClick={onClose} type="button">Cerrar</button>
+        <button onClick={(event) => {
+          event.stopPropagation();
+          onClose();
+        }} type="button">Cerrar</button>
       </div>
       <div className="excelFilterValues">
         {searchedValues.map((value) => (

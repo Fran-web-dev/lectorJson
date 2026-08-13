@@ -1,9 +1,10 @@
-import { HACIENDA_PUBLIC_COLUMN_SET, LOCAL_GENERATION_CODE_COLUMN } from './columnConstants.js';
+import { HACIENDA_PUBLIC_COLUMN_NAMES, HACIENDA_PUBLIC_COLUMN_SET, LOCAL_GENERATION_CODE_COLUMN } from './columnConstants.js';
 
 export function orderColumns(columns) {
   const normalColumns = columns.filter((column) => !HACIENDA_PUBLIC_COLUMN_SET.has(column) && column !== 'Tipo de Item');
   const itemTypeColumns = columns.filter((column) => column === 'Tipo de Item');
-  const haciendaColumns = columns.filter((column) => HACIENDA_PUBLIC_COLUMN_SET.has(column));
+  const haciendaColumnSet = new Set(columns.filter((column) => HACIENDA_PUBLIC_COLUMN_SET.has(column)));
+  const haciendaColumns = HACIENDA_PUBLIC_COLUMN_NAMES.filter((column) => haciendaColumnSet.has(column));
   return [...normalColumns, ...itemTypeColumns, ...haciendaColumns];
 }
 

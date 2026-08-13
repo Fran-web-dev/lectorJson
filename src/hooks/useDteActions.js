@@ -5,6 +5,7 @@ export function useDteActions({
   rows,
   setDocuments,
   setErrors,
+  setLoadedFilePaths,
   setFolder,
   setLoading,
   setShowLoadCancelledModal,
@@ -39,10 +40,11 @@ export function useDteActions({
     setFolder(result.sourcePath);
     setDocuments(result.documents);
     setErrors(result.errors);
+    setLoadedFilePaths?.(Array.isArray(result.filePaths) ? result.filePaths : []);
     setTotalFileCount(result.totalFiles || result.documents.length);
     const reportText = result.errorReportPath ? ` Reporte de no cargados: ${result.errorReportPath}` : '';
     setStatus(`${result.documents.length} registro(s) cargado(s) desde ${result.sourcePath}.${reportText}`);
-  }, [setDocuments, setErrors, setFolder, setStatus, setTotalFileCount]);
+  }, [setDocuments, setErrors, setFolder, setLoadedFilePaths, setStatus, setTotalFileCount]);
 
   const selectFolder = useCallback(async () => {
     loadCancelledRef.current = false;

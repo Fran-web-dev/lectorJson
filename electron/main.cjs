@@ -160,7 +160,7 @@ function shouldSkipDirectory(name) {
 function isSupportedDataFile(name) {
   if (/^\./.test(name)) return false;
   const extension = path.extname(name).toLowerCase();
-  return extension === '.json' || extension === '.csv' || extension === '';
+  return extension === '.json' || extension === '';
 }
 
 function createFileLoadController() {
@@ -218,6 +218,10 @@ async function collectFiles(folderPath, controller) {
 }
 
 async function readDataFile(filePath) {
+  if (/\.csv$/i.test(filePath)) {
+    throw new Error('Los archivos CSV no se cargan en INICIO. Seleccione un archivo JSON.');
+  }
+
   const raw = await fs.readFile(filePath, 'utf8');
   const trimmed = raw.trim();
 
@@ -391,7 +395,7 @@ async function loadFiles(filePaths, sourcePath, progressWebContents, controller)
   const documents = documentsByFile.flat();
   const enrichedDocuments = ENRICH_PUBLIC_QUERY_ON_LOAD ? await enrichDocumentsWithPublicQuery(documents) : documents;
   const errorReportPath = errors.length ? await writeLoadErrorReport(errors, sourcePath) : '';
-  return { documents: enrichedDocuments, errors, errorReportPath, sourcePath, totalFiles: filePaths.length };
+  return { documents: enrichedDocuments, errors, errorReportPath, filePaths, sourcePath, totalFiles: filePaths.length };
 }
 
 async function writeLoadErrorReport(errors, sourcePath) {
@@ -561,12 +565,11 @@ ipcMain.handle('folder:reload', async (event, folderPath) => {
 
 ipcMain.handle('files:select', async (event) => {
   const result = await dialog.showOpenDialog({
-    title: 'Seleccione archivos JSON o CSV',
+    title: 'Seleccione archivos JSON',
     properties: ['openFile', 'multiSelections'],
     filters: [
-      { name: 'Archivos JSON, CSV o sin extension', extensions: ['json', 'csv', '*'] },
-      { name: 'JSON', extensions: ['json'] },
-      { name: 'CSV', extensions: ['csv'] }
+      { name: 'Archivos JSON o sin extension', extensions: ['json', '*'] },
+      { name: 'JSON', extensions: ['json'] }
     ]
   });
 
@@ -899,7 +902,7 @@ async function writeLoadErrorExcel(filePath, errors) {
     worksheet.addRow({
       item: index + 1,
       filePath: fullPath,
-      fileName: path.basename(fullPath),
+      fileName: error?.fileName || path.basename(fullPath),
       reason: error?.message || 'No especificado'
     });
   });

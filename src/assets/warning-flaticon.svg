@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Advertencia">
+  <defs>
+    <linearGradient id="warning-bg" x1="256" x2="256" y1="28" y2="484" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffe5e8"/>
+      <stop offset="1" stop-color="#ffd5dc"/>
+    </linearGradient>
+    <linearGradient id="warning-triangle" x1="256" x2="256" y1="118" y2="395" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#c90018"/>
+      <stop offset="1" stop-color="#9a000e"/>
+    </linearGradient>
+    <filter id="warning-shadow" x="69" y="83" width="374" height="350" filterUnits="userSpaceOnUse">
+      <feDropShadow dx="0" dy="18" flood-color="#9a000e" flood-opacity="0.25" stdDeviation="16"/>
+    </filter>
+  </defs>
+  <circle cx="256" cy="256" r="228" fill="url(#warning-bg)"/>
+  <path
+    fill="url(#warning-triangle)"
+    filter="url(#warning-shadow)"
+    d="M225.5 128.1 87.3 367.4c-13.5 23.4 3.4 52.6 30.4 52.6h276.6c27 0 43.9-29.2 30.4-52.6L286.5 128.1c-13.5-23.4-47.5-23.4-61 0Z"
+  />
+  <rect width="37" height="141" x="237.5" y="202" fill="#fff" rx="18.5"/>
+  <circle cx="256" cy="374" r="21" fill="#fff"/>
+</svg>

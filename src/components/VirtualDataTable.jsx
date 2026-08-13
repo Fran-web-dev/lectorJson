@@ -560,7 +560,7 @@ function FilterMenu({
   }
 
   return (
-    <div className="excelFilterMenu" style={{ left: position.left, top: position.top }}>
+    <div className="excelFilterMenu" onClick={(event) => event.stopPropagation()} style={{ left: position.left, top: position.top }}>
       <div className="excelFilterTitle">{column}</div>
       <input
         className="excelFilterSearch"
@@ -592,7 +592,10 @@ function FilterMenu({
         <button onClick={() => setColumnValues(allValuesSelected ? [NO_FILTER_VALUES_SELECTED] : values)} type="button">
           Todos
         </button>
-        <button onClick={onClose} type="button">
+        <button onClick={(event) => {
+          event.stopPropagation();
+          onClose();
+        }} type="button">
           Cerrar
         </button>
       </div>
