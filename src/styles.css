@@ -805,9 +805,9 @@ body,
   }
 
   .exitConfirmModal {
-    @apply max-w-5xl border-red-500;
-    border-radius: 24px;
-    box-shadow: 0 36px 80px -30px rgba(15, 23, 42, 0.95);
+    @apply max-w-2xl border-red-500;
+    border-radius: 18px;
+    box-shadow: 0 28px 62px -30px rgba(15, 23, 42, 0.92);
   }
 
   .emptyTableModal {
@@ -819,7 +819,7 @@ body,
   }
 
   .exitConfirmHeader {
-    @apply min-h-28 border-red-700 px-8 py-6 text-white;
+    @apply min-h-20 border-red-700 px-5 py-4 text-white;
     background:
       radial-gradient(circle at 93% 18%, rgba(255, 255, 255, 0.12), transparent 28%),
       linear-gradient(165deg, #7f0008 0%, #b10717 52%, #8b000b 100%);
@@ -830,22 +830,22 @@ body,
   }
 
   .exitConfirmHeader h2 {
-    @apply text-4xl font-black text-white;
+    @apply text-2xl font-black text-white;
     text-shadow: 0 2px 10px rgba(0, 0, 0, 0.24);
   }
 
   .exitConfirmTitle {
-    @apply flex items-center gap-6;
+    @apply flex items-center gap-4;
   }
 
   .exitConfirmIcon {
-    @apply inline-flex h-16 w-16 items-center justify-center rounded-full border border-white/25 text-white;
+    @apply inline-flex h-11 w-11 items-center justify-center rounded-full border border-white/25 text-white;
     background: linear-gradient(145deg, #ff4057 0%, #c60a1c 100%);
     box-shadow: 0 14px 34px -12px rgba(255, 64, 87, 0.9);
   }
 
   .exitConfirmDivider {
-    @apply h-14 w-1 rounded-full bg-red-200/70;
+    @apply h-10 w-1 rounded-full bg-red-200/70;
   }
 
   .emptyTableTitle {
@@ -861,24 +861,24 @@ body,
   }
 
   .exitConfirmCloseButton {
-    @apply h-14 w-14 border-transparent bg-transparent text-red-100 shadow-none hover:border-white/20 hover:bg-white/10 hover:text-white;
+    @apply h-10 w-10 border-transparent bg-transparent text-red-100 shadow-none hover:border-white/20 hover:bg-white/10 hover:text-white;
   }
 
   .exitConfirmBody {
-    @apply flex items-center gap-8 px-10 py-10;
+    @apply flex items-center gap-5 px-6 py-6;
   }
 
   .exitConfirmWarningIcon {
-    @apply inline-flex h-24 w-24 shrink-0 items-center justify-center;
+    @apply inline-flex h-16 w-16 shrink-0 items-center justify-center;
   }
 
   .exitConfirmWarningImage {
-    @apply h-24 w-24 object-contain;
+    @apply h-16 w-16 object-contain;
     filter: drop-shadow(0 16px 18px rgba(176, 0, 18, 0.18));
   }
 
   .exitConfirmBodyDivider {
-    @apply h-24 w-px shrink-0 bg-slate-300;
+    @apply h-16 w-px shrink-0 bg-slate-300;
   }
 
   .exitConfirmMessage {
@@ -886,20 +886,20 @@ body,
   }
 
   .exitConfirmPrimaryText {
-    @apply text-3xl font-black leading-tight text-slate-950;
+    @apply text-xl font-black leading-tight text-slate-950;
   }
 
   .exitConfirmSecondaryText {
-    @apply mt-4 text-2xl font-semibold text-slate-500;
+    @apply mt-2 text-base font-semibold text-slate-500;
   }
 
   .exitConfirmActions {
-    @apply justify-end gap-4 border-t-0 bg-white px-10 pb-9 pt-0;
+    @apply justify-end gap-3 border-t-0 bg-white px-6 pb-6 pt-0;
   }
 
   .exitConfirmAcceptButton,
   .exitConfirmCancelButton {
-    @apply inline-flex h-16 min-w-44 items-center justify-center gap-3 rounded-2xl px-8 text-2xl font-black transition;
+    @apply inline-flex h-11 min-w-32 items-center justify-center gap-2 rounded-xl px-5 text-base font-black transition;
   }
 
   .exitConfirmAcceptButton {
@@ -979,6 +979,68 @@ body,
 
   .ivaBookMessage {
     @apply mr-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-1 text-xs font-bold text-sky-800;
+  }
+
+  .fuelIvaControls {
+    @apply flex shrink-0 flex-col items-center gap-1;
+  }
+
+  .fuelIvaTitle {
+    @apply text-[11px] font-black uppercase leading-none text-slate-600;
+  }
+
+  .fuelIvaButtons {
+    @apply flex items-center gap-2;
+  }
+
+  .fuelIvaButton {
+    @apply h-9 px-3 text-xs;
+  }
+
+  .fuelIvaButton.calculate {
+    @apply border-blue-300 text-blue-700 hover:border-blue-400 hover:bg-blue-50;
+  }
+
+  .feedStructureModal {
+    @apply max-w-3xl;
+  }
+
+  .feedStructureBody {
+    @apply overflow-auto px-5 py-5;
+  }
+
+  .feedStructureTable {
+    @apply grid min-w-[620px] border border-slate-950 text-sm text-slate-950;
+    grid-template-columns: 265px 1fr;
+  }
+
+  .feedStructureTitle {
+    @apply col-span-2 flex h-6 items-center border-b border-slate-950 bg-slate-50 px-1 font-black uppercase;
+  }
+
+  .feedStructureHead {
+    @apply flex h-6 items-center border-b border-r border-slate-950 px-1 font-black;
+    background: #fff2cc;
+  }
+
+  .feedStructureHead:nth-child(3) {
+    @apply border-r-0;
+  }
+
+  .feedStructureRow {
+    display: contents;
+  }
+
+  .feedStructureCell {
+    @apply flex min-h-5 items-center border-b border-r border-slate-950 px-1;
+  }
+
+  .feedStructureCell:nth-child(2n) {
+    @apply border-r-0;
+  }
+
+  .feedStructureRow:last-child .feedStructureCell {
+    @apply border-b-0;
   }
 
   .ivaBookTypeSummary {

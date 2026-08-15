@@ -867,7 +867,7 @@ function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, f14PeriodValue, 
         ['NOMBRE DEL CLIENTE']
       ],
       mapRow: mapCcfSaleToAnexoRow,
-      includeRow: () => true
+      includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '03'
     },
     salesFcf: {
       sourceRows: fcfSalesRows,
@@ -1539,8 +1539,10 @@ export function AnexosView({
                 ) : null}
                 <span
                   className="anexosColumnResizeHandle"
+                  onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => resetColumnWidth(event, header)}
                   onMouseDown={(event) => startColumnResize(event, header)}
+                  onPointerDown={(event) => event.stopPropagation()}
                   title="Arrastrar para ajustar ancho. Doble click para autoajustar."
                 />
               </div>

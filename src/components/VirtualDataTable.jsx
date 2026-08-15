@@ -112,7 +112,7 @@ function parseMoney(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
-function compareCellValues(aValue, bValue, column) {
+export function compareCellValues(aValue, bValue, column) {
   if (isDateColumn(column)) {
     const aDate = parseFilterDate(aValue);
     const bDate = parseFilterDate(bValue);
@@ -142,6 +142,12 @@ const totalFormatter = new Intl.NumberFormat('en-US', {
 
 function formatTotal(value) {
   return `$${totalFormatter.format(value)}`;
+}
+
+export function sortTableRows(rows, sortConfig = { column: '', direction: 'asc' }) {
+  if (!sortConfig.column) return rows;
+  const direction = sortConfig.direction === 'desc' ? -1 : 1;
+  return [...rows].sort((a, b) => compareCellValues(a?.[sortConfig.column], b?.[sortConfig.column], sortConfig.column) * direction);
 }
 
 function getMoneyColumns(columns) {
@@ -230,9 +236,7 @@ export function VirtualDataTable({
   const totalsJobRef = useRef(0);
   
   const sortedRows = useMemo(() => {
-    if (!sortConfig.column) return rows;
-    const direction = sortConfig.direction === 'desc' ? -1 : 1;
-    return [...rows].sort((a, b) => compareCellValues(a?.[sortConfig.column], b?.[sortConfig.column], sortConfig.column) * direction);
+    return sortTableRows(rows, sortConfig);
   }, [rows, sortConfig]);
 
   const visibleRange = useMemo(
@@ -469,8 +473,10 @@ function resetColumnWidth(event, column) {
                 ) : null}
                 <span
                   className="columnResizeHandle"
+                  onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => resetColumnWidth(event, column)}
                   onMouseDown={(event) => startColumnResize(event, column, columnWidths[columnIndex])}
+                  onPointerDown={(event) => event.stopPropagation()}
                   title="Arrastrar para ajustar ancho. Doble click para autoajustar."
                 />
               </div>

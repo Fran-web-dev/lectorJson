@@ -9,6 +9,7 @@ import { DteSummaryBar, StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
 import { DEFAULT_STRUCTURE_NAME, getStructureOptions } from './lib/dteStructureOptions.js';
 import { MONEY_COLUMN_NAMES } from './lib/dteStructures.js';
+import { sortTableRows } from './lib/tableSortUtils.js';
 import {
   buildHaciendaQueryUrl,
   getDocumentGenerationCode,
@@ -232,7 +233,6 @@ export default function App() {
   const [status, setStatus] = useState('Seleccione una carpeta con archivos JSON.');
   const [loading, setLoading] = useState(false);
   const [rows, setRows] = useState([]);
-  const [fcfIvaBookRows, setFcfIvaBookRows] = useState([]);
   const [ivaBookRowsByType, setIvaBookRowsByType] = useState({});
   const [anexoRowsByType, setAnexoRowsByType] = useState({});
   const [activeView, setActiveView] = useState('dte');
@@ -381,35 +381,6 @@ export default function App() {
     };
   }, [documents, typeCode, structureName, fromDate, toDate]);
 
-  useEffect(() => {
-    let cancelled = false;
-    if (!documents.length || activeView !== 'iva-books-fcf-sales') {
-      setFcfIvaBookRows([]);
-      return () => {
-        cancelled = true;
-      };
-    }
-
-    import('./lib/extractor.js').then(async ({ extractRowsInBatches }) => {
-      if (cancelled) return;
-      const fcfRows = await extractRowsInBatches(documents, {
-        typeCode,
-        structureName,
-        fromDate,
-        toDate,
-        shouldCancel: () => cancelled
-      });
-      if (cancelled) return;
-      startTransition(() => {
-        setFcfIvaBookRows(fcfRows);
-      });
-    });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeView, documents, fromDate, structureName, toDate, typeCode]);
-
   const columns = useMemo(
     () => getTableColumns(rows, typeCode),
     [rows, typeCode]
@@ -418,6 +389,11 @@ export default function App() {
   const filteredRows = useMemo(
     () => applyColumnFilters(rows, columnFilters),
     [rows, columnFilters]
+  );
+
+  const sortedFilteredRows = useMemo(
+    () => sortTableRows(filteredRows, homeSortConfig),
+    [filteredRows, homeSortConfig]
   );
 
   useEffect(() => {
@@ -484,7 +460,7 @@ export default function App() {
   const { cancelFileLoad, exportExcel, reloadFolder, selectFiles, selectFolder } = useDteActions({
     documents,
     folder,
-    rows: filteredRows,
+    rows: sortedFilteredRows,
     setDocuments,
     setErrors,
     setLoadedFilePaths,
@@ -969,7 +945,7 @@ export default function App() {
             onNavigateRegister={setActiveView}
             savedRows={ivaBookRowsByType[activeIvaBookType]}
             onRowsChange={handleIvaBookRowsChange}
-            sourceRows={activeView === 'iva-books-fcf-sales' ? fcfIvaBookRows : filteredRows}
+            sourceRows={sortedFilteredRows}
             sourceStructureName={structureName}
             sourceTypeCode={typeCode}
             type={

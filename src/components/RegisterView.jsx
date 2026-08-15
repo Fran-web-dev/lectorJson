@@ -810,8 +810,10 @@ export function RegisterView({ sourceRows = [], sourceStructureName = '', source
                 ) : null}
                 <span
                   className="columnResizeHandle registerColumnResizeHandle"
+                  onClick={(event) => event.stopPropagation()}
                   onDoubleClick={(event) => resetColumnWidth(event, column)}
                   onMouseDown={(event) => startColumnResize(event, column, columnWidths[columnIndex])}
+                  onPointerDown={(event) => event.stopPropagation()}
                   title="Arrastrar para ajustar ancho. Doble click para autoajustar."
                 />
               </div>

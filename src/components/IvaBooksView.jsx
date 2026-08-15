@@ -115,6 +115,16 @@ const EMPTY_IVA_BOOK_HEADER = {
   month: '',
   year: ''
 };
+const FUEL_IVA_ORIGINALS_KEY = '__fuelIvaOriginals';
+const FUEL_IVA_TOTAL_COLUMNS = [
+  'COMPRAS EXENTAS INTERNAS',
+  'COMPRAS EXENTAS IMPORTACIONES',
+  'COMPRAS EXENTAS INTERNACIONES',
+  'COMPRAS GRAVADAS INTERNAS',
+  'COMPRAS GRAVADAS IMPORTACIONES',
+  'COMPRAS GRAVADAS INTERNACIONES',
+  'IVA'
+];
 const PROVIDER_RENT_COLUMNS = {
   operation: 'TIPO DE OPERACION (Renta)',
   classification: 'CLASIFICACION (Renta)',
@@ -216,7 +226,7 @@ const IVA_BOOK_MAPPINGS = {
     },
     'NO SUJETAS': {
       byTypeCode: {
-        '05': { calculate: [{ add: 'Total no Sujetas' }, { subtract: 'Desc. no Sujeta' }] },
+        '05': { calculate: [{ add: 'Total no Sujetas' }, { subtract: 'Desc. no Sujeta' }], negative: true },
         '07': { fixed: '$0.00' },
         '09': { fixed: '$0.00' },
         default: 'Total no Sujetas'
@@ -224,7 +234,7 @@ const IVA_BOOK_MAPPINGS = {
     },
     EXENTAS: {
       byTypeCode: {
-        '05': { calculate: [{ add: 'Total Exenta' }, { subtract: 'Desc. Exenta' }] },
+        '05': { calculate: [{ add: 'Total Exenta' }, { subtract: 'Desc. Exenta' }], negative: true },
         '07': { fixed: '$0.00' },
         '09': { fixed: '$0.00' },
         default: 'Total Exenta'
@@ -232,7 +242,7 @@ const IVA_BOOK_MAPPINGS = {
     },
     'VENTAS INTERNAS GRAVADAS VALOR NETO': {
       byTypeCode: {
-        '05': { calculate: [{ add: 'Total Gravado' }, { subtract: 'Desc. Gravado' }] },
+        '05': { calculate: [{ add: 'Total Gravado' }, { subtract: 'Desc. Gravado' }], negative: true },
         '07': { fixed: '$0.00' },
         '09': { fixed: '$0.00' },
         default: 'Total Gravado'
@@ -240,6 +250,7 @@ const IVA_BOOK_MAPPINGS = {
     },
     'IVA DEBITO': {
       byTypeCode: {
+        '05': { source: ['Debito Fiscal', 'Credito Fiscal'], negative: true },
         '07': { fixed: '$0.00' },
         '09': { fixed: '$0.00' },
         default: ['Debito Fiscal', 'Credito Fiscal']
@@ -247,6 +258,7 @@ const IVA_BOOK_MAPPINGS = {
     },
     'VENTA TOTAL': {
       byTypeCode: {
+        '05': { source: 'Monto Total de la Operacion', negative: true },
         '07': { fixed: '$0.00' },
         '09': { fixed: '$0.00' },
         default: 'Monto Total de la Operacion'
@@ -263,6 +275,7 @@ const IVA_BOOK_MAPPINGS = {
     },
     'PERCEPCION 2%': {
       byTypeCode: {
+        '05': { source: ['Percepciones', 'IVA Percibido'], negative: true },
         '07': { fixed: '$0.00' },
         '09': 'IVA percibido 2%',
         default: ['Percepciones', 'IVA Percibido']
@@ -332,9 +345,7 @@ const IVA_BOOK_REQUIREMENTS = {
     accepted: [
       { typeCode: '03', structureName: 'CCF EMISOR VENTA' },
       { typeCode: '05', structureName: 'NOTA DE CREDITO EMISOR VENTA' },
-      { typeCode: '05', structureName: 'NOTA DE CREDITO EMISOR VENTAS' },
       { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPTOR' },
-      { typeCode: '07', structureName: 'COMPROBANTE DE RETENCION RECEPCION' },
       { typeCode: '09', structureName: 'DCL RECEPTOR' }
     ],
     message: 'Para importar datos en Libro de Ventas CCF seleccione en INICIO: Tipo de Documento 03 con estructura CCF EMISOR VENTA, Tipo de Documento 05 con estructura NOTA DE CREDITO EMISOR VENTA, Tipo de Documento 07 con estructura COMPROBANTE DE RETENCION RECEPTOR, o Tipo de Documento 09 con estructura DCL RECEPTOR.'
@@ -346,6 +357,32 @@ const IVA_BOOK_REQUIREMENTS = {
       { typeCode: '14', structureName: 'FSE EMISOR' }
     ],
     message: 'Para importar datos en Libro de Compras seleccione en INICIO: Tipo de Documento 03 con estructura CCF RECEPTOR COMPRA, Tipo de Documento 05 con estructura NOTA DE CREDITO RECEPTOR COMPRA, o Tipo de Documento 14 con estructura FSE EMISOR.'
+  }
+};
+const IVA_BOOK_FEED_STRUCTURE_ROWS = {
+  purchases: {
+    title: 'LIBRO COMPRAS',
+    rows: [
+      ['03 Comprobante Credito Fiscal', 'CCF RECEPTOR COMPRA'],
+      ['05 Nota de Credito', 'NOTA DE CREDITO RECEPTOR COMPRA'],
+      ['14 Factura Sujeto Excluido', 'FSE EMISOR']
+    ]
+  },
+  ccfSales: {
+    title: 'LIBRO VENTAS CCF',
+    rows: [
+      ['03 Comprobante Credito Fiscal', 'CCF EMISOR VENTA'],
+      ['05 Nota de Credito', 'NOTA DE CREDITO EMISOR VENTA'],
+      ['07 Comprobante de Retencion', 'COMPROBANTE DE RETENCION RECEPTOR'],
+      ['09 Documento Contable de Liquidacion', 'DCL RECEPTOR']
+    ]
+  },
+  fcfSales: {
+    title: 'LIBRO VENTAS FCF',
+    rows: [
+      ['01 Factura Consumidor Final', 'FCF EMISOR'],
+      ['11 Factura de Exportacion', 'FEX EMISOR']
+    ]
   }
 };
 
@@ -649,6 +686,15 @@ function parseCurrency(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
+function formatIvaBookMoney(value) {
+  if (!value) return '';
+  return `$${currencyFormatter.format(value)}`;
+}
+
+function calculatePurchaseTotal(row) {
+  return FUEL_IVA_TOTAL_COLUMNS.reduce((total, column) => total + parseCurrency(row?.[column]), 0);
+}
+
 function isBookDateColumn(column) {
   const header = String(column?.header || '').toUpperCase();
   return header === 'FECHA DE EMISION' || header === 'FECHA EMISION';
@@ -930,6 +976,7 @@ export function IvaBooksView({
   const [importProgress, setImportProgress] = useState(null);
   const [headerDraft, setHeaderDraft] = useState(() => loadIvaBookHeaderDraft(type));
   const [openFilter, setOpenFilter] = useState('');
+  const [showFeedStructureModal, setShowFeedStructureModal] = useState(false);
   const [sortConfig, setSortConfig] = useState(() => loadPersistedSort(getIvaBookSortStorageKey(type)));
   const [viewport, setViewport] = useState({ height: 520, scrollTop: 0 });
   const tableViewportRef = useRef(null);
@@ -966,6 +1013,7 @@ export function IvaBooksView({
     setSortConfig(loadPersistedSort(getIvaBookSortStorageKey(type)));
     setOpenFilter('');
     setFilterSearch('');
+    setShowFeedStructureModal(false);
   }, [type]);
   const indexedBookRows = useMemo(
     () => bookRows.map((row, index) => ({ index, row })),
@@ -1030,6 +1078,7 @@ export function IvaBooksView({
   const bookAlertSummary = useMemo(() => summarizeBookAlerts(bookRows), [bookRows]);
   const duplicateKeys = useMemo(() => getBookDuplicateKeys(bookRows), [bookRows]);
   const useEditableBookHeader = type === 'purchases' || type === 'ccfSales' || type === 'fcfSales';
+  const feedStructure = IVA_BOOK_FEED_STRUCTURE_ROWS[type] || IVA_BOOK_FEED_STRUCTURE_ROWS.purchases;
 
   const updateHeaderDraft = useCallback((field, value) => {
     const nextValue = ['nrc', 'nit', 'dui'].includes(field)
@@ -1320,6 +1369,52 @@ export function IvaBooksView({
     setMessage(hasRows ? 'Tabla limpiada correctamente.' : 'La tabla ya esta vacia.');
   }
 
+  function calculateFuelIva() {
+    if (type !== 'purchases') return;
+
+    let updatedCount = 0;
+    setBookRows((currentRows) => currentRows.map((row) => {
+      if (parseCurrency(row?.['COMPRAS EXENTAS INTERNAS']) <= 0) return row;
+
+      const originals = row[FUEL_IVA_ORIGINALS_KEY] || {
+        'COMPRAS GRAVADAS INTERNAS': row['COMPRAS GRAVADAS INTERNAS'] || '',
+        IVA: row.IVA || '',
+        'TOTAL COMPRAS': row['TOTAL COMPRAS'] || ''
+      };
+      const nextRow = {
+        ...row,
+        [FUEL_IVA_ORIGINALS_KEY]: originals,
+        'COMPRAS GRAVADAS INTERNAS': formatIvaBookMoney(parseCurrency(originals['COMPRAS GRAVADAS INTERNAS']) / 2),
+        IVA: formatIvaBookMoney(parseCurrency(originals.IVA) / 2)
+      };
+
+      nextRow['TOTAL COMPRAS'] = formatIvaBookMoney(calculatePurchaseTotal(nextRow));
+      updatedCount += 1;
+      return nextRow;
+    }));
+    setMessage(updatedCount ? `IVA 50% combustible calculado en ${updatedCount} fila(s).` : 'No hay filas con COMPRAS EXENTAS INTERNAS mayor a cero.');
+  }
+
+  function clearFuelIvaCalculation() {
+    if (type !== 'purchases') return;
+
+    let restoredCount = 0;
+    setBookRows((currentRows) => currentRows.map((row) => {
+      const originals = row?.[FUEL_IVA_ORIGINALS_KEY];
+      if (!originals) return row;
+
+      const { [FUEL_IVA_ORIGINALS_KEY]: _removed, ...restoredRow } = row;
+      restoredCount += 1;
+      return {
+        ...restoredRow,
+        'COMPRAS GRAVADAS INTERNAS': originals['COMPRAS GRAVADAS INTERNAS'] || '',
+        IVA: originals.IVA || '',
+        'TOTAL COMPRAS': originals['TOTAL COMPRAS'] || ''
+      };
+    }));
+    setMessage(restoredCount ? `Calculo IVA 50% combustible quitado en ${restoredCount} fila(s).` : 'No hay calculos IVA 50% combustible para quitar.');
+  }
+
   return (
     <section className="ivaBookView" data-tour="iva-book-view">
       <div className="ivaBookToolbar" data-tour="iva-book-toolbar">
@@ -1361,8 +1456,20 @@ export function IvaBooksView({
         >
           {registerShortcut.label}
         </button>
+        <button className="actionButton" onClick={() => setShowFeedStructureModal(true)} type="button">
+          EXTRUCTURA DE ALIMENTACION
+        </button>
         <button className="actionButton" data-tour="iva-load-button" onClick={importData} type="button">CARGAR DATOS</button>
         <button className="actionButton" data-tour="iva-export-button" onClick={exportExcel} type="button">EXPORTAR A EXCEL</button>
+        {type === 'purchases' ? (
+          <div className="fuelIvaControls" aria-label="IVA 50% combustible">
+            <div className="fuelIvaTitle">IVA 50% COMBUSTIBLE</div>
+            <div className="fuelIvaButtons">
+              <button className="actionButton fuelIvaButton calculate" onClick={calculateFuelIva} type="button">CALCULAR</button>
+              <button className="actionButton dangerActionButton fuelIvaButton clear" onClick={clearFuelIvaCalculation} type="button">NO CALCULAR</button>
+            </div>
+          </div>
+        ) : null}
         {useEditableBookHeader ? (
           <button className="actionButton dangerActionButton" onClick={clearHeaderDraft} type="button">
             LIMPIAR DATOS CONTRIBUYENTES
@@ -1499,8 +1606,10 @@ export function IvaBooksView({
               ) : null}
               <span
                 className="ivaBookColumnResizeHandle"
+                onClick={(event) => event.stopPropagation()}
                 onDoubleClick={(event) => resetColumnWidth(event, column.header)}
                 onMouseDown={(event) => startColumnResize(event, column.header)}
+                onPointerDown={(event) => event.stopPropagation()}
                 title="Arrastrar para ajustar ancho. Doble click para restaurar."
               />
             </div>
@@ -1569,6 +1678,37 @@ export function IvaBooksView({
           </div>
         </div>
       </div>
+      {showFeedStructureModal ? createPortal(
+        <div className="registerModalBackdrop">
+          <div className="registerModal feedStructureModal" role="dialog" aria-modal="true" aria-labelledby="feed-structure-modal-title">
+            <div className="registerModalHeader">
+              <h2 id="feed-structure-modal-title">EXTRUCTURA DE ALIMENTACION</h2>
+              <button className="modalIconButton" onClick={() => setShowFeedStructureModal(false)} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="feedStructureBody">
+              <div className="feedStructureTable" role="table">
+                <div className="feedStructureTitle" role="rowheader">{feedStructure.title}</div>
+                <div className="feedStructureHead" role="columnheader">Tipo de Documento</div>
+                <div className="feedStructureHead" role="columnheader">Nombre de estructura</div>
+                {feedStructure.rows.map(([documentType, structureName]) => (
+                  <div className="feedStructureRow" key={`${documentType}-${structureName}`} role="row">
+                    <div className="feedStructureCell">{documentType}</div>
+                    <div className="feedStructureCell">{structureName}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="registerModalActions">
+              <button className="actionButton" onClick={() => setShowFeedStructureModal(false)} type="button">
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      ) : null}
     </section>
   );
 }
