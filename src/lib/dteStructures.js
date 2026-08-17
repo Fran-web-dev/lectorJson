@@ -454,8 +454,57 @@ export const MONEY_COLUMN_NAMES = new Set(Object.values(NAMED_STRUCTURES_BY_DTE)
   .flatMap((structuresByName) => Object.values(structuresByName))
   .flatMap((structure) => structure.filter((rule) => rule?.style === 'money').map((rule) => rule.name)));
 
+const CUSTOM_JSON_STRUCTURES_KEY = 'dte-custom-json-structures';
+
+function loadCustomJsonStructures() {
+  if (typeof window === 'undefined') return [];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(CUSTOM_JSON_STRUCTURES_KEY) || '[]');
+    return Array.isArray(stored) ? stored : [];
+  } catch {
+    return [];
+  }
+}
+
+function customColumnToRule(column) {
+  const name = String(column?.name || '').trim();
+  const pathParts = String(column?.path || '')
+    .split('.')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  if (!name || !pathParts.length) return null;
+
+  const isPublicQuery = pathParts[0] === 'consultaPublica' || pathParts[0] === '__consultaPublica';
+  const normalizedPath = isPublicQuery ? pathParts.slice(1) : pathParts;
+  if (!normalizedPath.length) return null;
+
+  return {
+    name,
+    customPath: normalizedPath,
+    source: isPublicQuery ? 'publicQuery' : undefined,
+    sections: normalizedPath.length === 1 ? [normalizedPath[0]] : normalizedPath.slice(0, -1),
+    fields: normalizedPath.length === 1 ? ['*'] : [normalizedPath.at(-1)]
+  };
+}
+
+function getCustomStructureForType(typeCode, structureName) {
+  const normalizedType = String(typeCode || '').padStart(2, '0');
+  const normalizedName = String(structureName || '').trim().toUpperCase();
+  const customStructure = loadCustomJsonStructures().find((structure) => (
+    String(structure?.typeCode || '').padStart(2, '0') === normalizedType
+    && String(structure?.structureName || '').trim().toUpperCase() === normalizedName
+  ));
+
+  if (!customStructure) return null;
+  return (customStructure.columns || []).map(customColumnToRule).filter(Boolean);
+}
+
 export function getStructureForType(typeCode, structureName = DEFAULT_STRUCTURE_NAME) {
   if (structureName === 'TODOS') return [...ALL_DTE_STRUCTURE, ...PUBLIC_QUERY_COLUMNS];
+
+  const customStructure = getCustomStructureForType(typeCode, structureName);
+  if (customStructure) return customStructure;
 
   const namedStructure = NAMED_STRUCTURES_BY_DTE[typeCode]?.[structureName];
   const defaultStructure = STRUCTURES_BY_DTE[typeCode] || [];

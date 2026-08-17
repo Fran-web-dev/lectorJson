@@ -1,7 +1,7 @@
-import { BookOpen, Building2, ChevronDown, FileText, HelpCircle, LibraryBig, TableProperties, Users } from 'lucide-react';
+import { BookOpen, Braces, Building2, ChevronDown, FileText, HelpCircle, LibraryBig, Moon, Sun, TableProperties, Users } from 'lucide-react';
 import logoFevv from '../assets/logo-fevv-technologies-startup.jpg';
 
-export function AppHeader({ activeView, onNavigate, onStartTour }) {
+export function AppHeader({ activeView, isDarkTheme, onNavigate, onStartTour, onToggleTheme }) {
   return (
     <header className="brandHeader">
       <img alt="FEVV Technologies" className="brandLogo" src={logoFevv} />
@@ -125,7 +125,23 @@ export function AppHeader({ activeView, onNavigate, onStartTour }) {
           <LibraryBig size={16} />
           APENDICE DE CODIGOS
         </button>
+        <button
+          className={`navButton ${activeView === 'json-structure' ? 'active' : ''}`}
+          onClick={() => onNavigate('json-structure')}
+          type="button"
+        >
+          <Braces size={16} />
+          ESTRUCTURA JSON
+        </button>
       </nav>
+      <button
+        className={`themeToggleButton ${isDarkTheme ? 'isDark' : ''}`}
+        onClick={onToggleTheme}
+        title={isDarkTheme ? 'Cambiar a tema por defecto' : 'Cambiar a tema oscuro'}
+        type="button"
+      >
+        {isDarkTheme ? <Sun size={17} /> : <Moon size={17} />}
+      </button>
       <button className="tourStartButton" data-tour="start-guide" onClick={onStartTour} type="button">
         <HelpCircle size={16} />
         GUÍA

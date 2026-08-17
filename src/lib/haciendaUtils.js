@@ -47,13 +47,22 @@ export function getSelectedGenerationCode(row) {
     row?.['Codigo de Generacion']
     || row?.[LOCAL_GENERATION_CODE_COLUMN]
     || row?.['Numero del Documento']
+    || row?.['Numero de Documento']
+    || row?.['Numero de documento']
     || row?.['Numero Documento']
+    || row?.['Numero documento']
     || row?.['Codigo de generacion local']
   );
 }
 
 export function getSelectedIssueDate(row) {
-  return toHaciendaDate(row?.Fecha);
+  return toHaciendaDate(
+    row?.Fecha
+    || row?.['FECHA EMISION']
+    || row?.['FECHA DE EMISION']
+    || row?.['Fecha Emision']
+    || row?.['Fecha de Emision']
+  );
 }
 
 export function getUniqueQueryableRows(rows) {

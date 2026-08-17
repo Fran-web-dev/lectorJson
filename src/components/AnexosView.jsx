@@ -229,10 +229,10 @@ const ANEXO_TOTAL_COLUMNS = new Set([
   'IMPORTACIONES GRAVADAS DE SERVICIOS'
 ]);
 
-function hasActiveColumnFilter(selectedValues = [], values = []) {
+function hasActiveColumnFilterCount(selectedValues = [], valueCount = 0) {
   if (!selectedValues.length) return false;
   if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
-  return selectedValues.length < values.length;
+  return selectedValues.length < valueCount;
 }
 
 function waitForNextFrame() {
@@ -509,6 +509,8 @@ function prepareAnexoRowForCsv(row, type) {
 }
 
 function mapCcfSaleToAnexoRow(row) {
+  const documentType = extractDteTypeFromControl(row['NUMERO DE CONTROL']);
+  const formatSaleMoney = documentType === '05' ? formatPositiveAnexoMoney : formatAnexoMoney;
   const gravadas = parseMoney(row['VENTAS INTERNAS GRAVADAS VALOR NETO']);
   const ivaDebito = parseMoney(row['IVA DEBITO']);
   const fechaEmision = row['FECHA DE EMISION']
@@ -519,20 +521,20 @@ function mapCcfSaleToAnexoRow(row) {
   return {
     'FECHA DE EMISION DEL DOCUMENTO': fechaEmision,
     'CLASE DE DOCUMENTO': '4',
-    'TIPO DE DOCUMENTO': extractDteTypeFromControl(row['NUMERO DE CONTROL']),
+    'TIPO DE DOCUMENTO': documentType,
     'NÚMERO DE RESOLUCIÓN': row['NUMERO DE CONTROL'] || '',
     'NÚMERO DE SERIE DE DOCUMENTO': row['SELLO DE RECEPCION'] || '',
     'NÚMERO DE DOCUMENTO': row['CODIGO DE GENERACION'] || '',
     'NÚMERO DE CONTROL INTERNO': row['NUMERO DE CONTROL'] || '',
     'NIT O NRC DEL CLIENTE': row['N.R.C / NIT'] || '',
     'NOMBRE, RAZON SOCIAL O DENOMINACION': row['NOMBRE DEL CLIENTE'] || '',
-    'VENTAS EXENTAS': formatAnexoMoney(row.EXENTAS),
-    'VENTAS NO SUJETAS': formatAnexoMoney(row['NO SUJETAS']),
-    'VENTAS GRAVADAS LOCALES': formatAnexoMoney(gravadas),
-    'DÉBITO FISCAL': formatAnexoMoney(ivaDebito),
+    'VENTAS EXENTAS': formatSaleMoney(row.EXENTAS),
+    'VENTAS NO SUJETAS': formatSaleMoney(row['NO SUJETAS']),
+    'VENTAS GRAVADAS LOCALES': formatSaleMoney(gravadas),
+    'DÉBITO FISCAL': formatSaleMoney(ivaDebito),
     'VENTAS A CUENTA DE TERCEROS NO DOMICILIADOS': '0.00',
     'DÉBITO FISCAL POR VENTA A CUENTA DE TERCEROS': '0.00',
-    'TOTAL VENTAS': formatAnexoMoney(gravadas + ivaDebito),
+    'TOTAL VENTAS': formatSaleMoney(gravadas + ivaDebito),
     'DUI DEL CLIENTE': '',
     'TIPO DE OPERACION (Renta)': getRowValueByTokens(row, ['TIPO', 'OPERACION', 'RENTA']),
     'TIPO DE INGRESO (Renta)': getRowValueByTokens(row, ['TIPO', 'INGRESO', 'RENTA']),
@@ -867,7 +869,7 @@ function getAnexoLoadConfig(type, { ccfSalesRows, clientLookup, f14PeriodValue, 
         ['NOMBRE DEL CLIENTE']
       ],
       mapRow: mapCcfSaleToAnexoRow,
-      includeRow: (row) => extractDteTypeFromControl(row['NUMERO DE CONTROL']) === '03'
+      includeRow: (row) => ['03', '05'].includes(extractDteTypeFromControl(row['NUMERO DE CONTROL']))
     },
     salesFcf: {
       sourceRows: fcfSalesRows,
@@ -1013,6 +1015,15 @@ function buildAnexoFilterValues(rows, openFilter) {
   }
 
   return Array.from(values).sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+function countAnexoFilterValues(rows, column) {
+  const values = new Set();
+  for (const row of rows) {
+    values.add(String(row[column] || ''));
+    if (values.size >= ANEXO_FILTER_VALUE_LIMIT) break;
+  }
+  return values.size;
 }
 
 function getNoAnexoRowsMessage(type, { ccfSalesRows, fcfSalesRows, loadConfig, purchaseRows }) {
@@ -1172,7 +1183,7 @@ export function AnexosView({
   const filterValuesByColumn = useMemo(() => Object.fromEntries(
     config.columns.map(([header]) => [
       header,
-      buildAnexoFilterValues(rows, header)
+      countAnexoFilterValues(rows, header)
     ])
   ), [config.columns, rows]);
 
@@ -1513,7 +1524,7 @@ export function AnexosView({
                   <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
                 ) : null}
                 <button
-                  className={`excelFilterButton ${hasActiveColumnFilter(filters[header], filterValuesByColumn[header]) ? 'active' : ''}`}
+                  className={`excelFilterButton ${hasActiveColumnFilterCount(filters[header], filterValuesByColumn[header]) ? 'active' : ''}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     setOpenFilter(openFilter === header ? '' : header);

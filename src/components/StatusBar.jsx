@@ -77,28 +77,28 @@ export function DteSummaryBar({
   ) return null;
 
   return (
-    <div className="mb-3" data-tour="dte-summary">
-      <div className="flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-sm">
+    <div className="dteSummaryWrap" data-tour="dte-summary">
+      <div className="dteSummaryBar">
         {dteSummary?.length ? (
           <>
-            <span className="font-bold text-slate-600">Resumen por tipo carpeta contenedora:</span>
+            <span className="dteSummaryLabel">Resumen por tipo carpeta contenedora:</span>
           {dteSummary.map((item) => (
-            <span className="rounded-sm border border-blue-200 bg-blue-50 px-2 py-1 font-bold text-blue-700" key={item.code}>
+            <span className="dteSummaryChip dteSummaryTypeChip" key={item.code}>
               DTE-{item.code}: {item.count}
             </span>
           ))}
           </>
         ) : null}
-        <span className="rounded-sm border border-red-200 bg-red-50 px-2 py-1 font-bold text-red-700">
+        <span className="dteSummaryChip dteSummaryDuplicateChip">
           DTE duplicados: {duplicateCount}
         </span>
-        <span className="rounded-sm border border-violet-200 bg-violet-50 px-2 py-1 font-bold text-violet-700">
+        <span className="dteSummaryChip dteSummaryInvalidChip">
           DTE invalidados: {invalidCount}
         </span>
-        <span className="rounded-sm border border-orange-200 bg-orange-50 px-2 py-1 font-bold text-orange-700">
+        <span className="dteSummaryChip dteSummaryRejectedChip">
           DTE rechazados: {rejectedCount}
         </span>
-        <span className="flex flex-wrap items-center gap-1 text-slate-500">
+        <span className="dteSummaryCounts">
           <span className="font-bold text-emerald-600">{rowCount} visible(s)</span>
           <span className="text-slate-400">de</span>
           <span className="font-bold text-blue-600">{loadedCount} cargado(s)</span>

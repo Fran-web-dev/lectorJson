@@ -8,6 +8,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
+import emptyFileImage from '../assets/file.png';
+import { compareCellValues, isMoneyColumn, sortTableRows } from '../lib/tableSortUtils.js';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;
@@ -71,19 +73,14 @@ function getAutoColumnWidth(column, rows) {
   return Math.min(Math.max(estimatedWidth, min), max);
 }
 
-function isMoneyColumn(column) {
-  return /total|monto|valor|iva|credito|debito|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|sub-?total|pagar|comision|liq\./i.test(column)
-    && !/letras/i.test(column);
-}
-
 function isDateColumn(column) {
   return /^fecha$/i.test(String(column).trim());
 }
 
-function hasActiveColumnFilter(selectedValues = [], values = []) {
+function hasActiveColumnFilterCount(selectedValues = [], valueCount = 0) {
   if (!selectedValues.length) return false;
   if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
-  return selectedValues.length < values.length;
+  return selectedValues.length < valueCount;
 }
 
 function parseFilterDate(value) {
@@ -103,38 +100,6 @@ function parseFilterDate(value) {
   return '';
 }
 
-function parseMoney(value) {
-  if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
-  const text = String(value || '').trim();
-  if (!text) return 0;
-  const normalized = text.replace(/[$,\s]/g, '');
-  const number = Number(normalized);
-  return Number.isFinite(number) ? number : 0;
-}
-
-export function compareCellValues(aValue, bValue, column) {
-  if (isDateColumn(column)) {
-    const aDate = parseFilterDate(aValue);
-    const bDate = parseFilterDate(bValue);
-    if (aDate || bDate) return aDate.localeCompare(bDate);
-  }
-
-  if (isMoneyColumn(column)) {
-    return parseMoney(aValue) - parseMoney(bValue);
-  }
-
-  const aNumber = Number(String(aValue ?? '').replace(/[$,\s]/g, ''));
-  const bNumber = Number(String(bValue ?? '').replace(/[$,\s]/g, ''));
-  if (Number.isFinite(aNumber) && Number.isFinite(bNumber)) {
-    return aNumber - bNumber;
-  }
-
-  return String(aValue ?? '').localeCompare(String(bValue ?? ''), 'es', {
-    numeric: true,
-    sensitivity: 'base'
-  });
-}
-
 const totalFormatter = new Intl.NumberFormat('en-US', {
   minimumFractionDigits: 2,
   maximumFractionDigits: 2
@@ -142,12 +107,6 @@ const totalFormatter = new Intl.NumberFormat('en-US', {
 
 function formatTotal(value) {
   return `$${totalFormatter.format(value)}`;
-}
-
-export function sortTableRows(rows, sortConfig = { column: '', direction: 'asc' }) {
-  if (!sortConfig.column) return rows;
-  const direction = sortConfig.direction === 'desc' ? -1 : 1;
-  return [...rows].sort((a, b) => compareCellValues(a?.[sortConfig.column], b?.[sortConfig.column], sortConfig.column) * direction);
 }
 
 function getMoneyColumns(columns) {
@@ -322,7 +281,7 @@ export function VirtualDataTable({
   const filterValuesByColumn = useMemo(() => {
     const entries = columns.map((column) => [
       column,
-      Array.from(new Set(filterSourceRows.map((row) => String(row[column] ?? ''))))
+      new Set(filterSourceRows.map((row) => String(row[column] ?? ''))).size
     ]);
     return Object.fromEntries(entries);
   }, [columns, filterSourceRows]);
@@ -400,7 +359,11 @@ function resetColumnWidth(event, column) {
   if (!sortedRows.length && !columns.length) {
     return (
       <div className="tableFrame" data-tour="home-data-table">
-        <div className="empty">Sin datos cargados</div>
+        <div className="homeEmptyState">
+          <img className="homeEmptyWatermark" src={emptyFileImage} alt="" aria-hidden="true" />
+          <strong>Sin datos cargados</strong>
+          <span>Selecciona una carpeta para comenzar a visualizar los archivos.</span>
+        </div>
       </div>
     );
   }
@@ -438,7 +401,7 @@ function resetColumnWidth(event, column) {
                   <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
                 ) : null}
                 <button
-                  className={`excelFilterButton ${hasActiveColumnFilter(columnFilters[column], filterValuesByColumn[column]) ? 'active' : ''}`}
+                  className={`excelFilterButton ${hasActiveColumnFilterCount(columnFilters[column], filterValuesByColumn[column]) ? 'active' : ''}`}
                   onClick={(event) => {
                     event.stopPropagation();
                     const rect = event.currentTarget.getBoundingClientRect();

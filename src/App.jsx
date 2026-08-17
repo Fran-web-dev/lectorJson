@@ -1,13 +1,17 @@
 import { lazy, startTransition, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { CircleX, Info, LogOut, Power, X } from 'lucide-react';
+import emptyFileImage from './assets/file.png';
 import { AppHeader } from './components/AppHeader.jsx';
-import { AppTour } from './components/AppTour.jsx';
 import { ErrorSummary } from './components/ErrorSummary.jsx';
 import { FilterPanel } from './components/FilterPanel.jsx';
 import { SplashScreen } from './components/SplashScreen.jsx';
 import { DteSummaryBar, StatusBar } from './components/StatusBar.jsx';
 import { useDteActions } from './hooks/useDteActions.js';
-import { DEFAULT_STRUCTURE_NAME, getStructureOptions } from './lib/dteStructureOptions.js';
+import {
+  CUSTOM_JSON_STRUCTURES_UPDATED_EVENT,
+  DEFAULT_STRUCTURE_NAME,
+  getStructureOptions
+} from './lib/dteStructureOptions.js';
 import { MONEY_COLUMN_NAMES } from './lib/dteStructures.js';
 import { sortTableRows } from './lib/tableSortUtils.js';
 import {
@@ -52,9 +56,17 @@ const RegisterView = lazy(() => import('./components/RegisterView.jsx').then((mo
 const CodeAppendixView = lazy(() => import('./components/CodeAppendixView.jsx').then((module) => ({
   default: module.CodeAppendixView
 })));
+const JsonStructureView = lazy(() => import('./components/JsonStructureView.jsx').then((module) => ({
+  default: module.JsonStructureView
+})));
+const AppTour = lazy(() => import('./components/AppTour.jsx').then((module) => ({
+  default: module.AppTour
+})));
 const HOME_CLEAR_KEY = '1234';
+const JSON_STRUCTURE_ACCESS_KEY = 'ADMIN';
 const HOME_FILTER_STORAGE_PREFIX = 'dte-home-column-filters';
 const HOME_SORT_STORAGE_PREFIX = 'dte-home-column-sort';
+const APP_THEME_STORAGE_KEY = 'dte-app-theme';
 const NO_FILTER_VALUES_SELECTED = '__DTE_FILTER_NONE_SELECTED__';
 const ANEXOS_VIEW_TYPES = {
   'anexos-sales-ccf': 'salesCcf',
@@ -74,6 +86,11 @@ function getHomeFilterStorageKey(typeCode, structureName) {
 
 function getHomeSortStorageKey(typeCode, structureName) {
   return `${HOME_SORT_STORAGE_PREFIX}-${typeCode || 'all'}-${structureName || 'default'}`;
+}
+
+function loadInitialTheme() {
+  if (typeof window === 'undefined') return 'default';
+  return window.localStorage.getItem(APP_THEME_STORAGE_KEY) === 'dark' ? 'dark' : 'default';
 }
 
 function normalizeGenerationKey(value) {
@@ -210,6 +227,7 @@ function pruneUnavailableFilters(filters, rows, columns) {
 
 export default function App() {
   const [showSplash, setShowSplash] = useState(true);
+  const [appTheme, setAppTheme] = useState(loadInitialTheme);
   const [folder, setFolder] = useState('');
   const [documents, setDocuments] = useState([]);
   const [errors, setErrors] = useState([]);
@@ -217,6 +235,7 @@ export default function App() {
   const [totalFileCount, setTotalFileCount] = useState(0);
   const [typeCode, setTypeCode] = useState('01');
   const [structureName, setStructureName] = useState(DEFAULT_STRUCTURE_NAME);
+  const [customStructureVersion, setCustomStructureVersion] = useState(0);
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [columnFilters, setColumnFilters] = useState(() => loadPersistedFilters(getHomeFilterStorageKey(typeCode, structureName)));
@@ -241,13 +260,21 @@ export default function App() {
   const [showEmptyTableModal, setShowEmptyTableModal] = useState(false);
   const [showLoadCancelledModal, setShowLoadCancelledModal] = useState(false);
   const [showExitConfirmModal, setShowExitConfirmModal] = useState(false);
+  const [showJsonAccessModal, setShowJsonAccessModal] = useState(false);
+  const [jsonAccessPassword, setJsonAccessPassword] = useState('');
+  const [jsonAccessError, setJsonAccessError] = useState('');
   const [clearTablePassword, setClearTablePassword] = useState('');
   const [rowPendingDelete, setRowPendingDelete] = useState(null);
+  const isDarkTheme = appTheme === 'dark';
 
   useEffect(() => {
     const timer = window.setTimeout(() => setShowSplash(false), 120);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    window.localStorage.setItem(APP_THEME_STORAGE_KEY, appTheme);
+  }, [appTheme]);
 
   useEffect(() => {
     if (!window.dteApp?.onCloseRequest) return undefined;
@@ -268,7 +295,20 @@ export default function App() {
     if (!structureOptions.includes(structureName)) {
       setStructureName(structureOptions[0] || '');
     }
-  }, [structureName, typeCode]);
+  }, [customStructureVersion, structureName, typeCode]);
+
+  useEffect(() => {
+    function refreshCustomStructures() {
+      setCustomStructureVersion((current) => current + 1);
+    }
+
+    window.addEventListener(CUSTOM_JSON_STRUCTURES_UPDATED_EVENT, refreshCustomStructures);
+    window.addEventListener('storage', refreshCustomStructures);
+    return () => {
+      window.removeEventListener(CUSTOM_JSON_STRUCTURES_UPDATED_EVENT, refreshCustomStructures);
+      window.removeEventListener('storage', refreshCustomStructures);
+    };
+  }, []);
 
   const homeFilterStorageKey = useMemo(
     () => getHomeFilterStorageKey(typeCode, structureName),
@@ -336,6 +376,10 @@ export default function App() {
 
     function handleExitConfirmModalKeyDown(event) {
       if (event.key === 'Escape') setShowExitConfirmModal(false);
+      if (event.key === 'Enter' && !event.repeat) {
+        event.preventDefault();
+        confirmExitApp();
+      }
     }
 
     window.addEventListener('keydown', handleExitConfirmModalKeyDown);
@@ -344,6 +388,33 @@ export default function App() {
 
   function confirmExitApp() {
     window.dteApp?.confirmCloseApp?.();
+  }
+
+  function closeJsonAccessModal() {
+    setShowJsonAccessModal(false);
+    setJsonAccessPassword('');
+    setJsonAccessError('');
+  }
+
+  function confirmJsonStructureAccess() {
+    if (jsonAccessPassword === JSON_STRUCTURE_ACCESS_KEY) {
+      setActiveView('json-structure');
+      closeJsonAccessModal();
+      return;
+    }
+
+    setJsonAccessError('Contrasena incorrecta.');
+  }
+
+  function handleNavigate(nextView) {
+    if (nextView === 'json-structure' && activeView !== 'json-structure') {
+      setJsonAccessPassword('');
+      setJsonAccessError('');
+      setShowJsonAccessModal(true);
+      return;
+    }
+
+    setActiveView(nextView);
   }
 
   useEffect(() => {
@@ -715,14 +786,20 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-screen bg-slate-50 text-slate-950">
+    <main className={`appShell min-h-screen bg-slate-50 text-slate-950 ${isDarkTheme ? 'darkTheme' : ''}`}>
       {showSplash ? <SplashScreen /> : null}
       <AppHeader
         activeView={activeView}
-        onNavigate={setActiveView}
+        isDarkTheme={isDarkTheme}
+        onNavigate={handleNavigate}
         onStartTour={() => setTourRunId((current) => current + 1)}
+        onToggleTheme={() => setAppTheme((current) => (current === 'dark' ? 'default' : 'dark'))}
       />
-      <AppTour onNavigate={setActiveView} runId={tourRunId} />
+      {tourRunId > 0 ? (
+        <Suspense fallback={null}>
+          <AppTour onNavigate={setActiveView} runId={tourRunId} />
+        </Suspense>
+      ) : null}
       {activeView === 'dte' ? (
         <>
           <FilterPanel
@@ -791,7 +868,11 @@ export default function App() {
               </Suspense>
             ) : (
               <div className="tableFrame">
-                <div className="empty">Sin datos cargados</div>
+                <div className="homeEmptyState">
+                  <img className="homeEmptyWatermark" src={emptyFileImage} alt="" aria-hidden="true" />
+                  <strong>Sin datos cargados</strong>
+                  <span>Selecciona una carpeta para comenzar a visualizar los archivos.</span>
+                </div>
               </div>
             )}
             <ErrorSummary errors={errors} onExportExcel={exportLoadErrorsExcel} />
@@ -974,6 +1055,10 @@ export default function App() {
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando apendice...</div></div>}>
           <CodeAppendixView />
         </Suspense>
+      ) : activeView === 'json-structure' ? (
+        <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando estructura JSON...</div></div>}>
+          <JsonStructureView />
+        </Suspense>
       ) : (
         <Suspense fallback={<div className="tableFrame"><div className="empty">Preparando registros...</div></div>}>
           <RegisterView
@@ -1024,6 +1109,46 @@ export default function App() {
               <button className="exitConfirmCancelButton" onClick={() => setShowExitConfirmModal(false)} type="button">
                 <CircleX size={24} />
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {showJsonAccessModal ? (
+        <div className="registerModalBackdrop">
+          <div className="registerModal clearConfirmModal" role="dialog" aria-modal="true" aria-labelledby="json-access-modal-title">
+            <div className="registerModalHeader">
+              <h2 id="json-access-modal-title">Acceso a ESTRUCTURA JSON</h2>
+              <button className="modalIconButton" onClick={closeJsonAccessModal} type="button">
+                <X size={18} />
+              </button>
+            </div>
+            <p className="clearConfirmText">
+              Ingrese la contrasena de administrador para continuar.
+            </p>
+            <label className="registerFormField">
+              <span>Contrasena</span>
+              <input
+                autoFocus
+                onChange={(event) => {
+                  setJsonAccessPassword(event.target.value);
+                  setJsonAccessError('');
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') confirmJsonStructureAccess();
+                }}
+                placeholder="Ingrese la contrasena"
+                type="password"
+                value={jsonAccessPassword}
+              />
+            </label>
+            {jsonAccessError ? <p className="modalErrorText">{jsonAccessError}</p> : null}
+            <div className="registerModalActions">
+              <button className="actionButton" onClick={closeJsonAccessModal} type="button">
+                Cancelar
+              </button>
+              <button className="actionButton" onClick={confirmJsonStructureAccess} type="button">
+                Aceptar
               </button>
             </div>
           </div>

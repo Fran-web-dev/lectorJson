@@ -1,4 +1,4 @@
-function isMoneyColumn(column) {
+export function isMoneyColumn(column) {
   return /total|monto|valor|iva|credito|debito|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|sub-?total|pagar|comision|liq\./i.test(column)
     && !/letras/i.test(column);
 }
@@ -33,7 +33,7 @@ function parseMoney(value) {
   return Number.isFinite(number) ? number : 0;
 }
 
-function compareCellValues(aValue, bValue, column) {
+export function compareCellValues(aValue, bValue, column) {
   if (isDateColumn(column)) {
     const aDate = parseFilterDate(aValue);
     const bDate = parseFilterDate(bValue);

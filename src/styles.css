@@ -23,6 +23,22 @@ body,
   scrollbar-width: auto;
 }
 
+.appShell,
+.appShell * {
+  transition:
+    background-color 220ms ease,
+    border-color 220ms ease,
+    color 220ms ease,
+    box-shadow 220ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appShell,
+  .appShell * {
+    transition: none !important;
+  }
+}
+
 *::-webkit-scrollbar {
   height: 12px;
   width: 12px;
@@ -145,9 +161,18 @@ body,
   }
 
   .tourStartButton {
-    @apply ml-auto inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-black text-slate-800 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800;
+    @apply inline-flex h-10 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3.5 text-sm font-black text-slate-800 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800;
     box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.8);
     transform: translate(0, 0);
+  }
+
+  .themeToggleButton {
+    @apply ml-auto inline-flex h-10 w-10 items-center justify-center rounded-lg border border-slate-300 bg-white text-slate-700 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-800;
+    box-shadow: 0 10px 24px -22px rgba(15, 23, 42, 0.8);
+  }
+
+  .themeToggleButton.isDark {
+    @apply border-slate-600 bg-slate-900 text-amber-200 hover:border-amber-300 hover:bg-slate-800 hover:text-amber-100;
   }
 
   .tourStartButton:hover {
@@ -242,6 +267,10 @@ body,
     @apply border-red-300 text-red-700 hover:border-red-400 hover:bg-red-50;
   }
 
+  .activeActionButton {
+    @apply border-sky-400 bg-sky-50 text-sky-800;
+  }
+
   .iconButton {
     @apply w-10 px-0;
   }
@@ -311,6 +340,42 @@ body,
 
   .statusCounts span {
     @apply rounded-md px-1.5 py-0.5;
+  }
+
+  .dteSummaryWrap {
+    @apply mb-3;
+  }
+
+  .dteSummaryBar {
+    @apply flex flex-wrap items-center gap-2 border border-slate-200 bg-white px-3 py-2 text-sm;
+  }
+
+  .dteSummaryLabel {
+    @apply font-bold text-slate-600;
+  }
+
+  .dteSummaryChip {
+    @apply rounded-sm border px-2 py-1 font-bold;
+  }
+
+  .dteSummaryTypeChip {
+    @apply border-blue-200 bg-blue-50 text-blue-700;
+  }
+
+  .dteSummaryDuplicateChip {
+    @apply border-red-200 bg-red-50 text-red-700;
+  }
+
+  .dteSummaryInvalidChip {
+    @apply border-violet-200 bg-violet-50 text-violet-700;
+  }
+
+  .dteSummaryRejectedChip {
+    @apply border-orange-200 bg-orange-50 text-orange-700;
+  }
+
+  .dteSummaryCounts {
+    @apply flex flex-wrap items-center gap-1 text-slate-500;
   }
 
   .tableFrame {
@@ -392,6 +457,25 @@ body,
     @apply py-16 text-center text-slate-500;
   }
 
+  .homeEmptyState {
+    @apply flex flex-1 flex-col items-center px-6 text-center;
+    min-height: 360px;
+    padding-top: 140px;
+  }
+
+  .homeEmptyWatermark {
+    @apply mb-4 h-44 w-auto select-none object-contain opacity-35;
+    filter: saturate(0.85);
+  }
+
+  .homeEmptyState strong {
+    @apply text-base font-black text-slate-950;
+  }
+
+  .homeEmptyState span {
+    @apply mt-2 text-sm font-semibold text-slate-500;
+  }
+
   .virtualTable {
     @apply min-w-full text-sm;
   }
@@ -463,7 +547,7 @@ body,
   }
 
   .publicQueryHeadCell {
-    @apply border-green-200 bg-green-300 text-slate-950;
+    @apply border-green-200 bg-green-300 text-red-700;
   }
 
   .publicQueryHeadCell:hover {
@@ -946,6 +1030,10 @@ body,
 
   .clearConfirmModal .registerFormField {
     @apply px-4 py-4;
+  }
+
+  .modalErrorText {
+    @apply px-4 pb-2 text-sm font-black text-red-700;
   }
 
   .registerModalActions {
@@ -1619,6 +1707,984 @@ body,
   .codeAppendixEmpty {
     @apply h-20 text-center text-sm font-bold text-slate-500;
   }
+
+  .jsonStructureView {
+    @apply px-6 py-5;
+    height: calc(100vh - 69px);
+  }
+
+  .jsonStructurePanel {
+    @apply flex h-full min-h-0 flex-col overflow-hidden rounded-xl border border-slate-200 bg-white p-4 shadow-sm;
+    box-shadow: 0 22px 50px -38px rgba(15, 23, 42, 0.7);
+  }
+
+  .jsonStructureToolbar {
+    @apply mb-4 flex shrink-0 flex-wrap items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2;
+  }
+
+  .jsonStructureToolbar h1 {
+    @apply text-base font-black text-slate-950;
+  }
+
+  .jsonStructureEyebrow {
+    @apply text-[11px] font-black uppercase tracking-wide text-sky-700;
+  }
+
+  .jsonStructureBody {
+    @apply min-h-0 flex-1 overflow-auto rounded-lg border border-slate-200 bg-white;
+  }
+
+  .jsonStructureIntro {
+    @apply flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-4;
+  }
+
+  .jsonStructureIcon {
+    @apply inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-700;
+  }
+
+  .jsonStructureIntro h2 {
+    @apply text-base font-black text-slate-950;
+  }
+
+  .jsonStructureIntro p {
+    @apply mt-1 text-sm font-semibold text-slate-500;
+  }
+
+  .jsonStructureMessage {
+    @apply mt-2 inline-flex rounded-md border border-sky-200 bg-sky-50 px-2 py-1 text-xs font-black text-sky-700;
+  }
+
+  .jsonStructureForm {
+    @apply grid gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3;
+    grid-template-columns: 160px minmax(280px, 1fr);
+  }
+
+  .jsonStructureForm label {
+    @apply grid gap-1 text-xs font-black uppercase text-slate-600;
+  }
+
+  .jsonStructureForm input {
+    @apply h-10 rounded-lg border border-slate-300 bg-white px-3 text-sm font-semibold normal-case text-slate-900 outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-100;
+  }
+
+  .jsonStructureHistory {
+    @apply border-b border-slate-200 bg-white px-4 py-3;
+  }
+
+  .jsonStructureDownloadMenu {
+    @apply relative;
+  }
+
+  .jsonStructureDownloadOptions {
+    @apply absolute left-0 top-12 z-30 grid min-w-36 overflow-hidden rounded-lg border border-slate-200 bg-white p-1 shadow-xl;
+  }
+
+  .jsonStructureDownloadOptions button {
+    @apply rounded-md px-3 py-2 text-left text-sm font-black text-slate-700 transition hover:bg-sky-50 hover:text-sky-800;
+  }
+
+  .jsonStructureHistory.isOpen {
+    @apply bg-slate-50;
+  }
+
+  .jsonStructureHistoryHeader {
+    @apply mb-2 flex items-center justify-between gap-3;
+  }
+
+  .jsonStructureHistoryToggle {
+    @apply inline-flex min-w-0 items-center gap-2 rounded-md px-2 py-1 text-left text-slate-900 transition hover:bg-white hover:text-sky-700;
+  }
+
+  .jsonStructureHistoryHeader h2 {
+    @apply text-sm font-black uppercase text-slate-900;
+  }
+
+  .jsonStructureHistoryHeader span {
+    @apply rounded-md border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black text-slate-600;
+  }
+
+  .jsonStructureHistoryList {
+    @apply grid gap-2;
+  }
+
+  .jsonStructureHistoryRow {
+    @apply flex items-stretch gap-2 rounded-lg border border-slate-200 bg-slate-50 p-2 transition;
+  }
+
+  .jsonStructureHistoryRow.isActive {
+    @apply border-sky-300 bg-sky-50;
+  }
+
+  .jsonStructureHistoryItem {
+    @apply flex min-w-0 flex-1 items-center justify-between gap-3 rounded-md bg-white px-3 py-2 text-left text-xs transition hover:bg-slate-100;
+  }
+
+  .jsonStructureHistoryItem strong {
+    @apply truncate font-black text-slate-900;
+  }
+
+  .jsonStructureHistoryItem span {
+    @apply shrink-0 font-black text-slate-500;
+  }
+
+  .jsonStructureHistoryActions {
+    @apply flex items-center gap-2;
+  }
+
+  .jsonStructureSmallButton {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-sky-200 bg-white text-sky-700 transition hover:border-sky-300 hover:bg-sky-50;
+  }
+
+  .jsonStructureSmallDangerButton {
+    @apply inline-flex h-9 w-9 items-center justify-center rounded-md border border-red-200 bg-white text-red-700 transition hover:border-red-300 hover:bg-red-50;
+  }
+
+  .jsonStructureEmptyHistory {
+    @apply rounded-lg border border-dashed border-slate-300 bg-slate-50 px-3 py-4 text-center text-sm font-bold text-slate-500;
+  }
+
+  .jsonStructureTableWrap {
+    @apply overflow-auto;
+  }
+
+  .jsonStructureTable {
+    @apply min-w-full border-collapse text-left text-xs text-slate-800;
+  }
+
+  .jsonStructureTable th {
+    @apply sticky top-0 z-10 border-b border-r border-slate-300 bg-sky-50 px-3 py-2 font-black uppercase text-slate-950;
+  }
+
+  .jsonStructureTable td {
+    @apply border-b border-r border-slate-200 px-3 py-2 font-semibold;
+  }
+
+  .jsonStructureTable tbody td[colspan] {
+    @apply h-24 text-center text-sm font-bold text-slate-500;
+  }
+
+  .jsonStructureGreenRow td {
+    @apply bg-green-50 text-green-800;
+  }
+
+  .jsonStructureGreenRow td:first-child {
+    @apply border-l-4 border-l-green-500;
+  }
+
+  .jsonStructureBlueRow td {
+    @apply bg-sky-50 text-sky-800;
+  }
+
+  .jsonStructureColorBadge {
+    @apply inline-flex items-center rounded-md border px-2 py-1 text-[11px] font-black uppercase;
+  }
+
+  .jsonStructureColorBadge.green {
+    @apply border-green-400 bg-green-100 text-green-800;
+  }
+
+  .jsonStructureColorBadge.blue {
+    @apply border-sky-300 bg-sky-100 text-sky-800;
+  }
+
+  .jsonStructureColorBadge.normal {
+    @apply border-slate-300 bg-slate-100 text-slate-700;
+  }
+
+  .jsonStructureDraggableRow {
+    @apply cursor-grab transition;
+  }
+
+  .jsonStructureDraggableRow:active {
+    @apply cursor-grabbing;
+  }
+
+  .jsonStructureSelectedRow td {
+    @apply ring-1 ring-inset ring-sky-300;
+  }
+
+  .jsonStructureCellInput {
+    @apply h-8 w-full rounded-md border border-green-300 bg-white px-2 text-xs font-semibold text-slate-900 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100;
+  }
+
+  .jsonStructureDeleteButton {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md border border-red-200 bg-white text-red-700 transition hover:border-red-300 hover:bg-red-50;
+  }
+
+  .jsonStructureDeleteConfirmModal {
+    @apply max-w-lg border-red-200;
+  }
+
+  .jsonStructureDeleteConfirmBody {
+    @apply space-y-3 px-4 py-5 text-sm text-slate-600;
+  }
+
+  .jsonStructureDeleteConfirmBody strong {
+    @apply block text-base font-black text-slate-950;
+  }
+
+  .darkTheme {
+    background:
+      radial-gradient(circle at top left, rgba(14, 165, 233, 0.12), transparent 34rem),
+      linear-gradient(180deg, #0f172a 0%, #111827 100%);
+    color: #e5e7eb;
+  }
+
+  .darkTheme .brandHeader,
+  .darkTheme section,
+  .darkTheme .tableFrame,
+  .darkTheme .registerPanel,
+  .darkTheme .ivaBooksPanel,
+  .darkTheme .anexosPanel,
+  .darkTheme .codeAppendixSidebar,
+  .darkTheme .codeAppendixPanel,
+  .darkTheme .jsonStructurePanel,
+  .darkTheme .jsonStructureBody {
+    @apply border-slate-700 bg-slate-900 text-slate-100;
+  }
+
+  .darkTheme .brandHeader {
+    background: rgba(15, 23, 42, 0.96);
+  }
+
+  .darkTheme .navButton,
+  .darkTheme .label,
+  .darkTheme .statusText,
+  .darkTheme .statusCounts,
+  .darkTheme .jsonStructureToolbar h1,
+  .darkTheme .jsonStructureIntro h2,
+  .darkTheme .homeEmptyState strong {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .tourStartButton,
+  .darkTheme .actionButton,
+  .darkTheme .iconButton,
+  .darkTheme .themeToggleButton {
+    @apply border-slate-600 bg-slate-800 text-slate-100 shadow-none;
+  }
+
+  .darkTheme .tourStartButton {
+    @apply font-black;
+  }
+
+  .darkTheme .actionButton:disabled,
+  .darkTheme .iconButton:disabled,
+  .darkTheme .tourStartButton:disabled {
+    @apply border-slate-700 bg-slate-900/70 text-slate-500 opacity-100;
+  }
+
+  .darkTheme .statusActionButton:disabled {
+    @apply border-slate-700 bg-slate-900/50 text-slate-500;
+  }
+
+  .darkTheme .dangerActionButton {
+    @apply border-red-500/70 bg-red-950 text-red-200 hover:border-red-400 hover:bg-red-900 hover:text-red-100;
+  }
+
+  .darkTheme .dangerActionButton:disabled {
+    @apply border-red-900 bg-slate-800 text-red-300/50;
+  }
+
+  .darkTheme .navButton:hover,
+  .darkTheme .navButton.active,
+  .darkTheme .activeActionButton,
+  .darkTheme .tourStartButton:hover,
+  .darkTheme .actionButton:hover,
+  .darkTheme .iconButton:hover {
+    @apply border-sky-500 bg-sky-950 text-sky-100;
+  }
+
+  .darkTheme .navButton {
+    @apply text-slate-200;
+  }
+
+  .darkTheme .navButton svg,
+  .darkTheme .tourStartButton svg,
+  .darkTheme .actionButton svg,
+  .darkTheme .iconButton svg {
+    @apply text-current;
+  }
+
+  .darkTheme .navDropdownMenu,
+  .darkTheme .excelFilterMenu,
+  .darkTheme .jsonStructureDownloadOptions,
+  .darkTheme .registerModal,
+  .darkTheme .jsonStructureToolbar,
+  .darkTheme .jsonStructureForm,
+  .darkTheme .jsonStructureHistory,
+  .darkTheme .jsonStructureIntro,
+  .darkTheme .horizontalScrollbar {
+    @apply border-slate-700 bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .filterBottomBar {
+    @apply border-slate-700 bg-transparent text-slate-100;
+  }
+
+  .darkTheme .filterMetricsSlot {
+    @apply items-end;
+  }
+
+  .darkTheme .statusMetrics {
+    @apply items-end;
+  }
+
+  .darkTheme .navDropdownMenu button,
+  .darkTheme .jsonStructureDownloadOptions button,
+  .darkTheme .jsonStructureHistoryItem,
+  .darkTheme .jsonStructureHistoryItem strong,
+  .darkTheme .jsonStructureHistoryHeader h2,
+  .darkTheme .registerModalHeader h2,
+  .darkTheme .emptyTableBody p {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .modalIconButton {
+    @apply border-slate-600 bg-slate-900 text-slate-200 hover:border-red-500 hover:bg-red-950 hover:text-red-100;
+  }
+
+  .darkTheme .clearConfirmModal {
+    @apply border-slate-700 bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .clearConfirmText {
+    @apply text-slate-300;
+  }
+
+  .darkTheme .clearConfirmText strong {
+    @apply bg-red-950 text-red-200 ring-1 ring-red-700;
+  }
+
+  .darkTheme .clearConfirmModal .registerFormField {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .modalErrorText {
+    @apply text-red-300;
+  }
+
+  .darkTheme .navDropdownMenu button:hover,
+  .darkTheme .jsonStructureDownloadOptions button:hover,
+  .darkTheme .jsonStructureHistoryItem:hover {
+    @apply bg-slate-700 text-sky-100;
+  }
+
+  .darkTheme .field,
+  .darkTheme .input,
+  .darkTheme .select,
+  .darkTheme .dateInput,
+  .darkTheme .excelFilterSearch,
+  .darkTheme .jsonStructureForm input,
+  .darkTheme .jsonStructureCellInput,
+  .darkTheme .registerFormField input,
+  .darkTheme .registerFormField select {
+    @apply border-slate-600 bg-slate-950 text-slate-100 placeholder:text-slate-500;
+  }
+
+  .darkTheme .select option {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  .darkTheme .dateInput::-webkit-calendar-picker-indicator {
+    filter: invert(1) opacity(0.75);
+  }
+
+  .darkTheme .excelLogoPanel {
+    @apply bg-emerald-500 text-white;
+  }
+
+  .darkTheme .excelLogoSheet {
+    @apply border-emerald-400 bg-emerald-950;
+  }
+
+  .darkTheme .tableViewport,
+  .darkTheme .virtualTable,
+  .darkTheme .virtualHeader,
+  .darkTheme .virtualTotals {
+    @apply bg-slate-900 text-slate-100;
+  }
+
+  .darkTheme .virtualHeadCell,
+  .darkTheme .virtualActionsHeadCell,
+  .darkTheme .virtualActionsTotalCell,
+  .darkTheme th {
+    @apply border-slate-700 bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .publicQueryHeadCell {
+    @apply border-emerald-800 bg-emerald-950 text-red-300;
+  }
+
+  .darkTheme .virtualCell,
+  .darkTheme .virtualTotalCell,
+  .darkTheme td {
+    @apply border-slate-700 text-slate-200;
+  }
+
+  .darkTheme .virtualTotalCell {
+    @apply bg-slate-900;
+  }
+
+  .darkTheme .evenRow .virtualCell {
+    @apply bg-slate-900;
+  }
+
+  .darkTheme .oddRow .virtualCell {
+    @apply bg-slate-800;
+  }
+
+  .darkTheme .selectedRow .virtualCell,
+  .darkTheme .virtualRow:hover .virtualCell {
+    @apply bg-sky-950 text-sky-50;
+  }
+
+  .darkTheme .duplicateCell {
+    @apply bg-yellow-950 text-yellow-200;
+  }
+
+  .darkTheme .alertRow .virtualCell {
+    background-color: #3b0d16 !important;
+    color: #fecdd3 !important;
+  }
+
+  .darkTheme .homeEmptyState span,
+  .darkTheme .empty,
+  .darkTheme .jsonStructureIntro p,
+  .darkTheme .jsonStructureHistoryItem span,
+  .darkTheme .emptyTableBody span,
+  .darkTheme .statusCounts {
+    @apply text-slate-400;
+  }
+
+  .darkTheme .filterMetricsSlot,
+  .darkTheme .statusMetrics {
+    @apply text-slate-200;
+  }
+
+  .darkTheme .dteSummaryBar {
+    @apply border-slate-700 bg-slate-900 text-slate-200;
+  }
+
+  .darkTheme .dteSummaryLabel,
+  .darkTheme .dteSummaryCounts {
+    @apply text-slate-300;
+  }
+
+  .darkTheme .dteSummaryTypeChip {
+    @apply border-sky-700 bg-sky-950 text-sky-200;
+  }
+
+  .darkTheme .dteSummaryDuplicateChip {
+    @apply border-red-800 bg-red-950 text-red-200;
+  }
+
+  .darkTheme .dteSummaryInvalidChip {
+    @apply border-fuchsia-900 bg-fuchsia-950 text-fuchsia-200;
+  }
+
+  .darkTheme .dteSummaryRejectedChip {
+    @apply border-orange-800 bg-orange-950 text-orange-200;
+  }
+
+  .darkTheme .tableViewport,
+  .darkTheme .horizontalScrollbar {
+    scrollbar-color: #38bdf8 #0f172a;
+  }
+
+  .darkTheme .tableViewport::-webkit-scrollbar-track,
+  .darkTheme .horizontalScrollbar::-webkit-scrollbar-track,
+  .darkTheme *::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+
+  .darkTheme .tableViewport::-webkit-scrollbar-corner,
+  .darkTheme .horizontalScrollbar::-webkit-scrollbar-corner,
+  .darkTheme *::-webkit-scrollbar-corner {
+    background: #0f172a;
+  }
+
+  .darkTheme .horizontalScrollbar {
+    @apply border-slate-700 bg-slate-900;
+  }
+
+  .darkTheme .homeEmptyWatermark {
+    @apply opacity-25;
+  }
+
+  .darkTheme .jsonStructureGreenRow td {
+    @apply bg-emerald-950 text-emerald-100;
+  }
+
+  .darkTheme .jsonStructureGreenRow td:first-child {
+    @apply border-l-emerald-400;
+  }
+
+  .darkTheme .jsonStructureBlueRow td {
+    @apply bg-sky-950 text-sky-100;
+  }
+
+  .darkTheme .jsonStructureColorBadge.green {
+    @apply border-emerald-500 bg-emerald-900 text-emerald-100;
+  }
+
+  .darkTheme .jsonStructureColorBadge.blue {
+    @apply border-sky-600 bg-sky-900 text-sky-100;
+  }
+
+  .darkTheme .jsonStructureColorBadge.normal {
+    @apply border-slate-600 bg-slate-800 text-slate-200;
+  }
+
+  .darkTheme .jsonStructureTableWrap,
+  .darkTheme .jsonStructureTable {
+    @apply bg-slate-950 text-slate-100;
+  }
+
+  .darkTheme .jsonStructureTable th {
+    @apply border-slate-700 bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .jsonStructureTable td {
+    @apply border-slate-700 text-slate-200;
+  }
+
+  .darkTheme .jsonStructureTable tbody td[colspan] {
+    @apply text-slate-400;
+  }
+
+  .darkTheme .jsonStructureSelectedRow td {
+    @apply ring-sky-400;
+  }
+
+  .darkTheme .jsonStructureHistoryRow,
+  .darkTheme .jsonStructureEmptyHistory {
+    @apply border-slate-700 bg-slate-900;
+  }
+
+  .darkTheme .jsonStructureHistory.isOpen {
+    @apply bg-slate-800;
+  }
+
+  .darkTheme .jsonStructureHistoryToggle {
+    @apply text-slate-100 hover:bg-slate-700 hover:text-sky-100;
+  }
+
+  .darkTheme .jsonStructureHistoryHeader span {
+    @apply border-slate-600 bg-slate-900 text-slate-200;
+  }
+
+  .darkTheme .jsonStructureHistoryRow.isActive {
+    @apply border-sky-700 bg-sky-950/70;
+  }
+
+  .darkTheme .jsonStructureHistoryItem {
+    @apply bg-slate-950 text-slate-100 hover:bg-slate-800 hover:text-sky-100;
+  }
+
+  .darkTheme .jsonStructureSmallButton {
+    @apply border-sky-700 bg-slate-950 text-sky-200 hover:border-sky-500 hover:bg-sky-950 hover:text-sky-100;
+  }
+
+  .darkTheme .jsonStructureSmallDangerButton {
+    @apply border-red-800 bg-slate-950 text-red-200 hover:border-red-600 hover:bg-red-950 hover:text-red-100;
+  }
+
+  .darkTheme .jsonStructureIcon {
+    @apply border-sky-700 bg-sky-950 text-sky-200;
+  }
+
+  .darkTheme .jsonStructureMessage {
+    @apply border-sky-700 bg-sky-950 text-sky-200;
+  }
+
+  .darkTheme .jsonStructureDeleteButton {
+    @apply border-red-800 bg-slate-950 text-red-200 hover:border-red-600 hover:bg-red-950 hover:text-red-100;
+  }
+
+  .darkTheme .jsonStructureDeleteConfirmBody {
+    @apply text-slate-300;
+  }
+
+  .darkTheme .jsonStructureDeleteConfirmBody strong {
+    @apply text-slate-50;
+  }
+
+  .darkTheme .registerSheet,
+  .darkTheme .registerToolbar,
+  .darkTheme .registerTableViewport,
+  .darkTheme .registerTable {
+    @apply border-slate-700 bg-slate-900 text-slate-100;
+  }
+
+  .darkTheme .registerTitle,
+  .darkTheme .registerFormField {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .registerMessage {
+    @apply text-sky-200;
+  }
+
+  .darkTheme .registerHeadCell,
+  .darkTheme .registerHeadCell.client,
+  .darkTheme .registerHeadCell.provider,
+  .darkTheme .registerHeadCell.providerF14 {
+    @apply text-emerald-50;
+    background-color: #062f28;
+    border-color: #0f766e;
+  }
+
+  .darkTheme .registerCell,
+  .darkTheme .registerTable.provider .registerCell.even,
+  .darkTheme .registerTable.client .registerCell.even,
+  .darkTheme .registerTable.providerF14 .registerCell.even {
+    @apply text-slate-100;
+    background-color: #0d1728;
+    border-color: #075e54;
+  }
+
+  .darkTheme .registerCell.odd,
+  .darkTheme .registerTable.provider .registerCell.odd,
+  .darkTheme .registerTable.client .registerCell.odd,
+  .darkTheme .registerTable.providerF14 .registerCell.odd {
+    @apply text-slate-100;
+    background-color: #0b2a22;
+    border-color: #075e54;
+  }
+
+  .darkTheme .registerHeadCell.provider {
+    @apply text-amber-100;
+    background-color: #2b2110;
+    border-color: #8a5a12;
+  }
+
+  .darkTheme .registerTable.provider .registerCell.even {
+    @apply text-slate-100;
+    background-color: #151a24;
+    border-color: #5f4619;
+  }
+
+  .darkTheme .registerTable.provider .registerCell.odd {
+    @apply text-amber-50;
+    background-color: #25200f;
+    border-color: #5f4619;
+  }
+
+  .darkTheme .registerHeadCell.providerF14 {
+    @apply text-violet-100;
+    background-color: #271739;
+    border-color: #6d4aa2;
+  }
+
+  .darkTheme .registerTable.providerF14 .registerCell.even {
+    @apply text-slate-100;
+    background-color: #151827;
+    border-color: #49306f;
+  }
+
+  .darkTheme .registerTable.providerF14 .registerCell.odd {
+    @apply text-violet-50;
+    background-color: #21172e;
+    border-color: #49306f;
+  }
+
+  .darkTheme .registerDeleteButton {
+    @apply border-red-700 bg-slate-900 text-red-200 hover:bg-red-950 disabled:border-transparent disabled:bg-transparent disabled:text-transparent;
+  }
+
+  .darkTheme .registerEditInput {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .registerEditInput:focus {
+    @apply bg-slate-950;
+  }
+
+  .darkTheme .registerComboboxButton {
+    @apply border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800;
+  }
+
+  .darkTheme .registerComboboxMenu {
+    @apply border-slate-700 bg-slate-900 text-slate-100 shadow-2xl;
+  }
+
+  .darkTheme .registerComboboxOption {
+    @apply text-slate-100 hover:bg-sky-950;
+  }
+
+  .darkTheme .registerComboboxEmpty {
+    @apply text-slate-400;
+  }
+
+  .darkTheme .registerModalHeader,
+  .darkTheme .registerModalActions {
+    @apply border-slate-700 bg-slate-800;
+  }
+
+  .darkTheme .exitConfirmModal {
+    @apply border-red-800 bg-slate-800 text-slate-100;
+    box-shadow: 0 32px 70px -30px rgba(0, 0, 0, 0.95);
+  }
+
+  .darkTheme .exitConfirmBody {
+    @apply bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .exitConfirmPrimaryText {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .exitConfirmSecondaryText {
+    @apply text-slate-300;
+  }
+
+  .darkTheme .exitConfirmBodyDivider {
+    @apply bg-slate-600;
+  }
+
+  .darkTheme .exitConfirmActions {
+    @apply bg-slate-800;
+  }
+
+  .darkTheme .exitConfirmCancelButton {
+    @apply border-slate-500 bg-slate-900 text-slate-100 hover:border-slate-300 hover:bg-slate-700 hover:text-white;
+  }
+
+  .darkTheme .ivaBookSheet,
+  .darkTheme .ivaBookToolbar,
+  .darkTheme .ivaBookHeaderLabel,
+  .darkTheme .ivaBookHeaderValue,
+  .darkTheme .ivaBookHeaderTitle,
+  .darkTheme .ivaBookSalesHeader,
+  .darkTheme .ivaBookTableViewport,
+  .darkTheme .anexosSheet,
+  .darkTheme .anexosHeader,
+  .darkTheme .anexosToolbar,
+  .darkTheme .anexosTableViewport,
+  .darkTheme .anexosTable {
+    @apply border-slate-700 bg-slate-900 text-slate-100;
+  }
+
+  .darkTheme .ivaBookHeader,
+  .darkTheme .ivaBookSalesHeaderField,
+  .darkTheme .anexosF14PeriodField {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .ivaBookMessage,
+  .darkTheme .anexosMessage {
+    @apply text-sky-200;
+  }
+
+  .darkTheme .ivaBookTypeChip,
+  .darkTheme .anexosCounter {
+    @apply border-sky-700 bg-sky-950 text-sky-200;
+  }
+
+  .darkTheme .ivaBookAlertChip.duplicate {
+    @apply border-red-800 bg-red-950 text-red-200;
+  }
+
+  .darkTheme .ivaBookAlertChip.invalid {
+    @apply border-violet-800 bg-violet-950 text-violet-200;
+  }
+
+  .darkTheme .ivaBookAlertChip.rejected {
+    @apply border-orange-800 bg-orange-950 text-orange-200;
+  }
+
+  .darkTheme .anexosTitle {
+    @apply border-amber-700 bg-amber-950 text-amber-100;
+  }
+
+  .darkTheme .ivaBookSalesHeaderField input,
+  .darkTheme .anexosF14PeriodField input,
+  .darkTheme .ivaBookEditInput,
+  .darkTheme .anexosEditInput {
+    @apply border-slate-600 bg-slate-950 text-slate-100 placeholder:text-slate-500;
+  }
+
+  .darkTheme .ivaBookSalesHeaderField input:focus,
+  .darkTheme .anexosF14PeriodField input:focus {
+    @apply border-sky-500 bg-slate-900 ring-sky-900;
+  }
+
+  .darkTheme .ivaBookTable,
+  .darkTheme .anexosVirtualBody {
+    @apply bg-slate-900;
+  }
+
+  .darkTheme .ivaBookTotalCell,
+  .darkTheme .anexosTotalCell,
+  .darkTheme .anexosActionsTotalCell,
+  .darkTheme .anexosCorrTotalCell {
+    @apply border-slate-700 bg-slate-900 text-emerald-300;
+  }
+
+  .darkTheme .ivaBookHeadCell,
+  .darkTheme .ivaBookActionsHead,
+  .darkTheme .anexosHeadCell,
+  .darkTheme .anexosActionsHead,
+  .darkTheme .anexosMetaCell {
+    @apply border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700;
+  }
+
+  .darkTheme .ivaBookRedHeadCell {
+    @apply text-red-300;
+  }
+
+  .darkTheme .anexosLengthCell {
+    @apply border-slate-700 bg-slate-900 text-slate-300;
+  }
+
+  .darkTheme .ivaBookCell,
+  .darkTheme .anexosCell {
+    @apply border-slate-700 text-slate-200;
+  }
+
+  .darkTheme .ivaBookCell.odd,
+  .darkTheme .anexosCell.odd {
+    background-color: #111827;
+  }
+
+  .darkTheme .ivaBookCell.even,
+  .darkTheme .anexosCell.even {
+    background-color: #0f172a;
+  }
+
+  .darkTheme .ivaBookActionsCell,
+  .darkTheme .anexosActionsCell,
+  .darkTheme .anexosCell.rowNumber {
+    @apply bg-slate-900;
+  }
+
+  .darkTheme .ivaBookCell.duplicate {
+    background-color: #713f12 !important;
+    color: #fde68a !important;
+  }
+
+  .darkTheme .ivaBookRowButton {
+    @apply border-slate-600 bg-slate-900 text-slate-200 hover:bg-slate-800;
+  }
+
+  .darkTheme .ivaBookRowButton.edit {
+    @apply border-sky-700 text-sky-200 hover:bg-sky-950;
+  }
+
+  .darkTheme .ivaBookRowButton.add,
+  .darkTheme .ivaBookRowButton.save {
+    @apply border-emerald-700 text-emerald-200 hover:bg-emerald-950;
+  }
+
+  .darkTheme .ivaBookRowButton.delete,
+  .darkTheme .ivaBookRowButton.cancel {
+    @apply border-red-700 text-red-200 hover:bg-red-950;
+  }
+
+  .darkTheme .ivaBookComboboxButton {
+    @apply border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800;
+  }
+
+  .darkTheme .ivaBookComboboxMenu {
+    @apply border-slate-700 bg-slate-900 text-slate-100 shadow-2xl;
+  }
+
+  .darkTheme .ivaBookComboboxOption {
+    @apply text-slate-100 hover:bg-sky-950;
+  }
+
+  .darkTheme .codeAppendixSidebar h1,
+  .darkTheme .codeAppendixToolbar h2 {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .codeAppendixSidebar p {
+    @apply text-slate-400;
+  }
+
+  .darkTheme .codeAppendixNavButton {
+    @apply border-slate-700 bg-slate-900 text-slate-200 shadow-none hover:border-sky-700 hover:bg-sky-950 hover:text-sky-100;
+  }
+
+  .darkTheme .codeAppendixNavButton.active {
+    @apply border-sky-500 bg-sky-950 text-sky-100;
+  }
+
+  .darkTheme .codeAppendixNavButton strong {
+    @apply border-sky-700 bg-slate-950 text-sky-200;
+  }
+
+  .darkTheme .codeAppendixToolbar {
+    @apply border-slate-700 bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .codeAppendixEyebrow {
+    @apply text-sky-300;
+  }
+
+  .darkTheme .codeAppendixSearch {
+    @apply border-slate-600 bg-slate-950 text-slate-400 shadow-none focus-within:border-sky-500 focus-within:ring-sky-900;
+  }
+
+  .darkTheme .codeAppendixSearch input {
+    @apply text-slate-100 placeholder:text-slate-500;
+  }
+
+  .darkTheme .codeAppendixCounter {
+    @apply border-sky-700 bg-sky-950 text-sky-200;
+  }
+
+  .darkTheme .codeAppendixTableViewport {
+    @apply border-slate-700 bg-slate-950;
+  }
+
+  .darkTheme .codeAppendixTable {
+    @apply text-slate-100;
+  }
+
+  .darkTheme .codeAppendixTable th {
+    @apply border-slate-700 bg-slate-800 text-slate-100;
+  }
+
+  .darkTheme .codeAppendixTable td {
+    @apply border-slate-700 text-slate-200;
+  }
+
+  .darkTheme .codeAppendixTable tbody tr:nth-child(odd) td {
+    background-color: #0f172a;
+  }
+
+  .darkTheme .codeAppendixTable tbody tr:nth-child(even) td {
+    background-color: #111827;
+  }
+
+  .darkTheme .codeAppendixTable tbody tr:hover td {
+    @apply bg-sky-950 text-sky-100;
+  }
+
+  .darkTheme .codeAppendixEmpty {
+    @apply text-slate-400;
+  }
+
+  .darkTheme .ivaBookTableViewport,
+  .darkTheme .anexosTableViewport,
+  .darkTheme .codeAppendixTableViewport {
+    scrollbar-color: #38bdf8 #0f172a;
+  }
+
+  .darkTheme .ivaBookTableViewport::-webkit-scrollbar-track,
+  .darkTheme .anexosTableViewport::-webkit-scrollbar-track,
+  .darkTheme .codeAppendixTableViewport::-webkit-scrollbar-track {
+    background: #0f172a;
+  }
+
+  .darkTheme .ivaBookTableViewport::-webkit-scrollbar-corner,
+  .darkTheme .anexosTableViewport::-webkit-scrollbar-corner,
+  .darkTheme .codeAppendixTableViewport::-webkit-scrollbar-corner {
+    background: #0f172a;
+  }
+
 }
 
 @keyframes splashLogoIn {

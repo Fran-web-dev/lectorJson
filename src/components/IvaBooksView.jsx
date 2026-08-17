@@ -20,10 +20,10 @@ function getIvaBookSortStorageKey(type) {
   return `${IVA_BOOK_SORT_STORAGE_PREFIX}-${type || 'purchases'}`;
 }
 
-function hasActiveColumnFilter(selectedValues = [], values = []) {
+function hasActiveColumnFilterCount(selectedValues = [], valueCount = 0) {
   if (!selectedValues.length) return false;
   if (selectedValues.includes(NO_FILTER_VALUES_SELECTED)) return true;
-  return selectedValues.length < values.length;
+  return selectedValues.length < valueCount;
 }
 
 const IVA_BOOKS = {
@@ -944,6 +944,15 @@ function buildBookFilterValues(rows, openFilter) {
   return Array.from(values).sort((a, b) => a.localeCompare(b, 'es'));
 }
 
+function countBookFilterValues(rows, column) {
+  const values = new Set();
+  for (const row of rows) {
+    values.add(String(row[column] || ''));
+    if (values.size >= IVA_BOOK_FILTER_VALUE_LIMIT) break;
+  }
+  return values.size;
+}
+
 export function IvaBooksView({
   onNavigateRegister,
   onRowsChange,
@@ -1071,7 +1080,7 @@ export function IvaBooksView({
   const filterValuesByColumn = useMemo(() => Object.fromEntries(
     config.columns.map((column) => [
       column.header,
-      buildBookFilterValues(bookRows, column.header)
+      countBookFilterValues(bookRows, column.header)
     ])
   ), [bookRows, config.columns]);
   const dteTypeSummary = useMemo(() => summarizeLoadedDteTypes(bookRows), [bookRows]);
@@ -1579,7 +1588,7 @@ export function IvaBooksView({
                 <span className="sortIndicator">{sortConfig.direction === 'asc' ? '▲' : '▼'}</span>
               ) : null}
               <button
-                className={`excelFilterButton ${hasActiveColumnFilter(filters[column.header], filterValuesByColumn[column.header]) ? 'active' : ''}`}
+                className={`excelFilterButton ${hasActiveColumnFilterCount(filters[column.header], filterValuesByColumn[column.header]) ? 'active' : ''}`}
                 onClick={(event) => {
                   event.stopPropagation();
                   setOpenFilter(openFilter === column.header ? '' : column.header);

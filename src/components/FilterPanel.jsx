@@ -1,6 +1,6 @@
 import { FileJson, FileSpreadsheet, FolderOpen, OctagonX, Trash2 } from 'lucide-react';
 import { getStructureOptions } from '../lib/dteStructureOptions.js';
-import { DTE_TYPES } from '../lib/dteTypes.js';
+import { getDteTypeOptions } from '../lib/dteTypes.js';
 
 export function FilterPanel({
   folder,
@@ -25,6 +25,7 @@ export function FilterPanel({
   toDate,
   typeCode
 }) {
+  const dteTypeOptions = getDteTypeOptions();
   const structureOptions = getStructureOptions(typeCode);
 
   return (
@@ -49,7 +50,7 @@ export function FilterPanel({
         <div data-tour="document-type">
           <label className="label">Tipo de Documento</label>
           <select className="select" data-tour="document-type-select" value={typeCode} onChange={(event) => onTypeCodeChange(event.target.value)}>
-            {DTE_TYPES.map((type) => (
+            {dteTypeOptions.map((type) => (
               <option key={type.code} value={type.code}>
                 {type.code === 'all' ? type.label : `${type.code} ${type.label}`}
               </option>

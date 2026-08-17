@@ -74,6 +74,17 @@ function getDirectSection(source, sectionName) {
   return Object.prototype.hasOwnProperty.call(source, sectionName) ? source[sectionName] : undefined;
 }
 
+function getValueByPath(source, path = []) {
+  let current = source;
+  for (const part of path) {
+    if (!current || typeof current !== 'object' || !Object.prototype.hasOwnProperty.call(current, part)) {
+      return { found: false, value: '' };
+    }
+    current = current[part];
+  }
+  return { found: true, value: current };
+}
+
 function normalizeItems(value) {
   if (Array.isArray(value)) return value;
   if (value && typeof value === 'object') return [value];
@@ -479,7 +490,9 @@ export function extractRows(documents, options = {}) {
           .join('\n');
       } else {
         const sourcePayload = rule.source === 'publicQuery' ? document.payload?.__consultaPublica : document.payload;
-        const directValue = rule.collectKey
+        const directValue = rule.customPath
+          ? getValueByPath(sourcePayload, rule.customPath)
+          : rule.collectKey
           ? { found: true, value: collectValuesByKey(getDirectSection(sourcePayload, rule.collectRoot), rule.collectKey) }
           : extractFieldDirect(sourcePayload, rule);
         if (directValue.found) {
