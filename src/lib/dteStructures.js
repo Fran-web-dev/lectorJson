@@ -468,16 +468,43 @@ function loadCustomJsonStructures() {
 
 function customColumnToRule(column) {
   const name = String(column?.name || '').trim();
-  const pathParts = String(column?.path || '')
-    .split('.')
-    .map((part) => part.trim())
-    .filter(Boolean);
+  const paths = String(column?.path || '')
+    .split(/\s*[|,;]\s*/)
+    .map((path) => path.trim())
+    .filter(Boolean)
+    .map((path) => path.split('.').map((part) => part.trim()).filter(Boolean));
 
-  if (!name || !pathParts.length) return null;
+  if (!name || !paths.length) return null;
 
-  const isPublicQuery = pathParts[0] === 'consultaPublica' || pathParts[0] === '__consultaPublica';
-  const normalizedPath = isPublicQuery ? pathParts.slice(1) : pathParts;
-  if (!normalizedPath.length) return null;
+  const firstPath = paths[0];
+  const isPublicQuery = firstPath[0] === 'consultaPublica' || firstPath[0] === '__consultaPublica';
+  const normalizedPaths = paths
+    .map((pathParts) => {
+      const isSameSource = (pathParts[0] === 'consultaPublica' || pathParts[0] === '__consultaPublica') === isPublicQuery;
+      return isSameSource ? (isPublicQuery ? pathParts.slice(1) : pathParts) : [];
+    })
+    .filter((pathParts) => pathParts.length);
+
+  if (!normalizedPaths.length) return null;
+
+  const firstNormalizedPath = normalizedPaths[0];
+  const firstSections = firstNormalizedPath.length === 1 ? [firstNormalizedPath[0]] : firstNormalizedPath.slice(0, -1);
+  const sameSectionPaths = normalizedPaths.filter((pathParts) => {
+    const sections = pathParts.length === 1 ? [pathParts[0]] : pathParts.slice(0, -1);
+    return sections.join('.') === firstSections.join('.') && pathParts.length > 1;
+  });
+
+  if (sameSectionPaths.length === normalizedPaths.length && sameSectionPaths.length > 1) {
+    return {
+      name,
+      source: isPublicQuery ? 'publicQuery' : undefined,
+      sections: firstSections,
+      fields: sameSectionPaths.map((pathParts) => pathParts.at(-1)),
+      perItem: firstSections.join('.') === 'cuerpoDocumento'
+    };
+  }
+
+  const normalizedPath = firstNormalizedPath;
 
   return {
     name,

@@ -35,8 +35,11 @@ function ruleToPath(rule) {
   const sections = Array.isArray(rule.sections) ? rule.sections.filter(Boolean) : [];
   const fields = Array.isArray(rule.fields) ? rule.fields.filter((field) => field && field !== '*') : [];
   const prefix = rule.source === 'publicQuery' ? ['consultaPublica'] : [];
-  const pathParts = [...prefix, ...sections, fields[0]].filter(Boolean);
-  return pathParts.join('.');
+  if (!fields.length) return [...prefix, ...sections].filter(Boolean).join('.');
+
+  return fields
+    .map((field) => [...prefix, ...sections, field].filter(Boolean).join('.'))
+    .join(' | ');
 }
 
 function builtinRuleToColumn(rule) {
