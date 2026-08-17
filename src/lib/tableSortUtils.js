@@ -24,7 +24,7 @@ function parseFilterDate(value) {
   return '';
 }
 
-function parseMoney(value) {
+export function parseMoney(value) {
   if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
   const text = String(value || '').trim();
   if (!text) return 0;

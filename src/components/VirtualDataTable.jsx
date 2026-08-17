@@ -9,7 +9,7 @@ import {
 import { createPortal } from 'react-dom';
 import { Trash2 } from 'lucide-react';
 import emptyFileImage from '../assets/file.png';
-import { compareCellValues, isMoneyColumn, sortTableRows } from '../lib/tableSortUtils.js';
+import { compareCellValues, isMoneyColumn, parseMoney, sortTableRows } from '../lib/tableSortUtils.js';
 
 const ROW_HEIGHT = 22;
 const OVERSCAN = 8;

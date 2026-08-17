@@ -2126,6 +2126,10 @@ body,
     @apply bg-slate-900;
   }
 
+  .darkTheme .virtualTotalCell.hasTotal {
+    @apply border-emerald-800 bg-emerald-950 text-emerald-300;
+  }
+
   .darkTheme .evenRow .virtualCell {
     @apply bg-slate-900;
   }
