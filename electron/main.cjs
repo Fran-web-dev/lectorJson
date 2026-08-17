@@ -1198,6 +1198,10 @@ function getExcelCellText(cell) {
 }
 
 function isMoneyColumn(header) {
+  if (header === 'Cant,NP,PU' || header === 'Cant,NP,PU,VTAGR' || header === 'DESCR,CANT,PU,VTAGR' || header === 'DESCR,CANT,PU,VTA' || header === 'Cant,Descrip,PU,compra') {
+    return false;
+  }
+
   return /total|monto|credito|debito|iva|fovial|cotrans|percepciones|retencion|retenido|percibido|compra|gravado|exenta|sujetas|desc\.|descuento|sub-total|pagar/i.test(header)
     && !/letras/i.test(header);
 }
